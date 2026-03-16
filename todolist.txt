@@ -1,0 +1,2 @@
+Dư nợ cuối kỳ: Dư nợ tính đến ngày kết thúc thanh toán - Doanh số trong kỳ - Trả lại trong kỳ
+Toàn bộ dư nợ [tên kỳ] sau khi thanh toán tới ngày ngay_kt_thanh_toan

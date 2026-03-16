@@ -52,7 +52,9 @@ def dashboard_view(slug):
         dashboard_name=dashboard['name'],
         dashboard_slug=slug,
         role=user['role'],
-        all_dashboards=all_dashboards
+        all_dashboards=all_dashboards,
+        user_ma_nvkd=(user['ma_nvkd_list'] or '') if 'ma_nvkd_list' in user.keys() else '',
+        user_ma_bp=(user['ma_bp'] or '') if 'ma_bp' in user.keys() else '',
     )
 
     if dash_type == 'analytics':

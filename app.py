@@ -12,6 +12,28 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.teardown_appcontext(close_db)
 
 
+# Jinja filter: format date → dd/mm/yyyy
+@app.template_filter('fmtd')
+def fmtd_filter(d):
+    if d is None: return ''
+    s = str(d)[:10]
+    if '-' in s:
+        p = s.split('-')
+        return f'{p[2]}/{p[1]}/{p[0]}'
+    return s
+
+# Also make it available as a function in templates
+app.jinja_env.globals['fmtd'] = fmtd_filter
+
+@app.template_filter('fmtiso')
+def fmtiso_filter(d):
+    """Format date → yyyy-mm-dd for <input type=date>"""
+    if d is None: return ''
+    return str(d)[:10]
+
+app.jinja_env.globals['fmtiso'] = fmtiso_filter
+
+
 @app.after_request
 def no_cache(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'

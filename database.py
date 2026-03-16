@@ -155,7 +155,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL, password_plain TEXT DEFAULT '',
             display_name TEXT DEFAULT '', khoi TEXT DEFAULT '', bo_phan TEXT DEFAULT '',
-            chuc_vu TEXT DEFAULT '', ma_nvkd_list TEXT DEFAULT '', email TEXT DEFAULT '',
+            chuc_vu TEXT DEFAULT '', ma_nvkd_list TEXT DEFAULT '', email TEXT DEFAULT '', ma_bp TEXT DEFAULT '',
             role TEXT DEFAULT 'user', is_active INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now','localtime')), last_login TEXT);
         CREATE TABLE IF NOT EXISTS dashboards (
@@ -177,8 +177,21 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
         CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
         CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id);
+        CREATE TABLE IF NOT EXISTS ky_bao_cao (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ma_kbc TEXT NOT NULL UNIQUE,
+            ten_kbc TEXT NOT NULL,
+            loai_kbc TEXT NOT NULL,
+            ngay_bd_xuat_ban TEXT NOT NULL,
+            ngay_kt_xuat_ban TEXT NOT NULL,
+            ngay_bd_thu_tien TEXT NOT NULL,
+            ngay_kt_thu_tien TEXT NOT NULL,
+            ngay_bd_lan_ki TEXT NOT NULL,
+            ngay_kt_lan_ki TEXT NOT NULL,
+            ngay_du_no_dau_ki TEXT NOT NULL,
+            ngay_du_no_cuoi_ki TEXT NOT NULL);
     ''')
-    for col in ['password_plain', 'khoi', 'bo_phan', 'chuc_vu', 'ma_nvkd_list', 'email']:
+    for col in ['password_plain', 'khoi', 'bo_phan', 'chuc_vu', 'ma_nvkd_list', 'email', 'ma_bp']:
         try: db.execute(f'ALTER TABLE users ADD COLUMN {col} TEXT DEFAULT ""')
         except: pass
     try: db.execute('ALTER TABLE dashboards ADD COLUMN dashboard_type TEXT DEFAULT "powerbi"')

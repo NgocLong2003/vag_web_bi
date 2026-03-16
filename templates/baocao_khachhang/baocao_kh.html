@@ -43,18 +43,25 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 .table-wrap{flex:1;overflow:auto;position:relative}
 .empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--g4)}
 table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}
-thead th{position:sticky;top:0;z-index:30;background:var(--white);border-bottom:2px solid var(--g2);padding:0;text-align:center;font-size:10px;font-weight:700;color:var(--g5);white-space:nowrap;vertical-align:middle;letter-spacing:.03em}
+thead th{position:sticky;top:0;z-index:30;background:var(--white);border-bottom:2px solid var(--g2);padding:0;text-align:center;vertical-align:middle;font-size:12px;font-weight:800;color:var(--g5);white-space:nowrap;letter-spacing:.03em}
 thead th:first-child{text-align:left}thead th:nth-child(2){text-align:left}
-.th-main{padding:6px var(--pad);border-bottom:1px solid var(--g1)}
-.th-date{font-family:var(--mono);font-size:9px;color:var(--g3);font-weight:500;margin-top:1px;padding:2px var(--pad)}
+.th-main{padding:8px var(--pad);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.th-date{font-family:var(--mono);font-size:10px;color:var(--g3);font-weight:500;padding:4px var(--pad);text-align:center;line-height:1.5}
+/* Column color borders */
 .col-cn{border-left:3px solid var(--blue);color:var(--blue)}
 .col-ds{border-left:3px solid var(--emr);color:var(--emr)}
 .col-dt{border-left:3px solid var(--purple);color:var(--purple)}
+.col-dt-sub{border-left:3px solid var(--purple);color:var(--purple)}
 .col-cn2{border-left:3px solid var(--amber);color:var(--amber)}
+.col-dntk{border-left:3px solid #c0392b;color:#c0392b}
+/* Column resize handle */
+th{position:relative;overflow:visible}
+th .col-resize{position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:31}
+th .col-resize:hover,th .col-resize.active{background:var(--blue-md);opacity:.4}
 tbody tr{border-bottom:1px solid var(--g1);transition:background .07s}
 tr.row-nv{background:rgba(200,212,245,.35)}tr.row-nv.lv0{background:rgba(190,205,245,.40)}tr.row-nv.lv1{background:rgba(210,220,248,.30)}tr.row-nv.lv2{background:rgba(222,230,250,.22)}tr.row-nv.lv3{background:rgba(232,237,252,.18)}
 tr.row-nv:hover{background:rgba(200,215,250,.45)!important}tr.row-kh{background:var(--white)}tr.row-kh:hover{background:var(--g0)}
-td{height:var(--row-h);padding:0 var(--pad);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td{height:var(--row-h);padding:0 var(--pad);vertical-align:middle;white-space:nowrap;min-width:100px}
 .cell-name{display:flex;align-items:center;height:100%}
 .tree-lines{display:inline-flex;flex-shrink:0;height:var(--row-h)}.tree-seg{width:18px;height:var(--row-h);position:relative;flex-shrink:0}
 .tree-seg.vline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1px;background:var(--tree-line)}
@@ -94,8 +101,9 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   .topbar{padding:0 10px}.topbar-right>*:not(.status-chip){display:none!important}.topbar-right .v-div{display:none!important}.brand-sub{display:none}.brand-name{font-size:13px}
   .mob-toolbar{display:flex}
   .table-wrap{padding-bottom:60px}
-  thead th:first-child,tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:25;background:inherit;box-shadow:2px 0 6px rgba(0,0,0,.06);min-width:140px!important;max-width:180px}
-  thead th:first-child{z-index:35;background:var(--white)}tfoot td:first-child{z-index:25;background:var(--white)}
+  thead th:first-child,tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:28;background:inherit;box-shadow:3px 0 8px rgba(0,0,0,.1);min-width:140px!important;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+  thead th:first-child{z-index:38;background:var(--white)}tfoot td:first-child{z-index:28;background:var(--white)}
+  tr.row-nv td:first-child{background:inherit}tr.row-kh td:first-child{background:var(--white)}tr.row-kh:hover td:first-child{background:var(--g0)}
   thead th:nth-child(2),tbody td:nth-child(2),tfoot td:nth-child(2){display:none}
   .tree-seg{width:12px}tr.row-nv .nametxt{font-size:11.5px}tr.row-kh .nametxt{font-size:11px}.n{font-size:10.5px}.n.sub{font-size:11px}.n.grand{font-size:11.5px}
   thead th{font-size:9px}.th-date{font-size:8px}
@@ -113,7 +121,6 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   <div class="topbar-right">
     <!-- NV Picker -->
     <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NV</span><span class="picker-badge all" id="picker-badge">—</span></button>
-      <div class="picker-panel" id="picker-panel"><div class="picker-head"><div class="picker-search-row"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="picker-q" placeholder="Tìm NV..." oninput="renderPickerTree()"/></div><div class="picker-actions"><button class="picker-act-btn" onclick="pickerSelectAll()">Chọn tất cả</button><button class="picker-act-btn" onclick="pickerClearAll()">Bỏ chọn</button></div></div><div class="picker-tree" id="picker-tree"></div><div class="picker-foot"><button class="picker-close" onclick="closePicker()">Đóng</button><button class="picker-apply" onclick="applyPicker()">Áp dụng</button></div></div>
     </div>
     <!-- KH Search -->
     <div class="kh-search-wrap" id="kh-wrap"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="kh-q" placeholder="Tìm KH..." oninput="onKHInput(this.value)" autocomplete="off"/><button class="kh-clear" id="kh-clear" onclick="clearKH()" style="display:none">✕</button>
@@ -135,6 +142,9 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   <table id="tbl" style="display:none"><thead><tr id="theadRow"></tr></thead><tbody id="tbody"></tbody><tfoot><tr id="tfootRow"></tr></tfoot></table>
 </div>
 </div>
+
+<!-- NV PICKER PANEL (body level — not hidden on mobile) -->
+<div class="picker-panel" id="picker-panel"><div class="picker-head"><div class="picker-search-row"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="picker-q" placeholder="Tìm NV..." oninput="renderPickerTree()"/></div><div class="picker-actions"><button class="picker-act-btn" onclick="pickerSelectAll()">Chọn tất cả</button><button class="picker-act-btn" onclick="pickerClearAll()">Bỏ chọn</button></div></div><div class="picker-tree" id="picker-tree"></div><div class="picker-foot"><button class="picker-close" onclick="closePicker()">Đóng</button><button class="picker-apply" onclick="applyPicker()">Áp dụng</button></div></div>
 
 <!-- MOBILE TOOLBAR -->
 <nav class="mob-toolbar">
@@ -173,10 +183,10 @@ let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=false;
 let selectedNV=null,pendingNV=new Set(),pickerExp={},pickerOpen=false;
 let selectedBP='',selectedKH=null; // selectedKH = {ma_kh, ten_kh} or null
 let kbcList=[],currentKBC=null;
-let colData={du_no_dk:{},ban_ra:{},tt1:{},tt2:{},du_no_ck:{}};
-let colLoading={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_ck:false};
-let colLoaded={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_ck:false};
-const COLS=['du_no_dk','ban_ra','tt1','tt2','du_no_ck'];
+let colData={du_no_dk:{},ban_ra:{},tt1:{},tt2:{},du_no_tk:{},du_no_ck:{}};
+let colLoading={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_tk:false,du_no_ck:false};
+let colLoaded={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_tk:false,du_no_ck:false};
+const COLS=['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ck'];
 
 // Allowed NV set (from hierarchy, filtered by permission)
 let allowedNV=new Set();
@@ -268,6 +278,7 @@ async function fetchPost(url,body){const r=await fetch(API_BASE+url,{method:'POS
 function parseCN(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.du_no_ck||0);if(r.ten_kh)khNames[r.ma_kh]=r.ten_kh});return m}
 function parseDS(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.tong_doanhso||0)});return m}
 function parseDT(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.doanhthu||0)});return m}
+function parseDNTK(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.du_no_trong_ky||0);if(r.ten_kh)khNames[r.ma_kh]=r.ten_kh});return m}
 
 async function loadAllData(){
     if(!currentKBC)return;
@@ -284,14 +295,16 @@ async function loadAllData(){
     if(dBDLK){const d=new Date(dBDLK);d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
     if(!dDNDK||!dBDXB||!dKTXB||!dBDTT||!dKTTT||!dDNCK){setS('err','Thiếu ngày');toast('Kỳ thiếu ngày','err');COLS.forEach(c=>colLoading[c]=false);renderAll();return}
     try{
-        const [r1,r2,r3,r4,r5]=await Promise.all([
+        const [r1,r2,r3,r4,r5,r6]=await Promise.all([
             fetchPost('/api/congno',{ngay_cut:dDNDK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
             fetchPost('/api/doanhso',{ngay_a:dBDXB,ngay_b:dKTXB,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
             (dBDTT&&ngayTruocLK)?fetchPost('/api/doanhthu',{ngay_a:dBDTT,ngay_b:ngayTruocLK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}):Promise.resolve({success:true,data:[]}),
             (dBDLK&&dKTTT)?fetchPost('/api/doanhthu',{ngay_a:dBDLK,ngay_b:dKTTT,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}):Promise.resolve({success:true,data:[]}),
+            // Dư nợ trong kỳ: 2 khoảng ngày (hàng: xuất bán, tiền: thu tiền)
+            fetchPost('/api/dunotrongky',{ngay_a_hang:dBDXB,ngay_b_hang:dKTXB,ngay_a_tien:dBDTT,ngay_b_tien:dKTTT,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
             fetchPost('/api/congno',{ngay_cut:dDNCK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
         ]);
-        colData.du_no_dk=parseCN(r1);colData.ban_ra=parseDS(r2);colData.tt1=parseDT(r3);colData.tt2=parseDT(r4);colData.du_no_ck=parseCN(r5);
+        colData.du_no_dk=parseCN(r1);colData.ban_ra=parseDS(r2);colData.tt1=parseDT(r3);colData.tt2=parseDT(r4);colData.du_no_tk=parseDNTK(r5);colData.du_no_ck=parseCN(r6);
         COLS.forEach(c=>{colLoaded[c]=true;colLoading[c]=false});
         setS('ok','OK');renderAll();toast('Đã tải xong');
     }catch(e){setS('err','Lỗi');toast(e.message,'err');COLS.forEach(c=>colLoading[c]=false);renderAll()}
@@ -319,6 +332,7 @@ function getKHName(mk){return khNames[mk]||(khMap[mk]&&khMap[mk].ten_kh)||mk}
 function treeH(anc,isL,dep){if(dep===0)return'';let h='';for(let i=0;i<anc.length;i++)h+=anc[i].cont?'<span class="tree-seg vline"></span>':'<span class="tree-seg"></span>';h+=isL?'<span class="tree-seg branch"></span>':'<span class="tree-seg branch-cont"></span>';return h}
 
 function buildRows(){
+    const isF=selectedNV!==null; // flat-list mode when NVs are specifically selected
     const roots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
     const rows=[];
     function getKH(nd){const s=new Set();COLS.forEach(c=>{if(colLoaded[c]&&nd._vals[c])Object.keys(nd._vals[c].kh).forEach(k=>s.add(k))});return[...s]}
@@ -333,19 +347,32 @@ function buildRows(){
         for(const c of COLS){if(!colLoaded[c])continue;const cv=nd._vals[c];if(cv&&cv.total!=null&&cv.total!==0)return true}
         return nd.children.some(c=>hasData(c));
     }
-    function walk(nd,anc,isL){
-        if(!hasData(nd))return;
-        const exp=expState[nd.ma_nvkd]!==false;
-        const fk=fKH(getKH(nd));
-        const vc=[...nd.children].sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).filter(c=>hasData(c));
-        rows.push({type:'nv',node:nd,expanded:exp,hasKids:vc.length>0||fk.length>0,depth:nd.level,ancestors:[...anc],isLast:isL});
-        if(exp){
-            const tot=fk.length+vc.length;let si=0;
-            fk.forEach(k=>{const il=si===tot-1;rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:nd.level+1,ancestors:[...anc,{cont:!il}],isLast:il});si++});
-            vc.forEach(child=>{const il=si===tot-1;walk(child,[...anc,{cont:!il}],il);si++});
+
+    if(isF){
+        // Flat-list mode: chỉ hiện NV được tick, không hiện cấp trên
+        const list=hierarchy.filter(h=>selectedNV.has(h.ma_nvkd)&&allowedNV.has(h.ma_nvkd)&&hasData(nvMap[h.ma_nvkd])).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+        list.forEach((h,i)=>{
+            const nd=nvMap[h.ma_nvkd],exp=expState[nd.ma_nvkd]!==false;
+            const fk=fKH(getKH(nd));
+            rows.push({type:'nv',node:nd,expanded:exp,hasKids:fk.length>0,depth:0,ancestors:[],isLast:i===list.length-1});
+            if(exp&&fk.length)fk.forEach((k,ki)=>{rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:1,ancestors:[{cont:ki<fk.length-1}],isLast:ki===fk.length-1})});
+        });
+    } else {
+        // Tree mode: walk toàn bộ cây
+        function walk(nd,anc,isL){
+            if(!hasData(nd))return;
+            const exp=expState[nd.ma_nvkd]!==false;
+            const fk=fKH(getKH(nd));
+            const vc=[...nd.children].sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).filter(c=>hasData(c));
+            rows.push({type:'nv',node:nd,expanded:exp,hasKids:vc.length>0||fk.length>0,depth:nd.level,ancestors:[...anc],isLast:isL});
+            if(exp){
+                const tot=fk.length+vc.length;let si=0;
+                fk.forEach(k=>{const il=si===tot-1;rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:nd.level+1,ancestors:[...anc,{cont:!il}],isLast:il});si++});
+                vc.forEach(child=>{const il=si===tot-1;walk(child,[...anc,{cont:!il}],il);si++});
+            }
         }
+        roots.filter(r=>hasData(r)).forEach((r,ri,arr)=>walk(r,[],ri===arr.length-1));
     }
-    roots.filter(r=>hasData(r)).forEach((r,ri,arr)=>walk(r,[],ri===arr.length-1));
     return rows;
 }
 
@@ -353,17 +380,26 @@ function renderAll(){
     if(!hierarchy.length||!currentKBC)return;
     aggregate();const rows=buildRows();const k=currentKBC;
     let ngayTruocLK='';if(iso(k.ngay_bd_lan_ki)){const d=new Date(iso(k.ngay_bd_lan_ki));d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
-    let th='<th style="text-align:left;min-width:220px" rowspan="2">NV / KH</th>';
-    th+='<th style="text-align:left;min-width:60px;width:70px" rowspan="2">Mã</th>';
-    th+='<th class="col-cn" rowspan="2" style="min-width:110px"><div class="th-main">DƯ NỢ ĐẦU KÌ</div><div class="th-date">'+fmtD(iso(k.ngay_du_no_dau_ki))+'</div></th>';
-    th+='<th class="col-ds" rowspan="2" style="min-width:110px"><div class="th-main">BÁN RA</div><div class="th-date">'+fmtD(iso(k.ngay_bd_xuat_ban))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_xuat_ban))+'</div></th>';
-    th+='<th class="col-dt" colspan="2" style="min-width:220px"><div class="th-main">THANH TOÁN</div></th>';
-    th+='<th class="col-cn2" rowspan="2" style="min-width:110px"><div class="th-main">DƯ NỢ CUỐI KỲ</div><div class="th-date">'+fmtD(iso(k.ngay_du_no_cuoi_ki))+'</div></th>';
-    let th2='<th class="col-dt" style="min-width:110px;border-left:none"><div class="th-date">'+fmtD(iso(k.ngay_bd_thu_tien))+'<br>↓<br>'+fmtD(ngayTruocLK)+'</div></th>';
-    th2+='<th class="col-dt" style="min-width:110px"><div class="th-date">'+fmtD(iso(k.ngay_bd_lan_ki))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_thu_tien))+'</div></th>';
+    // Compute ngay_du_no_dau_ki + 1
+    let ngayDNDKPlus1='';
+    if(iso(k.ngay_du_no_dau_ki)){const d=new Date(iso(k.ngay_du_no_dau_ki));d.setDate(d.getDate()+1);ngayDNDKPlus1=d.toISOString().substring(0,10)}
+    let th='<th style="text-align:left;min-width:220px" rowspan="2">NV / KH<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th style="text-align:left;min-width:60px;width:70px" rowspan="2">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th class="col-cn" rowspan="2" style="min-width:120px"><div class="th-main">DƯ NỢ ĐẦU THÁNG</div><div class="th-date">ADMIN chốt số<br>'+fmtD(ngayDNDKPlus1)+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th class="col-ds" rowspan="2" style="min-width:120px"><div class="th-main">BÁN RA</div><div class="th-date">'+fmtD(iso(k.ngay_bd_xuat_ban))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_xuat_ban))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th class="col-dt" colspan="2" style="min-width:240px"><div class="th-main">THANH TOÁN</div></th>';
+    th+='<th class="col-dntk" rowspan="2" style="min-width:140px"><div class="th-main">DƯ NỢ CẦN THU TRONG KỲ</div><div class="th-date">Bán ra - Trả về<br>- Thanh toán - Thưởng</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th class="col-cn2" rowspan="2" style="min-width:120px"><div class="th-main">DƯ NỢ CUỐI THÁNG</div><div class="th-date">ADMIN chốt số<br>'+fmtD(iso(k.ngay_du_no_cuoi_ki))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    let th2='<th class="col-dt-sub" style="min-width:120px"><div class="th-date">'+fmtD(iso(k.ngay_bd_thu_tien))+'<br>↓<br>'+fmtD(ngayTruocLK)+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th2+='<th class="col-dt-sub" style="min-width:120px"><div class="th-date">'+fmtD(iso(k.ngay_bd_lan_ki))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_thu_tien))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
     document.getElementById('theadRow').innerHTML=th;
     let tr2=document.querySelector('#tbl thead');let old=tr2.querySelector('.r2');if(old)old.remove();
     const row2=document.createElement('tr');row2.className='r2';row2.innerHTML=th2;tr2.appendChild(row2);
+    // Fix sticky: set row2 top = row1 height
+    requestAnimationFrame(function(){
+        const row1H=document.getElementById('theadRow').offsetHeight;
+        row2.querySelectorAll('th').forEach(function(th){th.style.position='sticky';th.style.top=row1H+'px';th.style.zIndex='30'});
+    });
     let html='';
     rows.forEach(row=>{
         if(row.type==='nv'){
@@ -411,7 +447,23 @@ function renderPickerTree(){
 }
 function pickerToggleExp(id,e){e.stopPropagation();pickerExp[id]=!(pickerExp[id]!==false);renderPickerTree()}
 function togglePicker(){pickerOpen?closePicker():openPicker()}
-function openPicker(){pickerOpen=true;pendingNV=selectedNV===null?new Set():new Set(selectedNV);const p=document.getElementById('picker-panel'),tr=document.getElementById('picker-trigger');if(isMobile()){p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0'}else{const r=tr.getBoundingClientRect();p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-310)+'px';p.style.bottom='auto';p.style.right='auto'}p.classList.add('open');tr.classList.add('open');document.getElementById('picker-q').value='';renderPickerTree()}
+function openPicker(){
+    pickerOpen=true;pendingNV=selectedNV===null?new Set():new Set(selectedNV);
+    const p=document.getElementById('picker-panel');
+    const tr=document.getElementById('picker-trigger');
+    if(isMobile()){
+        // Mobile: fixed bottom sheet style
+        p.style.position='fixed';
+        p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';
+        p.style.width='100%';p.style.borderRadius='16px 16px 0 0';p.style.maxHeight='80vh';
+    } else {
+        p.style.position='fixed';
+        const r=tr.getBoundingClientRect();
+        p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-310)+'px';
+        p.style.bottom='auto';p.style.right='auto';p.style.width='300px';p.style.borderRadius='10px';p.style.maxHeight='';
+    }
+    p.classList.add('open');tr.classList.add('open');document.getElementById('picker-q').value='';renderPickerTree();
+}
 function closePicker(){pickerOpen=false;document.getElementById('picker-panel').classList.remove('open');document.getElementById('picker-trigger').classList.remove('open')}
 function applyPicker(){const a=getAllNV();if(pendingNV.size===0||pendingNV.size===a.length)selectedNV=null;else selectedNV=new Set(pendingNV);closePicker();updatePickerBadge();renderAll()}
 document.addEventListener('mousedown',e=>{if(pickerOpen&&!document.getElementById('picker-wrap').contains(e.target)&&!document.getElementById('picker-panel').contains(e.target))closePicker()});
@@ -440,6 +492,9 @@ function openSheet(type){
     if(type==='filter'){const ms=document.getElementById('mob-bp-sel');if(ms){ms.innerHTML=document.getElementById('bp-select').innerHTML;ms.value=selectedBP}}
 }
 function closeSheet(){document.getElementById('sheet-overlay').classList.remove('open');document.getElementById('bottom-sheet').classList.remove('open')}
+
+// Column resize
+function startResize(e,handle){e.preventDefault();e.stopPropagation();var th=handle.parentElement;var sx=e.clientX,sw=th.offsetWidth;handle.classList.add('active');function onM(ev){th.style.width=Math.max(80,sw+(ev.clientX-sx))+'px';th.style.minWidth=th.style.width}function onU(){handle.classList.remove('active');document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU)}document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU)}
 
 document.addEventListener('DOMContentLoaded',init);
 </script>

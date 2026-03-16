@@ -16,6 +16,7 @@ CREATE TABLE users (
     chuc_vu NVARCHAR(200) DEFAULT '',
     ma_nvkd_list NVARCHAR(MAX) DEFAULT '',
     email NVARCHAR(200) DEFAULT '',
+    ma_bp NVARCHAR(MAX) DEFAULT '',
     role NVARCHAR(20) DEFAULT 'user',
     is_active BIT DEFAULT 1,
     created_at DATETIME DEFAULT GETDATE(),
@@ -76,6 +77,36 @@ GO
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('users') AND name = 'email')
     ALTER TABLE users ADD email NVARCHAR(200) DEFAULT '';
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('users') AND name = 'ma_bp')
+    ALTER TABLE users ADD ma_bp NVARCHAR(MAX) DEFAULT '';
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ky_bao_cao')
+CREATE TABLE ky_bao_cao (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    ma_kbc NVARCHAR(50) NOT NULL UNIQUE,
+    ten_kbc NVARCHAR(200) NOT NULL,
+    loai_kbc NVARCHAR(20) NOT NULL,
+    ngay_bd_xuat_ban DATE NOT NULL,
+    ngay_kt_xuat_ban DATE NOT NULL,
+    ngay_bd_thu_tien DATE NOT NULL,
+    ngay_kt_thu_tien DATE NOT NULL,
+    ngay_bd_lan_ki DATE NOT NULL,
+    ngay_kt_lan_ki DATE NOT NULL,
+    ngay_du_no_dau_ki DATE NOT NULL,
+    ngay_du_no_cuoi_ki DATE NOT NULL
+);
+GO
+
+-- Migration: thêm cột mới nếu bảng cũ chưa có
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'ky_bao_cao')
+    AND NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('ky_bao_cao') AND name = 'ngay_bd_lan_ki')
+BEGIN
+    ALTER TABLE ky_bao_cao ADD ngay_bd_lan_ki DATE NULL;
+    ALTER TABLE ky_bao_cao ADD ngay_kt_lan_ki DATE NULL;
+END
 GO
 
 PRINT N'Database VietAnhBI OK';

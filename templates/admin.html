@@ -1,401 +1,210 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VietAnh BI - Quản trị</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f5f7; min-height: 100vh; }
-
-        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 48px; background: #1a1a2e; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-        .top-bar .brand { font-weight: 700; font-size: 15px; }
-        .top-bar .nav-links { display: flex; align-items: center; gap: 12px; font-size: 13px; }
-        .top-bar a { color: #fff; text-decoration: none; padding: 5px 14px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; font-size: 12px; transition: background 0.2s; }
-        .top-bar a:hover { background: rgba(255,255,255,0.25); }
-
-        .container { max-width: 1100px; margin: 24px auto; padding: 0 20px 40px; }
-        .flash { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
-        .flash.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
-        .flash.error { background: #fff0f0; color: #c62828; border: 1px solid #ffcdd2; }
-        .section { background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
-        .section h2 { font-size: 17px; color: #1a1a2e; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
-
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { text-align: left; padding: 8px 10px; background: #f8f9fa; color: #666; font-weight: 600; border-bottom: 2px solid #eee; }
-        td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
-        tr:hover td { background: #fafbfc; }
-
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-        .badge.admin { background: #e3f2fd; color: #1565c0; }
-        .badge.user { background: #f3e5f5; color: #7b1fa2; }
-        .badge.active { background: #e8f5e9; color: #2e7d32; }
-        .badge.inactive { background: #ffebee; color: #c62828; }
-        .badge.powerbi { background: #fff3e0; color: #e65100; }
-        .badge.analytics { background: #e0f2f1; color: #00695c; }
-
-        .form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
-        .form-group { display: flex; flex-direction: column; gap: 4px; }
-        .form-group label { font-size: 11px; font-weight: 600; color: #666; }
-        .form-group input, .form-group select, .form-group textarea { padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; font-family: inherit; }
-        .form-group input:focus, .form-group select:focus { border-color: #0078d4; }
-
-        .btn { padding: 6px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .btn-primary { background: #0078d4; color: #fff; }
-        .btn-primary:hover { background: #005a9e; }
-        .btn-danger { background: #dc3545; color: #fff; }
-        .btn-danger:hover { background: #b02a37; }
-        .btn-sm { padding: 4px 10px; font-size: 11px; }
-        .btn-outline { background: transparent; border: 1.5px solid #0078d4; color: #0078d4; }
-        .btn-outline:hover { background: #0078d4; color: #fff; }
-        .btn-cancel { background: #eee; color: #555; }
-        .btn-cancel:hover { background: #ddd; }
-        .actions { display: flex; gap: 6px; }
-
-        .modal-bg { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
-        .modal-bg.show { display: flex; }
-        .modal { background: #fff; border-radius: 12px; padding: 28px; width: 480px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
-        .modal h3 { font-size: 16px; margin-bottom: 16px; color: #1a1a2e; }
-        .modal .form-group { margin-bottom: 12px; }
-        .modal .form-group input, .modal .form-group select { width: 100%; }
-        .modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-
-        /* Dropdown phân quyền dashboard */
-        .perm-wrap { position: relative; display: inline-block; }
-        .perm-trigger {
-            display: flex; align-items: center; gap: 6px; padding: 4px 10px;
-            background: #f8f9fa; border: 1.5px solid #ddd; border-radius: 6px;
-            font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
-        }
-        .perm-trigger:hover { border-color: #0078d4; }
-        .perm-trigger .perm-count {
-            background: #0078d4; color: #fff; font-size: 10px; font-weight: 700;
-            padding: 1px 6px; border-radius: 8px; min-width: 18px; text-align: center;
-        }
-        .perm-trigger .perm-count.zero { background: #ccc; }
-        .perm-panel {
-            display: none; position: absolute; top: 100%; left: 0; margin-top: 4px;
-            background: #fff; border: 1px solid #ddd; border-radius: 8px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 90;
-            min-width: 200px; max-height: 260px; overflow-y: auto; padding: 4px 0;
-        }
-        .perm-panel.show { display: block; }
-        .perm-panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 6px 10px; border-bottom: 1px solid #eee; margin-bottom: 2px;
-        }
-        .perm-panel-header span { font-size: 10px; color: #888; font-weight: 600; }
-        .perm-toggle-all {
-            font-size: 10px; font-weight: 600; color: #0078d4; cursor: pointer;
-            background: none; border: none; padding: 2px 6px; border-radius: 4px;
-        }
-        .perm-toggle-all:hover { background: #e3f2fd; }
-        .perm-item {
-            display: flex; align-items: center; gap: 6px; padding: 5px 10px;
-            cursor: pointer; font-size: 12px; transition: background 0.1s;
-        }
-        .perm-item:hover { background: #f5f7ff; }
-        .perm-item input { width: 14px; height: 14px; cursor: pointer; }
-        .perm-item label { cursor: pointer; flex: 1; }
-        .perm-panel-footer {
-            padding: 6px 10px; border-top: 1px solid #eee; margin-top: 2px;
-            display: flex; justify-content: flex-end;
-        }
-        .perm-apply-btn {
-            padding: 4px 14px; background: #0078d4; color: #fff; border: none;
-            border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer;
-        }
-        .perm-apply-btn:hover { background: #005a9e; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VietAnh BI - Quản trị</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f0f2f5;--white:#fff;--g1:#f5f6f8;--g2:#e4e7ed;--g3:#b0b8c9;--g4:#6e7a94;--g5:#3d4a63;--g6:#1a1a2e;--blue:#0066cc;--blue-lt:#e8f0fe;--green:#0a7c50;--green-lt:#e6f7f0;--red:#c0392b;--red-lt:#fdf0ef;--amber:#c07f00;--amber-lt:#fef9ec;--purple:#6c3ec2;--purple-lt:#f4f0ff;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,.06);--sans:'Nunito Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:var(--sans);background:var(--bg);color:var(--g6);font-size:14px;min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;background:var(--g6);color:#fff;position:sticky;top:0;z-index:50}.topbar .brand{font-weight:800;font-size:15px}.topbar .nav{display:flex;gap:8px;align-items:center;font-size:12px}.topbar a{color:#fff;text-decoration:none;padding:5px 12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:6px;font-size:11px;font-weight:600;transition:.15s}.topbar a:hover{background:rgba(255,255,255,.22)}
+.tab-bar{display:flex;gap:0;background:var(--white);border-bottom:2px solid var(--g2);padding:0 16px;position:sticky;top:48px;z-index:40}.tab-btn{padding:12px 20px;font-size:13px;font-weight:700;color:var(--g4);background:none;border:none;cursor:pointer;position:relative;transition:.15s;white-space:nowrap}.tab-btn:hover{color:var(--g6)}.tab-btn.active{color:var(--blue)}.tab-btn.active::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2.5px;background:var(--blue);border-radius:2px 2px 0 0}.tab-btn .cnt{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 5px;background:var(--g2);color:var(--g4);border-radius:9px;font-size:10px;font-weight:800;margin-left:5px}.tab-btn.active .cnt{background:var(--blue-lt);color:var(--blue)}
+.tab-content{display:none;max-width:1200px;margin:0 auto;padding:16px}.tab-content.active{display:block}
+.flash{padding:10px 16px;border-radius:8px;margin-bottom:14px;font-size:13px;font-weight:600}.flash.success{background:var(--green-lt);color:var(--green);border:1px solid #b8e6d4}.flash.error{background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0}
+.card-list{display:flex;flex-direction:column;gap:10px}.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--g2);padding:14px 16px;box-shadow:var(--shadow);transition:border .15s}.card:hover{border-color:#c0c8d8}
+.card-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap}.card-title{font-size:14px;font-weight:700;color:var(--g6);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.card-actions{display:flex;gap:6px;flex-shrink:0}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 16px}.card-field{display:flex;flex-direction:column;gap:1px;min-width:0}.card-field .lbl{font-size:10px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.04em}.card-field .val{font-size:13px;color:var(--g5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.card-field .val code{font-family:var(--mono);font-size:11px;background:var(--g1);padding:1px 6px;border-radius:4px;color:var(--g4)}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}.badge.admin{background:var(--blue-lt);color:var(--blue)}.badge.user{background:var(--purple-lt);color:var(--purple)}.badge.active{background:var(--green-lt);color:var(--green)}.badge.inactive{background:var(--red-lt);color:var(--red)}.badge.powerbi{background:var(--amber-lt);color:var(--amber)}.badge.analytics{background:#e0f2f1;color:#00695c}.badge.report{background:var(--purple-lt);color:var(--purple)}.badge.Tháng{background:var(--blue-lt);color:#1565c0}.badge.Quý{background:var(--amber-lt);color:#bf6900}.badge.Năm{background:var(--purple-lt);color:var(--purple)}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border:none;border-radius:6px;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{opacity:.88}.btn-red{background:var(--red);color:#fff;font-size:11px;padding:4px 10px}.btn-red:hover{opacity:.88}.btn-outline{background:none;border:1.5px solid var(--blue);color:var(--blue);padding:4px 10px;font-size:11px}.btn-outline:hover{background:var(--blue);color:#fff}.btn-cancel{background:var(--g2);color:var(--g5)}.btn-cancel:hover{background:#d0d4dc}
+.btn-add{width:100%;padding:12px;background:var(--g1);border:2px dashed var(--g2);border-radius:var(--radius);color:var(--g4);font-size:13px;font-weight:700;cursor:pointer;transition:.15s}.btn-add:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+.dd-wrap{position:relative;display:inline-block}.dd-trigger{display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--g1);border:1px solid var(--g2);border-radius:5px;font-size:11px;font-weight:600;color:var(--g5);cursor:pointer}.dd-trigger:hover{border-color:var(--blue)}.dd-badge{background:var(--blue);color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:8px;min-width:16px;text-align:center}.dd-badge.zero{background:var(--g3)}.dd-panel{display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--white);border:1px solid var(--g2);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:90;min-width:180px;max-height:240px;overflow-y:auto;padding:4px 0}.dd-panel.show{display:block}.dd-head{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid var(--g1)}.dd-head span{font-size:10px;color:var(--g3);font-weight:700}.dd-toggle{font-size:10px;font-weight:700;color:var(--blue);cursor:pointer;background:none;border:none;padding:2px 6px;border-radius:4px}.dd-toggle:hover{background:var(--blue-lt)}.dd-item{display:flex;align-items:center;gap:6px;padding:5px 10px;cursor:pointer;font-size:12px}.dd-item:hover{background:var(--g1)}.dd-item input{width:14px;height:14px;cursor:pointer}.dd-item label{cursor:pointer;flex:1}.dd-footer{padding:6px 10px;border-top:1px solid var(--g1);display:flex;justify-content:flex-end}.dd-apply{padding:4px 12px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer}.dd-apply:hover{opacity:.88}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:16px}.modal-bg.show{display:flex}.modal{background:var(--white);border-radius:12px;padding:24px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}.modal h3{font-size:16px;font-weight:800;margin-bottom:16px;color:var(--g6)}.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.fg{display:flex;flex-direction:column;gap:3px}.fg label{font-size:10px;font-weight:700;color:var(--g4);text-transform:uppercase;letter-spacing:.03em}.fg input,.fg select{height:34px;padding:0 10px;border:1.5px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:13px;color:var(--g6);outline:none;background:var(--white);width:100%}.fg input:focus,.fg select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,102,204,.08)}.fg input.mono{font-family:var(--mono);font-size:12px}
+/* KBC modal: 1 column for date fields */
+.modal-col1{display:flex;flex-direction:column;gap:10px}
+@media(max-width:640px){.tab-btn{padding:10px 12px;font-size:12px}.tab-btn .cnt{display:none}.card-grid{grid-template-columns:1fr 1fr}.modal-grid{grid-template-columns:1fr}.modal{padding:18px}.card-header{flex-direction:column;align-items:flex-start}}
+@media(max-width:380px){.card-grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
+<div class="topbar"><div class="brand">Quản trị hệ thống</div><div class="nav"><span style="font-size:13px">{{ username }}</span><a href="/dashboards">Dashboard</a><a href="/logout">Đăng xuất</a></div></div>
+<div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('users')">Người dùng<span class="cnt">{{ users|length }}</span></button>
+    <button class="tab-btn" onclick="switchTab('dashboards')">Dashboard<span class="cnt">{{ dashboards|length }}</span></button>
+    <button class="tab-btn" onclick="switchTab('kbc')">Kỳ báo cáo<span class="cnt">{{ ky_bao_cao|length }}</span></button>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div style="max-width:1200px;margin:14px auto 0;padding:0 16px">{% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
 
-    <div class="top-bar">
-        <div class="brand">Quản trị hệ thống</div>
-        <div class="nav-links">
-            <span style="font-size:13px;">{{ username }}</span>
-            <a href="/dashboards">Xem Dashboard</a>
-            <a href="/logout">Đăng xuất</a>
+<!-- ══ TAB: NGƯỜI DÙNG ══ -->
+<div class="tab-content active" id="tab-users"><div class="card-list">
+{% for u in users %}
+<div class="card">
+    <div class="card-header">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="card-title">{{ u.display_name or u.username }}</span><span class="badge {{ u.role }}">{{ u.role }}</span>{% if not u.is_active %}<span class="badge inactive">Tắt</span>{% endif %}</div>
+        <div class="card-actions">
+            <button class="btn btn-outline btn-edit-user" data-id="{{ u.id }}" data-name="{{ u.display_name }}" data-email="{{ u.email or '' }}" data-khoi="{{ u.khoi }}" data-bp="{{ u.bo_phan }}" data-cv="{{ u.chuc_vu }}" data-nvkd="{{ u.ma_nvkd_list or '' }}" data-role="{{ u.role }}" data-active="{{ u.is_active }}">Sửa</button>
+            <form method="POST" action="/admin/user/{{ u.id }}/delete" style="display:inline" onsubmit="return confirm('Xóa user {{ u.username }}?')"><button type="submit" class="btn btn-red">Xóa</button></form>
         </div>
     </div>
+    <div class="card-grid">
+        <div class="card-field"><span class="lbl">Username</span><span class="val"><code>{{ u.username }}</code></span></div>
+        <div class="card-field"><span class="lbl">Mật khẩu</span><span class="val"><code>{{ u.password_plain or '?' }}</code></span></div>
+        <div class="card-field"><span class="lbl">Email</span><span class="val">{{ u.email or '—' }}</span></div>
+        <div class="card-field"><span class="lbl">Khối</span><span class="val">{{ u.khoi or '—' }}</span></div>
+        <div class="card-field"><span class="lbl">Bộ phận</span><span class="val">{{ u.bo_phan or '—' }}</span></div>
+        <div class="card-field"><span class="lbl">Chức vụ</span><span class="val">{{ u.chuc_vu or '—' }}</span></div>
+        <div class="card-field"><span class="lbl">Mã NVKD</span><span class="val"><code>{{ u.ma_nvkd_list or '(tất cả)' }}</code></span></div>
+        <div class="card-field"><span class="lbl">Mã BP</span><span class="val">
+            <div class="dd-wrap">{% set ubps = (u.ma_bp or '').split(',') | map('trim') | reject('equalto','') | list %}
+                <div class="dd-trigger" onclick="togglePanel('bp',{{ u.id }})">BP<span class="dd-badge {{ 'zero' if ubps|length==0 }}">{{ ubps|length if ubps|length>0 else '∞' }}</span></div>
+                <div class="dd-panel" id="bpPanel{{ u.id }}"><div class="dd-head"><span>Chọn BP</span><button type="button" class="dd-toggle" onclick="toggleAll('bp',{{ u.id }})">Chọn tất cả</button></div>{% for bpv in all_bp %}<div class="dd-item"><input type="checkbox" id="bp_{{ u.id }}_{{ bpv }}" value="{{ bpv }}" {{ 'checked' if bpv in ubps }}><label for="bp_{{ u.id }}_{{ bpv }}">{{ bpv }}</label></div>{% endfor %}<div class="dd-footer"><button type="button" class="dd-apply" onclick="saveBp({{ u.id }})">Áp dụng</button></div></div>
+            </div></span></div>
+        <div class="card-field"><span class="lbl">Dashboard</span><span class="val">
+            <form method="POST" action="/admin/user/{{ u.id }}/permissions" id="pf{{ u.id }}" style="display:inline"><div class="dd-wrap">{% set asgn = user_dash_map.get(u.id,[]) %}
+                <div class="dd-trigger" onclick="togglePanel('pm',{{ u.id }})">Dash<span class="dd-badge {{ 'zero' if asgn|length==0 }}">{{ asgn|length }}</span></div>
+                <div class="dd-panel" id="pmPanel{{ u.id }}"><div class="dd-head"><span>Chọn dashboard</span><button type="button" class="dd-toggle" onclick="toggleAll('pm',{{ u.id }})">Chọn tất cả</button></div>{% for d in dashboards %}<div class="dd-item"><input type="checkbox" name="dash_ids" value="{{ d.id }}" id="pm_{{ u.id }}_{{ d.id }}" {{ 'checked' if d.id in asgn }}><label for="pm_{{ u.id }}_{{ d.id }}">{{ d.name }}</label></div>{% endfor %}<div class="dd-footer"><button type="button" class="dd-apply" onclick="document.getElementById('pf{{ u.id }}').submit()">Áp dụng</button></div></div>
+            </div></form></span></div>
+    </div>
+</div>
+{% endfor %}
+<button class="btn-add" onclick="document.getElementById('addUserModal').classList.add('show')">+ Thêm người dùng</button>
+</div></div>
 
-    <div class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}{% for category, message in messages %}
-        <div class="flash {{ category }}">{{ message }}</div>
-        {% endfor %}{% endif %}{% endwith %}
-
-        <!-- ==================== DASHBOARDS ==================== -->
-        <div class="section">
-            <h2>Dashboards ({{ dashboards|length }})</h2>
-            <table>
-                <thead>
-                    <tr><th>Tên</th><th>Slug</th><th>Loại</th><th>Trạng thái</th><th>Users</th><th>Thao tác</th></tr>
-                </thead>
-                <tbody>
-                    {% for d in dashboards %}
-                    <tr>
-                        <td><strong>{{ d.name }}</strong>{% if d.description %}<br><span style="font-size:11px;color:#999;">{{ d.description }}</span>{% endif %}</td>
-                        <td><code>/d/{{ d.slug }}</code></td>
-                        <td><span class="badge {{ d.dashboard_type or 'powerbi' }}">{{ d.dashboard_type or 'powerbi' }}</span></td>
-                        <td>{% if d.is_active %}<span class="badge active">Bật</span>{% else %}<span class="badge inactive">Tắt</span>{% endif %}</td>
-                        <td>{{ dash_user_counts.get(d.id, 0) }}</td>
-                        <td>
-                            <div class="actions">
-                                <button class="btn btn-sm btn-outline btn-edit-dash"
-                                    data-id="{{ d.id }}"
-                                    data-name="{{ d.name }}"
-                                    data-url="{{ d.powerbi_url or '' }}"
-                                    data-desc="{{ d.description }}"
-                                    data-type="{{ d.dashboard_type or 'powerbi' }}"
-                                    data-order="{{ d.sort_order }}"
-                                    data-active="{{ d.is_active }}">Sửa</button>
-                                <a href="/admin/permissions/{{ d.id }}" class="btn btn-sm btn-primary">Phân quyền</a>
-                                <form method="POST" action="/admin/dashboard/{{ d.id }}/delete" style="display:inline;" onsubmit="return confirm('Xóa?')">
-                                    <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="form-row">
-                <form method="POST" action="/admin/dashboard/add" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-                    <div class="form-group">
-                        <label>Tên</label>
-                        <input type="text" name="name" required placeholder="Doanh thu Q1">
-                    </div>
-                    <div class="form-group">
-                        <label>Slug</label>
-                        <input type="text" name="slug" required placeholder="doanh-thu-q1" pattern="[a-z0-9\-]+">
-                    </div>
-                    <div class="form-group">
-                        <label>Loại</label>
-                        <select name="dashboard_type" id="addDashType" onchange="toggleUrlField()">
-                            <option value="powerbi">Power BI</option>
-                            <option value="analytics">Analytics</option>
-                            <option value="report">Báo cáo SQL</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="addUrlGroup">
-                        <label>Power BI URL</label>
-                        <input type="url" name="powerbi_url" id="addUrlInput" placeholder="https://app.powerbi.com/view?r=..." style="min-width:260px;">
-                    </div>
-                    <div class="form-group">
-                        <label>Mô tả</label>
-                        <input type="text" name="description" placeholder="Mô tả ngắn">
-                    </div>
-                    <div class="form-group">
-                        <label>Thứ tự</label>
-                        <input type="number" name="sort_order" value="0" style="width:60px;">
-                    </div>
-                    <button type="submit" class="btn btn-primary">+ Thêm</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- ==================== USERS ==================== -->
-        <div class="section">
-            <h2>Người dùng ({{ users|length }})</h2>
-            <table>
-                <thead>
-                    <tr><th>Username</th><th>Mật khẩu</th><th>Tên</th><th>Email</th><th>Khối</th><th>Bộ phận</th><th>Mã NVKD</th><th>Vai trò</th><th>Dashboard</th><th>Thao tác</th></tr>
-                </thead>
-                <tbody>
-                    {% for u in users %}
-                    <tr>
-                        <td><strong>{{ u.username }}</strong></td>
-                        <td><code style="font-size:11px;background:#f5f5f5;padding:2px 6px;border-radius:4px;">{{ u.password_plain or '?' }}</code></td>
-                        <td>{{ u.display_name or '—' }}</td>
-                        <td style="font-size:12px;">{{ u.email or '—' }}</td>
-                        <td style="font-size:12px;">{{ u.khoi or '—' }}</td>
-                        <td style="font-size:12px;">{{ u.bo_phan or '—' }}</td>
-                        <td><code style="font-size:10px;background:#f5f5f5;padding:2px 6px;border-radius:4px;word-break:break-all;white-space:normal;max-width:120px;display:inline-block;">{{ u.ma_nvkd_list or '(tất cả)' }}</code></td>
-                        <td><span class="badge {{ u.role }}">{{ u.role }}</span></td>
-                        <td>
-                            <form method="POST" action="/admin/user/{{ u.id }}/permissions" id="permForm{{ u.id }}" style="display:inline;">
-                                <div class="perm-wrap">
-                                    {% set assigned = user_dash_map.get(u.id, []) %}
-                                    {% set count = assigned|length %}
-                                    <div class="perm-trigger" onclick="togglePermPanel({{ u.id }})">
-                                        Dashboard
-                                        <span class="perm-count {{ 'zero' if count == 0 else '' }}">{{ count }}</span>
-                                    </div>
-                                    <div class="perm-panel" id="permPanel{{ u.id }}">
-                                        <div class="perm-panel-header">
-                                            <span>Chọn dashboard</span>
-                                            <button type="button" class="perm-toggle-all" onclick="toggleAllPerm({{ u.id }})">Chọn tất cả</button>
-                                        </div>
-                                        {% for d in dashboards %}
-                                        <div class="perm-item">
-                                            <input type="checkbox" name="dash_ids" value="{{ d.id }}" id="perm_{{ u.id }}_{{ d.id }}"
-                                                {{ 'checked' if d.id in assigned else '' }}>
-                                            <label for="perm_{{ u.id }}_{{ d.id }}">{{ d.name }}</label>
-                                        </div>
-                                        {% endfor %}
-                                        <div class="perm-panel-footer">
-                                            <button type="button" class="perm-apply-btn" onclick="document.getElementById('permForm{{ u.id }}').submit();">Áp dụng</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </form>
-                        </td>
-                        <td>
-                            <div class="actions">
-                                <button class="btn btn-sm btn-outline btn-edit-user"
-                                    data-id="{{ u.id }}"
-                                    data-name="{{ u.display_name }}"
-                                    data-email="{{ u.email or '' }}"
-                                    data-khoi="{{ u.khoi }}"
-                                    data-bp="{{ u.bo_phan }}"
-                                    data-cv="{{ u.chuc_vu }}"
-                                    data-nvkd="{{ u.ma_nvkd_list or '' }}"
-                                    data-role="{{ u.role }}"
-                                    data-active="{{ u.is_active }}">Sửa</button>
-                                <form method="POST" action="/admin/user/{{ u.id }}/delete" style="display:inline;" onsubmit="return confirm('Xóa?')">
-                                    <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="form-row">
-                <form method="POST" action="/admin/user/add" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
-                    <div class="form-group"><label>Username</label><input type="text" name="username" required placeholder="nguyenvana"></div>
-                    <div class="form-group"><label>Mật khẩu</label><input type="password" name="password" required placeholder="••••••"></div>
-                    <div class="form-group"><label>Tên hiển thị</label><input type="text" name="display_name" placeholder="Nguyễn Văn A"></div>
-                    <div class="form-group"><label>Email</label><input type="email" name="email" placeholder="abc@vietanh.com"></div>
-                    <div class="form-group"><label>Khối</label><input type="text" name="khoi" placeholder="Khối Kinh Doanh"></div>
-                    <div class="form-group"><label>Bộ phận</label><input type="text" name="bo_phan" placeholder="Ban Chiến Lược"></div>
-                    <div class="form-group"><label>Chức vụ</label><input type="text" name="chuc_vu" placeholder="Trưởng phòng"></div>
-                    <div class="form-group"><label>Mã NVKD</label><input type="text" name="ma_nvkd_list" placeholder="TVV01,NVD01" style="min-width:140px;" title="Danh sách mã NVKD, cách nhau bởi dấu phẩy. Để trống = xem tất cả"></div>
-                    <div class="form-group"><label>Vai trò</label><select name="role"><option value="user">User</option><option value="admin">Admin</option></select></div>
-                    <button type="submit" class="btn btn-primary">+ Thêm User</button>
-                </form>
-            </div>
+<!-- ══ TAB: DASHBOARD ══ -->
+<div class="tab-content" id="tab-dashboards"><div class="card-list">
+{% for d in dashboards %}
+<div class="card">
+    <div class="card-header">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="card-title">{{ d.name }}</span><span class="badge {{ d.dashboard_type or 'powerbi' }}">{{ d.dashboard_type or 'powerbi' }}</span>{% if d.is_active %}<span class="badge active">Bật</span>{% else %}<span class="badge inactive">Tắt</span>{% endif %}</div>
+        <div class="card-actions">
+            <button class="btn btn-outline btn-edit-dash" data-id="{{ d.id }}" data-name="{{ d.name }}" data-slug="{{ d.slug }}" data-url="{{ d.powerbi_url or '' }}" data-desc="{{ d.description }}" data-type="{{ d.dashboard_type or 'powerbi' }}" data-order="{{ d.sort_order }}" data-active="{{ d.is_active }}">Sửa</button>
+            <form method="POST" action="/admin/dashboard/{{ d.id }}/delete" style="display:inline" onsubmit="return confirm('Xóa?')"><button type="submit" class="btn btn-red">Xóa</button></form>
         </div>
     </div>
+    <div class="card-grid">
+        <div class="card-field"><span class="lbl">Slug</span><span class="val"><code>/d/{{ d.slug }}</code></span></div>
+        <div class="card-field"><span class="lbl">Users</span><span class="val">{{ dash_user_counts.get(d.id,0) }}</span></div>
+        <div class="card-field"><span class="lbl">Thứ tự</span><span class="val">{{ d.sort_order }}</span></div>
+        {% if d.description %}<div class="card-field" style="grid-column:1/-1"><span class="lbl">Mô tả</span><span class="val">{{ d.description }}</span></div>{% endif %}
+    </div>
+</div>
+{% endfor %}
+<button class="btn-add" onclick="document.getElementById('addDashModal').classList.add('show')">+ Thêm Dashboard</button>
+</div></div>
 
-    <!-- Modal: Edit User -->
-    <div class="modal-bg" id="editUserModal">
-        <div class="modal">
-            <h3>Chỉnh sửa User</h3>
-            <form method="POST" id="editUserForm">
-                <div class="form-group"><label>Tên hiển thị</label><input type="text" name="display_name" id="euDisplayName"></div>
-                <div class="form-group"><label>Email</label><input type="email" name="email" id="euEmail" placeholder="abc@vietanh.com"></div>
-                <div class="form-group"><label>Khối</label><input type="text" name="khoi" id="euKhoi"></div>
-                <div class="form-group"><label>Bộ phận</label><input type="text" name="bo_phan" id="euBoPhan"></div>
-                <div class="form-group"><label>Chức vụ</label><input type="text" name="chuc_vu" id="euChucVu"></div>
-                <div class="form-group"><label>Mã NVKD (phân quyền báo cáo)</label><input type="text" name="ma_nvkd_list" id="euMaNvkd" placeholder="TVV01,NVD01 — trống = tất cả" style="font-family:monospace;"></div>
-                <div class="form-group"><label>Mật khẩu mới (trống = giữ nguyên)</label><input type="password" name="new_password" id="euPassword"></div>
-                <div class="form-group"><label>Vai trò</label><select name="role" id="euRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
-                <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;"><input type="checkbox" name="is_active" id="euActive" value="1"><label for="euActive" style="font-size:13px;">Hoạt động</label></div>
-                <div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editUserModal')">Hủy</button><button type="submit" class="btn btn-primary">Lưu</button></div>
-            </form>
+<!-- ══ TAB: KỲ BÁO CÁO ══ -->
+<div class="tab-content" id="tab-kbc"><div class="card-list">
+{% for k in ky_bao_cao %}
+<div class="card">
+    <div class="card-header">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap"><code style="font-family:var(--mono);font-size:12px;background:var(--g1);padding:2px 8px;border-radius:4px;color:var(--g4)">{{ k.ma_kbc }}</code><span class="card-title">{{ k.ten_kbc }}</span><span class="badge {{ k.loai_kbc }}">{{ k.loai_kbc }}</span></div>
+        <div class="card-actions">
+            <button class="btn btn-outline btn-edit-kbc" data-id="{{ k.id }}" data-ma="{{ k.ma_kbc }}" data-ten="{{ k.ten_kbc }}" data-loai="{{ k.loai_kbc }}" data-d1="{{ fmtiso(k.ngay_bd_xuat_ban) }}" data-d2="{{ fmtiso(k.ngay_kt_xuat_ban) }}" data-d3="{{ fmtiso(k.ngay_bd_thu_tien) }}" data-d4="{{ fmtiso(k.ngay_kt_thu_tien) }}" data-d5="{{ fmtiso(k.ngay_bd_lan_ki) }}" data-d6="{{ fmtiso(k.ngay_kt_lan_ki) }}" data-d7="{{ fmtiso(k.ngay_du_no_dau_ki) }}" data-d8="{{ fmtiso(k.ngay_du_no_cuoi_ki) }}">Sửa</button>
+            <form method="POST" action="/admin/kbc/{{ k.id }}/delete" style="display:inline" onsubmit="return confirm('Xóa kỳ {{ k.ten_kbc }}?')"><button type="submit" class="btn btn-red">Xóa</button></form>
         </div>
     </div>
-
-    <!-- Modal: Edit Dashboard -->
-    <div class="modal-bg" id="editDashModal">
-        <div class="modal">
-            <h3>Chỉnh sửa Dashboard</h3>
-            <form method="POST" id="editDashForm">
-                <div class="form-group"><label>Tên</label><input type="text" name="name" id="edName" required></div>
-                <div class="form-group"><label>Loại</label><select name="dashboard_type" id="edType" onchange="toggleEditUrl()"><option value="powerbi">Power BI</option><option value="analytics">Analytics</option>
-                            <option value="report">Báo cáo SQL</option></select></div>
-                <div class="form-group" id="edUrlGroup"><label>Power BI URL</label><input type="url" name="powerbi_url" id="edUrl"></div>
-                <div class="form-group"><label>Mô tả</label><input type="text" name="description" id="edDesc"></div>
-                <div class="form-group"><label>Thứ tự</label><input type="number" name="sort_order" id="edOrder"></div>
-                <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;"><input type="checkbox" name="is_active" id="edActive" value="1"><label for="edActive" style="font-size:13px;">Hoạt động</label></div>
-                <div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editDashModal')">Hủy</button><button type="submit" class="btn btn-primary">Lưu</button></div>
-            </form>
-        </div>
+    <div class="card-grid">
+        <div class="card-field"><span class="lbl">BĐ xuất bán</span><span class="val"><code>{{ fmtd(k.ngay_bd_xuat_ban) }}</code></span></div>
+        <div class="card-field"><span class="lbl">KT xuất bán</span><span class="val"><code>{{ fmtd(k.ngay_kt_xuat_ban) }}</code></span></div>
+        <div class="card-field"><span class="lbl">BĐ thu tiền</span><span class="val"><code>{{ fmtd(k.ngay_bd_thu_tien) }}</code></span></div>
+        <div class="card-field"><span class="lbl">KT thu tiền</span><span class="val"><code>{{ fmtd(k.ngay_kt_thu_tien) }}</code></span></div>
+        <div class="card-field"><span class="lbl">BĐ lân kì</span><span class="val"><code>{{ fmtd(k.ngay_bd_lan_ki) }}</code></span></div>
+        <div class="card-field"><span class="lbl">KT lân kì</span><span class="val"><code>{{ fmtd(k.ngay_kt_lan_ki) }}</code></span></div>
+        <div class="card-field"><span class="lbl">Dư nợ ĐK</span><span class="val"><code>{{ fmtd(k.ngay_du_no_dau_ki) }}</code></span></div>
+        <div class="card-field"><span class="lbl">Dư nợ CK</span><span class="val"><code>{{ fmtd(k.ngay_du_no_cuoi_ki) }}</code></span></div>
     </div>
+</div>
+{% endfor %}
+<button class="btn-add" onclick="document.getElementById('addKbcModal').classList.add('show')">+ Thêm kỳ báo cáo</button>
+</div></div>
 
-    <script>
-    // Edit User — đọc data từ attributes, không truyền qua onclick
-    document.querySelectorAll('.btn-edit-user').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('editUserForm').action = '/admin/user/' + this.dataset.id + '/edit';
-            document.getElementById('euDisplayName').value = this.dataset.name || '';
-            document.getElementById('euEmail').value = this.dataset.email || '';
-            document.getElementById('euKhoi').value = this.dataset.khoi || '';
-            document.getElementById('euBoPhan').value = this.dataset.bp || '';
-            document.getElementById('euChucVu').value = this.dataset.cv || '';
-            document.getElementById('euMaNvkd').value = this.dataset.nvkd || '';
-            document.getElementById('euRole').value = this.dataset.role || 'user';
-            document.getElementById('euActive').checked = this.dataset.active === '1' || this.dataset.active === 'True';
-            document.getElementById('euPassword').value = '';
-            document.getElementById('editUserModal').classList.add('show');
-        });
-    });
+<!-- ══ MODALS ══ -->
+<div class="modal-bg" id="addUserModal"><div class="modal"><h3>Thêm người dùng</h3><form method="POST" action="/admin/user/add"><div class="modal-grid">
+<div class="fg"><label>Username</label><input type="text" name="username" required placeholder="nguyenvana"></div>
+<div class="fg"><label>Mật khẩu</label><input type="password" name="password" required></div>
+<div class="fg"><label>Tên hiển thị</label><input type="text" name="display_name"></div>
+<div class="fg"><label>Email</label><input type="email" name="email"></div>
+<div class="fg"><label>Khối</label><input type="text" name="khoi"></div>
+<div class="fg"><label>Bộ phận</label><input type="text" name="bo_phan"></div>
+<div class="fg"><label>Chức vụ</label><input type="text" name="chuc_vu"></div>
+<div class="fg"><label>Mã NVKD</label><input type="text" name="ma_nvkd_list" class="mono" placeholder="TVV01,NVD01"></div>
+<div class="fg"><label>Vai trò</label><select name="role"><option value="user">User</option><option value="admin">Admin</option></select></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('addUserModal')">Hủy</button><button type="submit" class="btn btn-blue">Thêm</button></div></form></div></div>
 
-    // Edit Dashboard — đọc data từ attributes
-    document.querySelectorAll('.btn-edit-dash').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('editDashForm').action = '/admin/dashboard/' + this.dataset.id + '/edit';
-            document.getElementById('edName').value = this.dataset.name || '';
-            document.getElementById('edUrl').value = this.dataset.url || '';
-            document.getElementById('edDesc').value = this.dataset.desc || '';
-            document.getElementById('edType').value = this.dataset.type || 'powerbi';
-            document.getElementById('edOrder').value = this.dataset.order || 0;
-            document.getElementById('edActive').checked = this.dataset.active === '1' || this.dataset.active === 'True';
-            toggleEditUrl();
-            document.getElementById('editDashModal').classList.add('show');
-        });
-    });
+<div class="modal-bg" id="editUserModal"><div class="modal"><h3>Chỉnh sửa người dùng</h3><form method="POST" id="editUserForm"><div class="modal-grid">
+<div class="fg"><label>Tên hiển thị</label><input type="text" name="display_name" id="euName"></div>
+<div class="fg"><label>Email</label><input type="email" name="email" id="euEmail"></div>
+<div class="fg"><label>Khối</label><input type="text" name="khoi" id="euKhoi"></div>
+<div class="fg"><label>Bộ phận</label><input type="text" name="bo_phan" id="euBP"></div>
+<div class="fg"><label>Chức vụ</label><input type="text" name="chuc_vu" id="euCV"></div>
+<div class="fg"><label>Mã NVKD</label><input type="text" name="ma_nvkd_list" id="euNvkd" class="mono"></div>
+<div class="fg"><label>Mật khẩu mới</label><input type="password" name="new_password" id="euPw" placeholder="Trống = giữ nguyên"></div>
+<div class="fg"><label>Vai trò</label><select name="role" id="euRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+<div class="fg" style="flex-direction:row;align-items:center;gap:8px;grid-column:1/-1"><input type="checkbox" name="is_active" id="euAct" value="1"><label for="euAct" style="font-size:13px;text-transform:none">Hoạt động</label></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editUserModal')">Hủy</button><button type="submit" class="btn btn-blue">Lưu</button></div></form></div></div>
 
-    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-    document.querySelectorAll('.modal-bg').forEach(function(bg){
-        bg.addEventListener('click', function(e){ if (e.target === bg) bg.classList.remove('show'); });
-    });
+<div class="modal-bg" id="addDashModal"><div class="modal"><h3>Thêm Dashboard</h3><form method="POST" action="/admin/dashboard/add"><div class="modal-grid">
+<div class="fg"><label>Tên</label><input type="text" name="name" required></div>
+<div class="fg"><label>Slug</label><input type="text" name="slug" required placeholder="doanh-thu-q1" pattern="[a-z0-9\-]+"></div>
+<div class="fg"><label>Loại</label><select name="dashboard_type" id="addDT" onchange="togUrl()"><option value="powerbi">Power BI</option><option value="analytics">Analytics</option><option value="report">Báo cáo SQL</option></select></div>
+<div class="fg" id="addUrlG"><label>Power BI URL</label><input type="url" name="powerbi_url"></div>
+<div class="fg"><label>Mô tả</label><input type="text" name="description"></div>
+<div class="fg"><label>Thứ tự</label><input type="number" name="sort_order" value="0"></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('addDashModal')">Hủy</button><button type="submit" class="btn btn-blue">Thêm</button></div></form></div></div>
 
-    // Ẩn/hiện URL field theo loại dashboard
-    function toggleUrlField() {
-        var t = document.getElementById('addDashType').value;
-        document.getElementById('addUrlGroup').style.display = (t === 'powerbi') ? '' : 'none';
-    }
-    function toggleEditUrl() {
-        var t = document.getElementById('edType').value;
-        document.getElementById('edUrlGroup').style.display = (t === 'powerbi') ? '' : 'none';
-    }
+<div class="modal-bg" id="editDashModal"><div class="modal"><h3>Chỉnh sửa Dashboard</h3><form method="POST" id="edDF"><div class="modal-grid">
+<div class="fg"><label>Tên</label><input type="text" name="name" id="edN" required></div>
+<div class="fg"><label>Slug</label><input type="text" name="slug" id="edSlug" required pattern="[a-z0-9\-]+"></div>
+<div class="fg"><label>Loại</label><select name="dashboard_type" id="edT" onchange="togEUrl()"><option value="powerbi">Power BI</option><option value="analytics">Analytics</option><option value="report">Báo cáo SQL</option></select></div>
+<div class="fg" id="edUG"><label>Power BI URL</label><input type="url" name="powerbi_url" id="edU"></div>
+<div class="fg"><label>Mô tả</label><input type="text" name="description" id="edD"></div>
+<div class="fg"><label>Thứ tự</label><input type="number" name="sort_order" id="edO"></div>
+<div class="fg" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="is_active" id="edA" value="1"><label for="edA" style="font-size:13px;text-transform:none">Hoạt động</label></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editDashModal')">Hủy</button><button type="submit" class="btn btn-blue">Lưu</button></div></form></div></div>
 
-    // ── Permission dropdown ──
-    var _openPermId = null;
+<div class="modal-bg" id="addKbcModal"><div class="modal"><h3>Thêm kỳ báo cáo</h3><form method="POST" action="/admin/kbc/add"><div class="modal-col1">
+<div class="fg"><label>Mã kỳ</label><input type="text" name="ma_kbc" required placeholder="T01-2026"></div>
+<div class="fg"><label>Tên</label><input type="text" name="ten_kbc" required placeholder="Tháng 01/2026"></div>
+<div class="fg"><label>Loại</label><select name="loai_kbc" required><option value="Tháng">Tháng</option><option value="Quý">Quý</option><option value="Năm">Năm</option></select></div>
+<div class="fg"><label>BĐ xuất bán</label><input type="date" name="ngay_bd_xuat_ban" required></div>
+<div class="fg"><label>KT xuất bán</label><input type="date" name="ngay_kt_xuat_ban" required></div>
+<div class="fg"><label>BĐ thu tiền</label><input type="date" name="ngay_bd_thu_tien" required></div>
+<div class="fg"><label>KT thu tiền</label><input type="date" name="ngay_kt_thu_tien" required></div>
+<div class="fg"><label>BĐ lân kì</label><input type="date" name="ngay_bd_lan_ki" required></div>
+<div class="fg"><label>KT lân kì</label><input type="date" name="ngay_kt_lan_ki" required></div>
+<div class="fg"><label>Dư nợ ĐK</label><input type="date" name="ngay_du_no_dau_ki" required></div>
+<div class="fg"><label>Dư nợ CK</label><input type="date" name="ngay_du_no_cuoi_ki" required></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('addKbcModal')">Hủy</button><button type="submit" class="btn btn-blue">Thêm</button></div></form></div></div>
 
-    function togglePermPanel(uid) {
-        var panel = document.getElementById('permPanel' + uid);
-        if (_openPermId && _openPermId !== uid) {
-            var old = document.getElementById('permPanel' + _openPermId);
-            if (old) old.classList.remove('show');
-        }
-        panel.classList.toggle('show');
-        _openPermId = panel.classList.contains('show') ? uid : null;
-    }
+<div class="modal-bg" id="editKbcModal"><div class="modal"><h3>Chỉnh sửa kỳ báo cáo</h3><form method="POST" id="ekF"><div class="modal-col1">
+<div class="fg"><label>Tên</label><input type="text" name="ten_kbc" id="ekTen" required></div>
+<div class="fg"><label>Loại</label><select name="loai_kbc" id="ekLoai" required><option value="Tháng">Tháng</option><option value="Quý">Quý</option><option value="Năm">Năm</option></select></div>
+<div class="fg"><label>BĐ xuất bán</label><input type="date" name="ngay_bd_xuat_ban" id="ekD1" required></div>
+<div class="fg"><label>KT xuất bán</label><input type="date" name="ngay_kt_xuat_ban" id="ekD2" required></div>
+<div class="fg"><label>BĐ thu tiền</label><input type="date" name="ngay_bd_thu_tien" id="ekD3" required></div>
+<div class="fg"><label>KT thu tiền</label><input type="date" name="ngay_kt_thu_tien" id="ekD4" required></div>
+<div class="fg"><label>BĐ lân kì</label><input type="date" name="ngay_bd_lan_ki" id="ekD5" required></div>
+<div class="fg"><label>KT lân kì</label><input type="date" name="ngay_kt_lan_ki" id="ekD6" required></div>
+<div class="fg"><label>Dư nợ ĐK</label><input type="date" name="ngay_du_no_dau_ki" id="ekD7" required></div>
+<div class="fg"><label>Dư nợ CK</label><input type="date" name="ngay_du_no_cuoi_ki" id="ekD8" required></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editKbcModal')">Hủy</button><button type="submit" class="btn btn-blue">Lưu</button></div></form></div></div>
 
-    function toggleAllPerm(uid) {
-        var panel = document.getElementById('permPanel' + uid);
-        var boxes = panel.querySelectorAll('input[type="checkbox"]');
-        var allChecked = Array.from(boxes).every(function(cb) { return cb.checked; });
-        boxes.forEach(function(cb) { cb.checked = !allChecked; });
-        var btn = panel.querySelector('.perm-toggle-all');
-        btn.textContent = allChecked ? 'Chọn tất cả' : 'Bỏ chọn tất cả';
-    }
-
-    // Đóng dropdown khi click ra ngoài
-    document.addEventListener('click', function(e) {
-        if (_openPermId && !e.target.closest('.perm-wrap')) {
-            var panel = document.getElementById('permPanel' + _openPermId);
-            if (panel) panel.classList.remove('show');
-            _openPermId = null;
-        }
-    });
-    </script>
-
+<script>
+function switchTab(n){document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',['users','dashboards','kbc'][i]===n)});document.querySelectorAll('.tab-content').forEach(function(t){t.classList.toggle('active',t.id==='tab-'+n)});history.replaceState(null,'','#'+n)}
+(function(){var h=location.hash.replace('#','');if(['users','dashboards','kbc'].indexOf(h)>-1)switchTab(h)})();
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+document.querySelectorAll('.modal-bg').forEach(function(bg){bg.addEventListener('click',function(e){if(e.target===bg)bg.classList.remove('show')})});
+document.querySelectorAll('.btn-edit-user').forEach(function(b){b.addEventListener('click',function(){var d=this.dataset;document.getElementById('editUserForm').action='/admin/user/'+d.id+'/edit';document.getElementById('euName').value=d.name||'';document.getElementById('euEmail').value=d.email||'';document.getElementById('euKhoi').value=d.khoi||'';document.getElementById('euBP').value=d.bp||'';document.getElementById('euCV').value=d.cv||'';document.getElementById('euNvkd').value=d.nvkd||'';document.getElementById('euRole').value=d.role||'user';document.getElementById('euAct').checked=d.active==='1'||d.active==='True';document.getElementById('euPw').value='';document.getElementById('editUserModal').classList.add('show')})});
+document.querySelectorAll('.btn-edit-dash').forEach(function(b){b.addEventListener('click',function(){var d=this.dataset;document.getElementById('edDF').action='/admin/dashboard/'+d.id+'/edit';document.getElementById('edN').value=d.name||'';document.getElementById('edSlug').value=d.slug||'';document.getElementById('edU').value=d.url||'';document.getElementById('edD').value=d.desc||'';document.getElementById('edT').value=d.type||'powerbi';document.getElementById('edO').value=d.order||0;document.getElementById('edA').checked=d.active==='1'||d.active==='True';togEUrl();document.getElementById('editDashModal').classList.add('show')})});
+document.querySelectorAll('.btn-edit-kbc').forEach(function(b){b.addEventListener('click',function(){var d=this.dataset;document.getElementById('ekF').action='/admin/kbc/'+d.id+'/edit';document.getElementById('ekTen').value=d.ten||'';document.getElementById('ekLoai').value=d.loai||'Tháng';for(var i=1;i<=8;i++)document.getElementById('ekD'+i).value=d['d'+i]||'';document.getElementById('editKbcModal').classList.add('show')})});
+function togUrl(){document.getElementById('addUrlG').style.display=document.getElementById('addDT').value==='powerbi'?'':'none'}
+function togEUrl(){document.getElementById('edUG').style.display=document.getElementById('edT').value==='powerbi'?'':'none'}
+var _op=null;
+function togglePanel(t,uid){var id=(t==='bp'?'bpPanel':'pmPanel')+uid;if(_op&&_op!==id){var o=document.getElementById(_op);if(o)o.classList.remove('show')}var p=document.getElementById(id);p.classList.toggle('show');_op=p.classList.contains('show')?id:null}
+function toggleAll(t,uid){var id=(t==='bp'?'bpPanel':'pmPanel')+uid;var p=document.getElementById(id);var bx=p.querySelectorAll('input[type="checkbox"]');var al=Array.from(bx).every(function(c){return c.checked});bx.forEach(function(c){c.checked=!al});p.querySelector('.dd-toggle').textContent=al?'Chọn tất cả':'Bỏ chọn tất cả'}
+function saveBp(uid){var p=document.getElementById('bpPanel'+uid);var vs=Array.from(p.querySelectorAll('input:checked')).map(function(c){return c.value});fetch('/admin/user/'+uid+'/bp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_bp:vs.join(',')})}).then(function(){var b=p.parentElement.querySelector('.dd-badge');if(b){b.textContent=vs.length>0?vs.length:'∞';b.className='dd-badge'+(vs.length===0?' zero':'')};p.classList.remove('show');_op=null})}
+document.addEventListener('click',function(e){if(_op&&!e.target.closest('.dd-wrap')){var p=document.getElementById(_op);if(p)p.classList.remove('show');_op=null}});
+</script>
 </body>
 </html>
