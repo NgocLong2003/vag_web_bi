@@ -1,2 +1,13 @@
-Dư nợ cuối kỳ: Dư nợ tính đến ngày kết thúc thanh toán - Doanh số trong kỳ - Trả lại trong kỳ
-Toàn bộ dư nợ [tên kỳ] sau khi thanh toán tới ngày ngay_kt_thanh_toan
+
+1. Dư nợ cuối kỳ: Dư nợ tính đến ngày kết thúc thanh toán - Doanh số trong kỳ - Trả lại trong kỳ
+    Toàn bộ dư nợ [tên kỳ] sau khi thanh toán tới ngày ngay_kt_thanh_toan
+
+2. Tải xuống Excel
+3. Sửa lại cái hiển thị khi ở view điện thoại 
+    Dòng của các nhân viên + quản lý đang có opacity nên khi kéo sang nó bị hiển thị đè lên nhau
+    Cái thanh toán từ đầu lân kì tới ngày kết thúc đang bị mất
+    Xử lý sao cho nó xoay ngang điện thoại để xem
+4. Click vào tên khách hàng để xem thêm
+        Lịch sử bán ra
+        Lịch sử thanh toán
+5. Gửi email khi khách hàng thực hiện thanh toán
