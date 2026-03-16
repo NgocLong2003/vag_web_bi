@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cài đặt tài khoản - VietAnh BI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f5f7; min-height: 100vh; }
+
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; height: 42px; background: #1a1a2e; color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .top-bar .brand { font-weight: 600; font-size: 14px; }
+        .top-bar .nav { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+        .top-btn {
+            padding: 4px 12px; background: rgba(255,255,255,0.1); color: #fff;
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 5px; font-size: 11px;
+            cursor: pointer; text-decoration: none; transition: background 0.2s;
+        }
+        .top-btn:hover { background: rgba(255,255,255,0.22); }
+
+        .container { max-width: 480px; margin: 40px auto; padding: 0 20px; }
+
+        .card {
+            background: #fff; border-radius: 10px; padding: 28px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .card h2 { font-size: 17px; color: #1a1a2e; margin-bottom: 6px; }
+        .card .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+        .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+        .flash.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .flash.error { background: #fff0f0; color: #c62828; border: 1px solid #ffcdd2; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%; padding: 9px 12px; border: 1.5px solid #ddd; border-radius: 7px;
+            font-size: 13px; outline: none; font-family: inherit; transition: border-color 0.2s;
+        }
+        .form-group input:focus { border-color: #0078d4; box-shadow: 0 0 0 3px rgba(0,120,212,0.08); }
+        .form-group .hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+        .form-group input[readonly] { background: #f8f8f8; color: #888; cursor: default; }
+
+        .divider { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+
+        .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+        .btn {
+            padding: 9px 22px; border: none; border-radius: 7px; font-size: 13px;
+            font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s;
+        }
+        .btn-primary { background: #0078d4; color: #fff; }
+        .btn-primary:hover { background: #005a9e; }
+        .btn-cancel { background: #eee; color: #555; }
+        .btn-cancel:hover { background: #ddd; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="brand">Cài đặt tài khoản</div>
+        <div class="nav">
+            <span>{{ username }}</span>
+            <a href="/dashboards" class="top-btn">&larr; Dashboard</a>
+            {% if role == 'admin' %}
+            <a href="/admin" class="top-btn">Quản trị</a>
+            {% endif %}
+            <a href="/logout" class="top-btn">Đăng xuất</a>
+        </div>
+    </div>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <h2>Thông tin cá nhân</h2>
+            <p class="subtitle">Cập nhật tên hiển thị và mật khẩu của bạn</p>
+
+            <form method="POST" action="/settings">
+                <div class="form-group">
+                    <label>Tên đăng nhập</label>
+                    <input type="text" value="{{ user.username }}" readonly>
+                    <div class="hint">Không thể thay đổi. Liên hệ admin nếu cần.</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tên hiển thị</label>
+                    <input type="text" name="display_name" value="{{ user.display_name or '' }}" placeholder="VD: Nguyễn Văn A">
+                </div>
+
+                <hr class="divider">
+
+                <div class="form-group">
+                    <label>Mật khẩu mới</label>
+                    <input type="password" name="new_password" placeholder="Để trống nếu không đổi">
+                </div>
+
+                <div class="form-group">
+                    <label>Xác nhận bằng mật khẩu hiện tại *</label>
+                    <input type="password" name="current_password" required placeholder="Nhập mật khẩu hiện tại để lưu thay đổi">
+                    <div class="hint">Bắt buộc nhập để xác nhận thay đổi</div>
+                </div>
+
+                <div class="actions">
+                    <a href="/dashboards" class="btn btn-cancel">Hủy</a>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

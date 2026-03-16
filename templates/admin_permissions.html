@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phân quyền - {{ dashboard.name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f5f7; min-height: 100vh; }
+
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; height: 48px; background: #1a1a2e; color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .top-bar .brand { font-weight: 700; font-size: 15px; }
+        .top-bar a { color: #fff; text-decoration: none; padding: 5px 14px;
+            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px; font-size: 12px; }
+
+        .container { max-width: 600px; margin: 40px auto; padding: 0 20px; }
+
+        .card {
+            background: #fff; border-radius: 10px; padding: 28px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .card h2 { font-size: 17px; color: #1a1a2e; margin-bottom: 6px; }
+        .card .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
+
+        .user-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+        .user-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+            border: 1.5px solid #eee; border-radius: 8px; transition: all 0.15s; cursor: pointer;
+        }
+        .user-item:hover { border-color: #0078d4; background: #f0f7ff; }
+        .user-item input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+        .user-item label { cursor: pointer; flex: 1; font-size: 13px; }
+        .user-item .meta { font-size: 11px; color: #999; }
+
+        .empty { text-align: center; padding: 30px; color: #999; font-size: 14px; }
+
+        .actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 13px;
+            font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .btn-primary { background: #0078d4; color: #fff; }
+        .btn-primary:hover { background: #005a9e; }
+        .btn-cancel { background: #eee; color: #555; }
+        .btn-cancel:hover { background: #ddd; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="brand">Phân quyền Dashboard</div>
+        <a href="/admin">&larr; Quay lại</a>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>{{ dashboard.name }}</h2>
+            <p class="subtitle">Chọn user được phép xem dashboard này (admin luôn thấy tất cả)</p>
+
+            <form method="POST">
+                {% if users %}
+                <div class="user-list">
+                    {% for u in users %}
+                    <div class="user-item" onclick="this.querySelector('input').click()">
+                        <input type="checkbox" name="user_ids" value="{{ u.id }}"
+                            {{ 'checked' if u.id in assigned else '' }}
+                            onclick="event.stopPropagation()">
+                        <label>
+                            <strong>{{ u.username }}</strong>
+                            {% if u.display_name %} — {{ u.display_name }}{% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty">Chưa có user nào (ngoài admin). Tạo user trước rồi quay lại phân quyền.</div>
+                {% endif %}
+
+                <div class="actions">
+                    <a href="/admin" class="btn btn-cancel">Hủy</a>
+                    <button type="submit" class="btn btn-primary">Lưu phân quyền</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

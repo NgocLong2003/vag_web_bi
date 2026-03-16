@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VietAnh BI - Danh sách Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f5f7; min-height: 100vh; }
+
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; height: 48px; background: #1a1a2e; color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .top-bar .brand { font-weight: 700; font-size: 15px; }
+        .top-bar .user-info { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+        .btn-logout {
+            padding: 5px 14px; background: rgba(255,255,255,0.12); color: #fff;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; font-size: 12px;
+            cursor: pointer; text-decoration: none; transition: background 0.2s;
+        }
+        .btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+        h2 { font-size: 20px; color: #1a1a2e; margin-bottom: 20px; }
+
+        .dashboard-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+        }
+        .dashboard-card {
+            background: #fff; border-radius: 10px; padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1.5px solid #eee;
+            text-decoration: none; color: inherit; transition: all 0.2s;
+        }
+        .dashboard-card:hover {
+            border-color: #0078d4; box-shadow: 0 4px 16px rgba(0,120,212,0.12);
+            transform: translateY(-2px);
+        }
+        .dashboard-card h3 { font-size: 16px; color: #1a1a2e; margin-bottom: 6px; }
+        .dashboard-card p { font-size: 13px; color: #888; line-height: 1.5; }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: #999; font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="brand">VietAnh BI Dashboard</div>
+        <div class="user-info">
+            <span>{{ username }}</span>
+            {% if role == 'admin' %}
+            <a href="/admin" class="btn-logout" style="margin-right:4px;">Quản trị</a>
+            {% endif %}
+            <a href="/settings" class="btn-logout" style="margin-right:4px;">Cài đặt</a>
+            <a href="/logout" class="btn-logout">Đăng xuất</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Chọn Dashboard</h2>
+
+        {% if dashboards %}
+        <div class="dashboard-grid">
+            {% for d in dashboards %}
+            <a href="{{ '/analytics' if d.slug == 'analytics' else '/d/' + d.slug }}" class="dashboard-card">
+                <h3>{{ d.name }}</h3>
+                {% if d.description %}
+                <p>{{ d.description }}</p>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            Chưa có dashboard nào được gán cho bạn.<br>
+            Vui lòng liên hệ quản trị viên.
+        </div>
+        {% endif %}
+    </div>
+
+</body>
+</html>
