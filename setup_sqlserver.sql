@@ -14,6 +14,8 @@ CREATE TABLE users (
     khoi NVARCHAR(200) DEFAULT '',
     bo_phan NVARCHAR(200) DEFAULT '',
     chuc_vu NVARCHAR(200) DEFAULT '',
+    ma_nvkd_list NVARCHAR(MAX) DEFAULT '',
+    email NVARCHAR(200) DEFAULT '',
     role NVARCHAR(20) DEFAULT 'user',
     is_active BIT DEFAULT 1,
     created_at DATETIME DEFAULT GETDATE(),
@@ -28,7 +30,7 @@ CREATE TABLE dashboards (
     name NVARCHAR(200) NOT NULL,
     powerbi_url NVARCHAR(2000) DEFAULT '',
     description NVARCHAR(500) DEFAULT '',
-    dashboard_type NVARCHAR(50) DEFAULT 'powerbi',  -- 'powerbi' hoặc 'analytics'
+    dashboard_type NVARCHAR(50) DEFAULT 'powerbi',  -- 'powerbi', 'analytics', 'report'
     is_active BIT DEFAULT 1,
     sort_order INT DEFAULT 0,
     created_at DATETIME DEFAULT GETDATE(),
@@ -66,6 +68,14 @@ GO
 -- Migration: thêm dashboard_type nếu bảng cũ chưa có
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('dashboards') AND name = 'dashboard_type')
     ALTER TABLE dashboards ADD dashboard_type NVARCHAR(50) DEFAULT 'powerbi';
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('users') AND name = 'ma_nvkd_list')
+    ALTER TABLE users ADD ma_nvkd_list NVARCHAR(MAX) DEFAULT '';
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('users') AND name = 'email')
+    ALTER TABLE users ADD email NVARCHAR(200) DEFAULT '';
 GO
 
 PRINT N'Database VietAnhBI OK';

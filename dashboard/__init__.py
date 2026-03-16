@@ -47,16 +47,26 @@ def dashboard_view(slug):
     dash_type = dashboard['dashboard_type'] if 'dashboard_type' in dashboard.keys() else 'powerbi'
 
     # Chọn template theo loại dashboard
+    tpl_vars = dict(
+        username=user['display_name'] or user['username'],
+        dashboard_name=dashboard['name'],
+        dashboard_slug=slug,
+        role=user['role'],
+        all_dashboards=all_dashboards
+    )
+
     if dash_type == 'analytics':
-        return render_template('analytics.html',
-            username=user['display_name'] or user['username'],
-            role=user['role'], dashboard_slug=slug, all_dashboards=all_dashboards)
+        return render_template('analytics.html', **tpl_vars)
+
+    if dash_type == 'report':
+        from reports import get_report
+        report = get_report(slug)
+        if report:
+            return render_template(report['template'], **tpl_vars)
+        abort(404)
 
     # Mặc định: Power BI dashboard
-    return render_template('dashboard.html',
-        username=user['display_name'] or user['username'],
-        dashboard_name=dashboard['name'], dashboard_slug=slug,
-        role=user['role'], all_dashboards=all_dashboards)
+    return render_template('dashboard.html', **tpl_vars)
 
 
 @bp.route('/api/report-url', methods=['POST'])

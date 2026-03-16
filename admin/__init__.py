@@ -15,8 +15,13 @@ def admin_index():
     for d in dashboards:
         dash_user_counts[d['id']] = db.execute(
             'SELECT COUNT(*) FROM user_dashboards WHERE dashboard_id = ?', (d['id'],)).fetchone()[0]
+    # Lấy danh sách dashboard đã gán cho từng user (cho phân quyền theo user)
+    user_dash_map = {}
+    for u in users:
+        rows = db.execute('SELECT dashboard_id FROM user_dashboards WHERE user_id = ?', (u['id'],)).fetchall()
+        user_dash_map[u['id']] = [r['dashboard_id'] for r in rows]
     return render_template('admin.html', users=users, dashboards=dashboards,
-        dash_user_counts=dash_user_counts,
+        dash_user_counts=dash_user_counts, user_dash_map=user_dash_map,
         username=g.current_user['display_name'] or g.current_user['username'])
 
 
@@ -29,6 +34,8 @@ def user_add():
     khoi = request.form.get('khoi', '').strip()
     bo_phan = request.form.get('bo_phan', '').strip()
     chuc_vu = request.form.get('chuc_vu', '').strip()
+    ma_nvkd_list = request.form.get('ma_nvkd_list', '').strip()
+    email = request.form.get('email', '').strip()
     role = request.form.get('role', 'user')
     if not username or not password:
         flash('Tên đăng nhập và mật khẩu không được để trống', 'error')
@@ -36,8 +43,8 @@ def user_add():
     if role not in ('admin', 'user'): role = 'user'
     db = get_db()
     try:
-        db.execute('INSERT INTO users (username, password_hash, password_plain, display_name, khoi, bo_phan, chuc_vu, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                   (username, hash_password(password), password, display_name, khoi, bo_phan, chuc_vu, role))
+        db.execute('INSERT INTO users (username, password_hash, password_plain, display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                   (username, hash_password(password), password, display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, role))
         db.commit()
         flash(f'Đã tạo tài khoản "{username}"', 'success')
     except Exception as e:
@@ -56,17 +63,19 @@ def user_edit(user_id):
     khoi = request.form.get('khoi', '').strip()
     bo_phan = request.form.get('bo_phan', '').strip()
     chuc_vu = request.form.get('chuc_vu', '').strip()
+    ma_nvkd_list = request.form.get('ma_nvkd_list', '').strip()
+    email = request.form.get('email', '').strip()
     role = request.form.get('role', 'user')
     is_active = 1 if request.form.get('is_active') else 0
     new_password = request.form.get('new_password', '').strip()
     if role not in ('admin', 'user'): role = 'user'
     db = get_db()
     if new_password:
-        db.execute('UPDATE users SET display_name=?, khoi=?, bo_phan=?, chuc_vu=?, role=?, is_active=?, password_hash=?, password_plain=? WHERE id=?',
-                    (display_name, khoi, bo_phan, chuc_vu, role, is_active, hash_password(new_password), new_password, user_id))
+        db.execute('UPDATE users SET display_name=?, khoi=?, bo_phan=?, chuc_vu=?, ma_nvkd_list=?, email=?, role=?, is_active=?, password_hash=?, password_plain=? WHERE id=?',
+                    (display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, role, is_active, hash_password(new_password), new_password, user_id))
     else:
-        db.execute('UPDATE users SET display_name=?, khoi=?, bo_phan=?, chuc_vu=?, role=?, is_active=? WHERE id=?',
-                    (display_name, khoi, bo_phan, chuc_vu, role, is_active, user_id))
+        db.execute('UPDATE users SET display_name=?, khoi=?, bo_phan=?, chuc_vu=?, ma_nvkd_list=?, email=?, role=?, is_active=? WHERE id=?',
+                    (display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, role, is_active, user_id))
     db.commit()
     flash('Đã cập nhật user', 'success')
     return redirect(url_for('admin.admin_index'))
@@ -162,3 +171,19 @@ def permissions(dash_id):
     assigned = [r['user_id'] for r in db.execute('SELECT user_id FROM user_dashboards WHERE dashboard_id = ?', (dash_id,)).fetchall()]
     return render_template('admin_permissions.html', dashboard=dashboard, users=users, assigned=assigned,
         username=g.current_user['display_name'] or g.current_user['username'])
+
+
+@bp.route('/user/<int:user_id>/permissions', methods=['POST'])
+@admin_required
+def user_permissions(user_id):
+    """Phân quyền dashboard cho 1 user cụ thể"""
+    db = get_db()
+    user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        abort(404)
+    db.execute('DELETE FROM user_dashboards WHERE user_id = ?', (user_id,))
+    for did in request.form.getlist('dash_ids'):
+        db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (user_id, int(did)))
+    db.commit()
+    flash(f'Đã cập nhật quyền cho "{user["display_name"] or user["username"]}"', 'success')
+    return redirect(url_for('admin.admin_index'))

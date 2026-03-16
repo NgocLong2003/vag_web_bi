@@ -155,7 +155,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL, password_plain TEXT DEFAULT '',
             display_name TEXT DEFAULT '', khoi TEXT DEFAULT '', bo_phan TEXT DEFAULT '',
-            chuc_vu TEXT DEFAULT '', role TEXT DEFAULT 'user', is_active INTEGER DEFAULT 1,
+            chuc_vu TEXT DEFAULT '', ma_nvkd_list TEXT DEFAULT '', email TEXT DEFAULT '',
+            role TEXT DEFAULT 'user', is_active INTEGER DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now','localtime')), last_login TEXT);
         CREATE TABLE IF NOT EXISTS dashboards (
             id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT UNIQUE NOT NULL,
@@ -177,7 +178,7 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
         CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id);
     ''')
-    for col in ['password_plain', 'khoi', 'bo_phan', 'chuc_vu']:
+    for col in ['password_plain', 'khoi', 'bo_phan', 'chuc_vu', 'ma_nvkd_list', 'email']:
         try: db.execute(f'ALTER TABLE users ADD COLUMN {col} TEXT DEFAULT ""')
         except: pass
     try: db.execute('ALTER TABLE dashboards ADD COLUMN dashboard_type TEXT DEFAULT "powerbi"')

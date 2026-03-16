@@ -1,0 +1,95 @@
+{# _header_js.html — JS cho header dùng chung #}
+<script>
+(function(){
+    /* ============================================================
+       DESKTOP: Dashboard selector dropdown
+       ============================================================ */
+    var sBtn = document.getElementById('vbiSelectorBtn');
+    var dd = document.getElementById('vbiDropdown');
+    var bd = document.getElementById('vbiBackdrop');
+    if (!sBtn || !dd) return;
+
+    function openDD() { dd.classList.add('show'); bd.classList.add('show'); sBtn.classList.add('open'); }
+    function closeDD() { dd.classList.remove('show'); bd.classList.remove('show'); sBtn.classList.remove('open'); }
+
+    sBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dd.classList.contains('show') ? closeDD() : openDD();
+    });
+    bd.addEventListener('click', closeDD);
+
+    /* ============================================================
+       FULLSCREEN (both desktop button and mobile menu item)
+       ============================================================ */
+    var fsBtn = document.getElementById('vbiFullscreenBtn');
+    var fsMob = document.getElementById('vbiMobFullscreen');
+
+    function doToggleFs() {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function(){});
+        else document.exitFullscreen().catch(function(){});
+    }
+    function updateFsLabel() {
+        var label = document.fullscreenElement ? 'THOÁT TOÀN MÀN HÌNH' : 'TOÀN MÀN HÌNH';
+        var labelMob = document.fullscreenElement ? 'Thoát toàn màn hình' : 'Toàn màn hình';
+        if (fsBtn) fsBtn.textContent = label;
+        if (fsMob) {
+            // Keep the SVG icon, only update text node
+            var nodes = fsMob.childNodes;
+            for (var i = nodes.length - 1; i >= 0; i--) {
+                if (nodes[i].nodeType === 3) { nodes[i].textContent = '\n            ' + labelMob + '\n        '; break; }
+            }
+        }
+    }
+    if (fsBtn) fsBtn.addEventListener('click', doToggleFs);
+    if (fsMob) fsMob.addEventListener('click', function() { closeMobMenu(); doToggleFs(); });
+    document.addEventListener('fullscreenchange', updateFsLabel);
+
+    /* ============================================================
+       MOBILE: Hamburger slide-in menu
+       ============================================================ */
+    var hamBtn = document.getElementById('vbiHamburger');
+    var mobMenu = document.getElementById('vbiMobMenu');
+    var mobOverlay = document.getElementById('vbiMobOverlay');
+    var mobClose = document.getElementById('vbiMobClose');
+
+    function openMobMenu() {
+        if (!mobMenu) return;
+        mobMenu.classList.add('open');
+        mobOverlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeMobMenu() {
+        if (!mobMenu) return;
+        mobMenu.classList.remove('open');
+        mobOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    if (hamBtn) hamBtn.addEventListener('click', openMobMenu);
+    if (mobOverlay) mobOverlay.addEventListener('click', closeMobMenu);
+    if (mobClose) mobClose.addEventListener('click', closeMobMenu);
+
+    /* Swipe-right to close mobile menu */
+    (function(){
+        if (!mobMenu) return;
+        var startX = 0, currentX = 0, dragging = false;
+        mobMenu.addEventListener('touchstart', function(e) {
+            startX = e.touches[0].clientX; currentX = startX; dragging = true;
+            mobMenu.style.transition = 'none';
+        }, {passive: true});
+        document.addEventListener('touchmove', function(e) {
+            if (!dragging || !mobMenu.classList.contains('open')) return;
+            currentX = e.touches[0].clientX;
+            var dx = Math.max(0, currentX - startX);
+            mobMenu.style.transform = 'translateX(' + dx + 'px)';
+        }, {passive: true});
+        document.addEventListener('touchend', function() {
+            if (!dragging) return;
+            dragging = false;
+            mobMenu.style.transition = '';
+            if (currentX - startX > 60) closeMobMenu();
+            else if (mobMenu.classList.contains('open')) mobMenu.style.transform = '';
+        });
+    })();
+})();
+</script>

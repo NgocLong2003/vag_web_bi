@@ -1,0 +1,166 @@
+{# _header_css.html — CSS cho header dùng chung #}
+<style>
+    .vbi-topbar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 14px; height: 40px; background: #1a1a2e; color: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15); user-select: none; z-index: 60;
+        position: relative; flex-shrink: 0;
+    }
+    .vbi-topbar .left { display: flex; align-items: center; gap: 0; }
+    .vbi-topbar .user-info { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .vbi-top-btn {
+        padding: 4px 12px; background: rgba(255,255,255,0.1); color: #fff;
+        border: 1px solid rgba(255,255,255,0.18); border-radius: 5px; font-size: 11px;
+        cursor: pointer; text-decoration: none; transition: background 0.2s;
+    }
+    .vbi-top-btn:hover { background: rgba(255,255,255,0.22); }
+    .vbi-fullscreen-btn {
+        position: absolute; left: 50%; transform: translateX(-50%);
+        padding: 4px 14px; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7);
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 5px; font-size: 10px;
+        font-weight: 600; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s;
+    }
+    .vbi-fullscreen-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+    .vbi-back-btn {
+        display: flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px; border-radius: 5px; color: rgba(255,255,255,0.5);
+        text-decoration: none; font-size: 15px; transition: all 0.15s; margin-right: 6px;
+    }
+    .vbi-back-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .vbi-dash-selector { position: relative; }
+    .vbi-dash-selector-btn {
+        display: flex; align-items: center; gap: 6px;
+        background: none; border: none; color: #fff; cursor: pointer;
+        font-size: 14px; font-weight: 600; padding: 5px 10px; border-radius: 5px;
+        transition: background 0.15s;
+    }
+    .vbi-dash-selector-btn:hover { background: rgba(255,255,255,0.1); }
+    .vbi-dash-selector-btn .arrow { font-size: 9px; opacity: 0.5; transition: transform 0.2s; }
+    .vbi-dash-selector-btn.open .arrow { transform: rotate(180deg); }
+    .vbi-dash-dropdown {
+        display: none; position: absolute; top: 100%; left: 0; margin-top: 4px;
+        background: #fff; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+        min-width: 260px; max-height: 360px; overflow-y: auto; z-index: 60;
+        border: 1px solid #e8e8e8;
+    }
+    .vbi-dash-dropdown.show { display: block; }
+    .vbi-dash-dropdown-item {
+        display: block; padding: 10px 14px; text-decoration: none; color: #333;
+        font-size: 13px; transition: background 0.1s; border-bottom: 1px solid #f5f5f5; cursor: pointer;
+    }
+    .vbi-dash-dropdown-item:last-child { border-bottom: none; }
+    .vbi-dash-dropdown-item:hover { background: #f0f4ff; color: #0078d4; }
+    .vbi-dash-dropdown-item.active { background: #e8f0fe; color: #0057a3; font-weight: 600; }
+    .vbi-dash-dropdown-item .desc { font-size: 11px; color: #999; margin-top: 2px; font-weight: 400; }
+    .vbi-dropdown-backdrop {
+        display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 55;
+    }
+    .vbi-dropdown-backdrop.show { display: block; }
+
+    /* ============================================================
+       MOBILE HAMBURGER MENU
+       ============================================================ */
+    .vbi-hamburger {
+        display: none; /* hidden on desktop */
+        align-items: center; justify-content: center;
+        width: 32px; height: 32px; border: none; background: rgba(255,255,255,0.1);
+        border-radius: 6px; cursor: pointer; color: #fff; padding: 0;
+        transition: background 0.15s; flex-shrink: 0;
+    }
+    .vbi-hamburger:active { background: rgba(255,255,255,0.25); }
+    .vbi-hamburger svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-linecap: round; }
+
+    /* Mobile slide-in menu panel */
+    .vbi-mob-menu-overlay {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+        z-index: 9970; opacity: 0; transition: opacity 0.25s;
+        -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+    }
+    .vbi-mob-menu-overlay.open { display: block; opacity: 1; }
+
+    .vbi-mob-menu {
+        position: fixed; top: 0; right: 0; bottom: 0; z-index: 9975;
+        width: 260px; max-width: 80vw; background: #1a1a2e;
+        box-shadow: -4px 0 24px rgba(0,0,0,0.3);
+        transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+        display: flex; flex-direction: column; overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .vbi-mob-menu.open { transform: translateX(0); }
+
+    .vbi-mob-menu-head {
+        padding: 16px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.1);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .vbi-mob-menu-head .user-label {
+        font-size: 13px; font-weight: 600; color: #fff;
+    }
+    .vbi-mob-menu-close {
+        width: 28px; height: 28px; border: none; background: rgba(255,255,255,0.1);
+        border-radius: 6px; color: rgba(255,255,255,0.6); font-size: 16px;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .vbi-mob-menu-close:active { background: rgba(255,255,255,0.2); }
+
+    .vbi-mob-menu-section {
+        padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .vbi-mob-menu-section:last-child { border-bottom: none; }
+    .vbi-mob-menu-section-label {
+        padding: 6px 16px 4px; font-size: 10px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.8px;
+        color: rgba(255,255,255,0.35);
+    }
+    .vbi-mob-menu-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 16px; text-decoration: none; color: rgba(255,255,255,0.8);
+        font-size: 13px; font-weight: 500; transition: background 0.1s;
+    }
+    .vbi-mob-menu-item:active { background: rgba(255,255,255,0.1); }
+    .vbi-mob-menu-item.active { color: #7eb8ff; font-weight: 600; }
+    .vbi-mob-menu-item svg {
+        width: 16px; height: 16px; stroke: currentColor; fill: none;
+        stroke-linecap: round; flex-shrink: 0; opacity: 0.6;
+    }
+    .vbi-mob-menu-item .item-desc {
+        font-size: 11px; color: rgba(255,255,255,0.35); font-weight: 400; margin-top: 1px;
+    }
+
+    /* ============================================================
+       MOBILE RESPONSIVE
+       ============================================================ */
+    @media (max-width: 768px) {
+        .vbi-topbar { height: 44px; padding: 0 10px; }
+
+        /* Hide desktop-only elements */
+        .vbi-fullscreen-btn { display: none; }
+        .vbi-topbar .user-info { display: none; }
+
+        /* Show hamburger */
+        .vbi-hamburger { display: flex; }
+
+        /* Compact dashboard selector */
+        .vbi-dash-selector-btn { font-size: 13px; padding: 4px 6px; gap: 4px; }
+        .vbi-back-btn { width: 24px; height: 24px; font-size: 13px; margin-right: 4px; }
+
+        /* Dropdown becomes full-width bottom sheet style */
+        .vbi-dash-dropdown {
+            position: fixed; top: auto; bottom: 0; left: 0; right: 0;
+            margin-top: 0; border-radius: 14px 14px 0 0; min-width: 100%;
+            max-height: 65vh;
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.25);
+        }
+        .vbi-dash-dropdown-item { padding: 12px 16px; font-size: 14px; }
+        .vbi-dash-dropdown-item .desc { font-size: 12px; }
+
+        /* Backdrop becomes visible on mobile for dropdown too */
+        .vbi-dropdown-backdrop.show { display: block; background: rgba(0,0,0,0.3); }
+    }
+
+    @media (max-width: 380px) {
+        .vbi-dash-selector-btn { font-size: 12px; max-width: 180px; }
+        .vbi-dash-selector-btn span:first-child {
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+    }
+</style>

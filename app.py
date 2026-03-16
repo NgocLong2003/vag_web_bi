@@ -26,6 +26,11 @@ from dashboard import bp as dash_bp;         app.register_blueprint(dash_bp)
 from admin import bp as admin_bp;            app.register_blueprint(admin_bp)
 from analytics import bp as analytics_bp;    app.register_blueprint(analytics_bp)
 
+# Report blueprints (mỗi báo cáo tự viết = 1 blueprint)
+from reports import get_all_blueprints
+for slug, report_bp in get_all_blueprints():
+    app.register_blueprint(report_bp)
+
 init_db()
 
 if __name__ == '__main__':

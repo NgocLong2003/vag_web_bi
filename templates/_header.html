@@ -1,0 +1,109 @@
+{# _header.html — Header bar dùng chung cho tất cả dashboard types #}
+<div class="vbi-topbar">
+    <div class="left">
+        <a href="/dashboards" class="vbi-back-btn" title="Tất cả Dashboard">&larr;</a>
+        <div class="vbi-dash-selector">
+            <button class="vbi-dash-selector-btn" id="vbiSelectorBtn">
+                {{ dashboard_name }}
+                <span class="arrow">&#9660;</span>
+            </button>
+            <div class="vbi-dash-dropdown" id="vbiDropdown">
+                {% for d in all_dashboards %}
+                <a href="/d/{{ d.slug }}" class="vbi-dash-dropdown-item {{ 'active' if d.slug == dashboard_slug else '' }}"
+                   data-slug="{{ d.slug }}" data-name="{{ d.name }}">
+                    {{ d.name }}
+                    {% if d.description %}
+                    <div class="desc">{{ d.description }}</div>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <button class="vbi-fullscreen-btn" id="vbiFullscreenBtn" title="Toàn màn hình">TOÀN MÀN HÌNH</button>
+
+    {# Desktop: user info buttons #}
+    <div class="user-info">
+        <span>{{ username }}</span>
+        {% if role == 'admin' %}
+        <a href="/admin" class="vbi-top-btn">Quản trị</a>
+        {% endif %}
+        <a href="/settings" class="vbi-top-btn">Cài đặt</a>
+        <a href="/logout" class="vbi-top-btn">Đăng xuất</a>
+    </div>
+
+    {# Mobile: hamburger button #}
+    <button class="vbi-hamburger" id="vbiHamburger" aria-label="Menu">
+        <svg viewBox="0 0 20 20" stroke-width="2">
+            <line x1="3" y1="5" x2="17" y2="5"/>
+            <line x1="3" y1="10" x2="17" y2="10"/>
+            <line x1="3" y1="15" x2="17" y2="15"/>
+        </svg>
+    </button>
+</div>
+<div class="vbi-dropdown-backdrop" id="vbiBackdrop"></div>
+
+{# Mobile: slide-in menu #}
+<div class="vbi-mob-menu-overlay" id="vbiMobOverlay"></div>
+<nav class="vbi-mob-menu" id="vbiMobMenu">
+    <div class="vbi-mob-menu-head">
+        <span class="user-label">{{ username }}</span>
+        <button class="vbi-mob-menu-close" id="vbiMobClose" aria-label="Đóng">✕</button>
+    </div>
+
+    {# Dashboard list section #}
+    <div class="vbi-mob-menu-section">
+        <div class="vbi-mob-menu-section-label">Dashboard</div>
+        {% for d in all_dashboards %}
+        <a href="/d/{{ d.slug }}" class="vbi-mob-menu-item {{ 'active' if d.slug == dashboard_slug else '' }}">
+            <svg viewBox="0 0 20 20" stroke-width="1.5">
+                <rect x="3" y="3" width="14" height="14" rx="2"/>
+                <line x1="3" y1="8" x2="17" y2="8"/>
+                <line x1="8" y1="8" x2="8" y2="17"/>
+            </svg>
+            <div>
+                {{ d.name }}
+                {% if d.description %}
+                <div class="item-desc">{{ d.description }}</div>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {# Actions section #}
+    <div class="vbi-mob-menu-section">
+        <div class="vbi-mob-menu-section-label">Thao tác</div>
+        <a href="javascript:void(0)" class="vbi-mob-menu-item" id="vbiMobFullscreen">
+            <svg viewBox="0 0 20 20" stroke-width="1.5">
+                <polyline points="6,3 3,3 3,6"/><polyline points="14,3 17,3 17,6"/>
+                <polyline points="6,17 3,17 3,14"/><polyline points="14,17 17,17 17,14"/>
+            </svg>
+            Toàn màn hình
+        </a>
+        {% if role == 'admin' %}
+        <a href="/admin" class="vbi-mob-menu-item">
+            <svg viewBox="0 0 20 20" stroke-width="1.5">
+                <circle cx="10" cy="10" r="3"/><path d="M10 2v2m0 12v2m-5.66-2.34l1.42-1.42m8.48-8.48l1.42-1.42M2 10h2m12 0h2m-2.34 5.66l-1.42-1.42M5.76 5.76L4.34 4.34"/>
+            </svg>
+            Quản trị
+        </a>
+        {% endif %}
+        <a href="/settings" class="vbi-mob-menu-item">
+            <svg viewBox="0 0 20 20" stroke-width="1.5">
+                <circle cx="10" cy="10" r="3"/><path d="M10 2v2m0 12v2m-5.66-2.34l1.42-1.42m8.48-8.48l1.42-1.42M2 10h2m12 0h2m-2.34 5.66l-1.42-1.42M5.76 5.76L4.34 4.34"/>
+            </svg>
+            Cài đặt
+        </a>
+    </div>
+
+    {# Logout section #}
+    <div class="vbi-mob-menu-section">
+        <a href="/logout" class="vbi-mob-menu-item" style="color:rgba(255,120,120,0.9)">
+            <svg viewBox="0 0 20 20" stroke-width="1.5">
+                <path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3"/><path d="M13 14l4-4-4-4"/><line x1="17" y1="10" x2="7" y2="10"/>
+            </svg>
+            Đăng xuất
+        </a>
+    </div>
+</nav>
