@@ -54,13 +54,14 @@ thead th:first-child{text-align:left}thead th:nth-child(2){text-align:left}
 .col-dt-sub{border-left:3px solid var(--purple);color:var(--purple)}
 .col-cn2{border-left:3px solid var(--amber);color:var(--amber)}
 .col-dntk{border-left:3px solid #c0392b;color:#c0392b}
+.col-dnck{border-left:3px solid #2c3e50;color:#2c3e50}
 /* Column resize handle */
 th{position:relative;overflow:visible}
 th .col-resize{position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:31}
 th .col-resize:hover,th .col-resize.active{background:var(--blue-md);opacity:.4}
 tbody tr{border-bottom:1px solid var(--g1);transition:background .07s}
-tr.row-nv{background:rgba(200,212,245,.35)}tr.row-nv.lv0{background:rgba(190,205,245,.40)}tr.row-nv.lv1{background:rgba(210,220,248,.30)}tr.row-nv.lv2{background:rgba(222,230,250,.22)}tr.row-nv.lv3{background:rgba(232,237,252,.18)}
-tr.row-nv:hover{background:rgba(200,215,250,.45)!important}tr.row-kh{background:var(--white)}tr.row-kh:hover{background:var(--g0)}
+tr.row-nv{background:#dbe4f5}tr.row-nv.lv0{background:#d2dcf2}tr.row-nv.lv1{background:#dee6f6}tr.row-nv.lv2{background:#e6ecf8}tr.row-nv.lv3{background:#ecf0fa}
+tr.row-nv:hover{background:#cddaf3!important}tr.row-kh{background:var(--white)}tr.row-kh:hover{background:var(--g0)}
 td{height:var(--row-h);padding:0 var(--pad);vertical-align:middle;white-space:nowrap;min-width:100px}
 .cell-name{display:flex;align-items:center;height:100%}
 .tree-lines{display:inline-flex;flex-shrink:0;height:var(--row-h)}.tree-seg{width:18px;height:var(--row-h);position:relative;flex-shrink:0}
@@ -101,10 +102,16 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   .topbar{padding:0 10px}.topbar-right>*:not(.status-chip){display:none!important}.topbar-right .v-div{display:none!important}.brand-sub{display:none}.brand-name{font-size:13px}
   .mob-toolbar{display:flex}
   .table-wrap{padding-bottom:60px}
-  thead th:first-child,tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:28;background:inherit;box-shadow:3px 0 8px rgba(0,0,0,.1);min-width:140px!important;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+  thead th:first-child,tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:28;box-shadow:3px 0 8px rgba(0,0,0,.12);min-width:140px!important;max-width:200px;overflow:hidden;text-overflow:ellipsis}
   thead th:first-child{z-index:38;background:var(--white)}tfoot td:first-child{z-index:28;background:var(--white)}
-  tr.row-nv td:first-child{background:inherit}tr.row-kh td:first-child{background:var(--white)}tr.row-kh:hover td:first-child{background:var(--g0)}
-  thead th:nth-child(2),tbody td:nth-child(2),tfoot td:nth-child(2){display:none}
+  tr.row-nv td:first-child{background:inherit}
+  tr.row-nv.lv0 td:first-child{background:#d2dcf2}
+  tr.row-nv.lv1 td:first-child{background:#dee6f6}
+  tr.row-nv.lv2 td:first-child{background:#e6ecf8}
+  tr.row-nv.lv3 td:first-child{background:#ecf0fa}
+  tr.row-nv:hover td:first-child{background:#cddaf3}
+  tr.row-kh td:first-child{background:var(--white)}tr.row-kh:hover td:first-child{background:var(--g0)}
+  #tbl thead th:nth-child(2),#tbl tbody td:nth-child(2),#tbl tfoot td:nth-child(2){display:none}
   .tree-seg{width:12px}tr.row-nv .nametxt{font-size:11.5px}tr.row-kh .nametxt{font-size:11px}.n{font-size:10.5px}.n.sub{font-size:11px}.n.grand{font-size:11.5px}
   thead th{font-size:9px}.th-date{font-size:8px}
   .picker-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:80vh}.picker-tree{max-height:55vh}.pi{height:40px}
@@ -131,8 +138,9 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
     <div class="v-div"></div>
     <select class="bp-select" id="sel-kbc" onchange="onKBCChange()" style="min-width:120px"><option>Đang tải...</option></select>
     <div class="v-div"></div>
-    <button class="tbtn" id="btn-exp" onclick="toggleExp()"><svg viewBox="0 0 16 16" stroke-width="2"><polyline points="4,6 8,10 12,6"/></svg>Mở</button>
+    <button class="tbtn" id="btn-exp" onclick="toggleExp()"><svg viewBox="0 0 16 16" stroke-width="2"><polyline points="4,10 8,6 12,10"/></svg>Thu</button>
     <button class="tbtn" onclick="loadAllData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải lại</button>
+    <button class="tbtn green" onclick="exportExcel()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
     <div class="v-div"></div>
     <div class="status-chip"><div class="s-dot" id="sDot"></div><span id="sTxt">—</span></div>
   </div>
@@ -152,12 +160,14 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   <button class="mob-btn" onclick="openSheet('filter')"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="3" y1="5" x2="17" y2="5"/><line x1="5" y1="10" x2="15" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg><span>Lọc</span></button>
   <button class="mob-btn accent" onclick="openSheet('kbc')"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="3" x2="7" y2="8"/><line x1="13" y1="3" x2="13" y2="8"/></svg><span>Kỳ</span></button>
   <button class="mob-btn" onclick="openSheet('actions')"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="10" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="16" r="1.5" fill="currentColor" stroke="none"/></svg><span>Khác</span></button>
+  <button class="mob-btn green" onclick="exportExcel()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M10 3v10m0 0l-4-4m4 4l4-4"/><path d="M3 14v2a1.5 1.5 0 001.5 1.5h11A1.5 1.5 0 0017 16v-2"/></svg><span>Excel</span></button>
 </nav>
 
 <div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()"></div>
 <div class="bottom-sheet" id="bottom-sheet"><div class="sheet-handle"></div><div class="sheet-title" id="sheet-title"></div><div class="sheet-body" id="sheet-body"></div></div>
 
 <div id="toasts"></div>
+{% include "baocao_khachhang/_hist_modal.html" %}
 {% include "_header_js.html" %}
 <script>
 const API_BASE='/reports/bao-cao-khach-hang';
@@ -179,14 +189,17 @@ const userNvkdList=USER_NVKD?USER_NVKD.split(',').map(s=>s.trim()).filter(Boolea
 const userBpList=USER_BP?USER_BP.split(',').map(s=>s.trim()).filter(Boolean):[];
 
 // State
-let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=false;
+let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=true;
 let selectedNV=null,pendingNV=new Set(),pickerExp={},pickerOpen=false;
 let selectedBP='',selectedKH=null; // selectedKH = {ma_kh, ten_kh} or null
 let kbcList=[],currentKBC=null;
-let colData={du_no_dk:{},ban_ra:{},tt1:{},tt2:{},du_no_tk:{},du_no_ck:{}};
-let colLoading={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_tk:false,du_no_ck:false};
-let colLoaded={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_tk:false,du_no_ck:false};
-const COLS=['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ck'];
+let lastRenderedRows=[],lastDispCols=[];
+let ttSplit=false; // false=merged by default, true=2 sub-cols
+let colData={du_no_dk:{},ban_ra:{},tt1:{},tt2:{},du_no_tk:{},du_no_ct:{},du_no_ck:{}};
+let colLoading={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_tk:false,du_no_ct:false,du_no_ck:false};
+let colLoaded={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_tk:false,du_no_ct:false,du_no_ck:false};
+function getCOLS(){return ttSplit?['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ct','du_no_ck']:['du_no_dk','ban_ra','tt_merged','du_no_tk','du_no_ct','du_no_ck']}
+const COLS=['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ct','du_no_ck']; // all data cols for loading/aggregation
 
 // Allowed NV set (from hierarchy, filtered by permission)
 let allowedNV=new Set();
@@ -213,7 +226,7 @@ async function init(){
         ]);
         if(!rH.success)throw new Error(rH.error);
         hierarchy=rH.data;nvMap={};
-        hierarchy.forEach(h=>{nvMap[h.ma_nvkd]={...h,children:[],_vals:{}};if(!(h.ma_nvkd in expState))expState[h.ma_nvkd]=(h.level===0)});
+        hierarchy.forEach(h=>{nvMap[h.ma_nvkd]={...h,children:[],_vals:{}};if(!(h.ma_nvkd in expState))expState[h.ma_nvkd]=true});
         hierarchy.forEach(h=>{if(h.ma_ql&&nvMap[h.ma_ql])nvMap[h.ma_ql].children.push(nvMap[h.ma_nvkd])});
         khMap={};khNames={};
         if(rK.success)rK.data.forEach(k=>{if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
@@ -279,6 +292,7 @@ function parseCN(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvk
 function parseDS(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.tong_doanhso||0)});return m}
 function parseDT(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.doanhthu||0)});return m}
 function parseDNTK(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.du_no_trong_ky||0);if(r.ten_kh)khNames[r.ma_kh]=r.ten_kh});return m}
+function parseDNCK(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.du_no_cuoi_ky||0);if(r.ten_kh)khNames[r.ma_kh]=r.ten_kh});return m}
 
 async function loadAllData(){
     if(!currentKBC)return;
@@ -287,24 +301,25 @@ async function loadAllData(){
     document.getElementById('tbl').style.display='';document.getElementById('empty').style.display='none';
     renderAll();setS('busy','Tải...');
     const bp=selectedBP||(userBpList.length?userBpList.join(','):'');
-    const nv=USER_NVKD||'';
+    const nv=allowedNV.size>0&&userNvkdList.length?[...allowedNV].join(','):'';
     const kh=selectedKH?selectedKH.ma_kh:'';
     const dDNDK=iso(k.ngay_du_no_dau_ki),dBDXB=iso(k.ngay_bd_xuat_ban),dKTXB=iso(k.ngay_kt_xuat_ban);
-    const dBDTT=iso(k.ngay_bd_thu_tien),dKTTT=iso(k.ngay_kt_thu_tien),dBDLK=iso(k.ngay_bd_lan_ki),dDNCK=iso(k.ngay_du_no_cuoi_ki);
+    const dBDTT=iso(k.ngay_bd_thu_tien),dKTTT=iso(k.ngay_kt_thu_tien),dBDLK=iso(k.ngay_bd_lan_ki),dKTLK=iso(k.ngay_kt_lan_ki),dDNCK=iso(k.ngay_du_no_cuoi_ki);
     let ngayTruocLK='';
     if(dBDLK){const d=new Date(dBDLK);d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
     if(!dDNDK||!dBDXB||!dKTXB||!dBDTT||!dKTTT||!dDNCK){setS('err','Thiếu ngày');toast('Kỳ thiếu ngày','err');COLS.forEach(c=>colLoading[c]=false);renderAll();return}
     try{
-        const [r1,r2,r3,r4,r5,r6]=await Promise.all([
+        const [r1,r2,r3,r4,r5,r6,r7]=await Promise.all([
             fetchPost('/api/congno',{ngay_cut:dDNDK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
             fetchPost('/api/doanhso',{ngay_a:dBDXB,ngay_b:dKTXB,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
             (dBDTT&&ngayTruocLK)?fetchPost('/api/doanhthu',{ngay_a:dBDTT,ngay_b:ngayTruocLK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}):Promise.resolve({success:true,data:[]}),
             (dBDLK&&dKTTT)?fetchPost('/api/doanhthu',{ngay_a:dBDLK,ngay_b:dKTTT,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}):Promise.resolve({success:true,data:[]}),
-            // Dư nợ trong kỳ: 2 khoảng ngày (hàng: xuất bán, tiền: thu tiền)
             fetchPost('/api/dunotrongky',{ngay_a_hang:dBDXB,ngay_b_hang:dKTXB,ngay_a_tien:dBDTT,ngay_b_tien:dKTTT,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
             fetchPost('/api/congno',{ngay_cut:dDNCK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
+            // Dư nợ cuối kỳ: congno tới ngay_kt_thu_tien - doanh số lân kì
+            fetchPost('/api/dunocuoiky',{ngay_cut:dKTTT,ngay_a_lk:dBDLK,ngay_b_lk:dKTLK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
         ]);
-        colData.du_no_dk=parseCN(r1);colData.ban_ra=parseDS(r2);colData.tt1=parseDT(r3);colData.tt2=parseDT(r4);colData.du_no_tk=parseDNTK(r5);colData.du_no_ck=parseCN(r6);
+        colData.du_no_dk=parseCN(r1);colData.ban_ra=parseDS(r2);colData.tt1=parseDT(r3);colData.tt2=parseDT(r4);colData.du_no_tk=parseDNTK(r5);colData.du_no_ct=parseCN(r6);colData.du_no_ck=parseDNCK(r7);
         COLS.forEach(c=>{colLoaded[c]=true;colLoading[c]=false});
         setS('ok','OK');renderAll();toast('Đã tải xong');
     }catch(e){setS('err','Lỗi');toast(e.message,'err');COLS.forEach(c=>colLoading[c]=false);renderAll()}
@@ -333,7 +348,6 @@ function treeH(anc,isL,dep){if(dep===0)return'';let h='';for(let i=0;i<anc.lengt
 
 function buildRows(){
     const isF=selectedNV!==null; // flat-list mode when NVs are specifically selected
-    const roots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
     const rows=[];
     function getKH(nd){const s=new Set();COLS.forEach(c=>{if(colLoaded[c]&&nd._vals[c])Object.keys(nd._vals[c].kh).forEach(k=>s.add(k))});return[...s]}
     function fKH(keys){
@@ -348,6 +362,15 @@ function buildRows(){
         return nd.children.some(c=>hasData(c));
     }
 
+    // Determine tree roots: if user has permission, start from their allowed NVs; otherwise global roots
+    let treeRoots;
+    if(userNvkdList.length){
+        // Start from the NVs specified in permission (they become depth 0)
+        treeRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+    } else {
+        treeRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+    }
+
     if(isF){
         // Flat-list mode: chỉ hiện NV được tick, không hiện cấp trên
         const list=hierarchy.filter(h=>selectedNV.has(h.ma_nvkd)&&allowedNV.has(h.ma_nvkd)&&hasData(nvMap[h.ma_nvkd])).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
@@ -358,20 +381,24 @@ function buildRows(){
             if(exp&&fk.length)fk.forEach((k,ki)=>{rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:1,ancestors:[{cont:ki<fk.length-1}],isLast:ki===fk.length-1})});
         });
     } else {
-        // Tree mode: walk toàn bộ cây
-        function walk(nd,anc,isL){
+        // Tree mode: walk from allowed roots with relative depth
+        function walk(nd,anc,isL,depthOffset){
             if(!hasData(nd))return;
+            const relDepth=nd.level-depthOffset;
             const exp=expState[nd.ma_nvkd]!==false;
             const fk=fKH(getKH(nd));
             const vc=[...nd.children].sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).filter(c=>hasData(c));
-            rows.push({type:'nv',node:nd,expanded:exp,hasKids:vc.length>0||fk.length>0,depth:nd.level,ancestors:[...anc],isLast:isL});
+            rows.push({type:'nv',node:nd,expanded:exp,hasKids:vc.length>0||fk.length>0,depth:relDepth,ancestors:[...anc],isLast:isL});
             if(exp){
                 const tot=fk.length+vc.length;let si=0;
-                fk.forEach(k=>{const il=si===tot-1;rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:nd.level+1,ancestors:[...anc,{cont:!il}],isLast:il});si++});
-                vc.forEach(child=>{const il=si===tot-1;walk(child,[...anc,{cont:!il}],il);si++});
+                fk.forEach(k=>{const il=si===tot-1;rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:relDepth+1,ancestors:[...anc,{cont:!il}],isLast:il});si++});
+                vc.forEach(child=>{const il=si===tot-1;walk(child,[...anc,{cont:!il}],il,depthOffset);si++});
             }
         }
-        roots.filter(r=>hasData(r)).forEach((r,ri,arr)=>walk(r,[],ri===arr.length-1));
+        const visRoots=treeRoots.filter(r=>hasData(r));
+        // depthOffset: make the first allowed NV appear at depth 0
+        const baseLevel=visRoots.length?visRoots[0].level:0;
+        visRoots.forEach((r,ri,arr)=>walk(r,[],ri===arr.length-1,baseLevel));
     }
     return rows;
 }
@@ -379,48 +406,92 @@ function buildRows(){
 function renderAll(){
     if(!hierarchy.length||!currentKBC)return;
     aggregate();const rows=buildRows();const k=currentKBC;
+    lastRenderedRows=rows;
     let ngayTruocLK='';if(iso(k.ngay_bd_lan_ki)){const d=new Date(iso(k.ngay_bd_lan_ki));d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
-    // Compute ngay_du_no_dau_ki + 1
     let ngayDNDKPlus1='';
     if(iso(k.ngay_du_no_dau_ki)){const d=new Date(iso(k.ngay_du_no_dau_ki));d.setDate(d.getDate()+1);ngayDNDKPlus1=d.toISOString().substring(0,10)}
-    let th='<th style="text-align:left;min-width:220px" rowspan="2">NV / KH<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
-    th+='<th style="text-align:left;min-width:60px;width:70px" rowspan="2">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
-    th+='<th class="col-cn" rowspan="2" style="min-width:120px"><div class="th-main">DƯ NỢ ĐẦU THÁNG</div><div class="th-date">ADMIN chốt số<br>'+fmtD(ngayDNDKPlus1)+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
-    th+='<th class="col-ds" rowspan="2" style="min-width:120px"><div class="th-main">BÁN RA</div><div class="th-date">'+fmtD(iso(k.ngay_bd_xuat_ban))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_xuat_ban))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
-    th+='<th class="col-dt" colspan="2" style="min-width:240px"><div class="th-main">THANH TOÁN</div></th>';
-    th+='<th class="col-dntk" rowspan="2" style="min-width:140px"><div class="th-main">DƯ NỢ CẦN THU TRONG KỲ</div><div class="th-date">Bán ra - Trả về<br>- Thanh toán - Thưởng</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
-    th+='<th class="col-cn2" rowspan="2" style="min-width:120px"><div class="th-main">DƯ NỢ CUỐI THÁNG</div><div class="th-date">ADMIN chốt số<br>'+fmtD(iso(k.ngay_du_no_cuoi_ki))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
-    let th2='<th class="col-dt-sub" style="min-width:120px"><div class="th-date">'+fmtD(iso(k.ngay_bd_thu_tien))+'<br>↓<br>'+fmtD(ngayTruocLK)+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
-    th2+='<th class="col-dt-sub" style="min-width:120px"><div class="th-date">'+fmtD(iso(k.ngay_bd_lan_ki))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_thu_tien))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+
+    // Display columns based on ttSplit
+    const dispCols=ttSplit
+        ?['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ct','du_no_ck']
+        :['du_no_dk','ban_ra','tt_merged','du_no_tk','du_no_ct','du_no_ck'];
+    lastDispCols=dispCols;
+
+    // Toggle button for TT
+    const ttTogBtn='<button onclick="toggleTT()" style="display:inline-flex;align-items:center;gap:2px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.08);color:var(--purple);cursor:pointer;padding:2px 6px;border-radius:4px;font-family:var(--sans);font-size:9px;font-weight:700;margin-top:3px;white-space:nowrap" title="'+(ttSplit?'Gộp thành 1 cột':'Chia làm 2 cột')+'">'+(ttSplit?'⟨ Gộp ⟩':'⟩ Tách ⟨')+'</button>';
+
+    // SINGLE HEADER ROW — no rowspan/colspan
+    let th='<th style="text-align:left;min-width:220px">NV / KH<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th style="text-align:left;min-width:60px;width:70px">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th class="col-cn" style="min-width:120px"><div class="th-main">DƯ NỢ ĐẦU THÁNG</div><div class="th-date">ADMIN chốt số<br>'+fmtD(ngayDNDKPlus1)+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th class="col-ds" style="min-width:120px"><div class="th-main">BÁN RA</div><div class="th-date">'+fmtD(iso(k.ngay_bd_xuat_ban))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_xuat_ban))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    if(ttSplit){
+        th+='<th class="col-dt-sub" style="min-width:120px"><div class="th-main">THANH TOÁN</div><div class="th-date">'+fmtD(iso(k.ngay_bd_thu_tien))+'<br>↓<br>'+fmtD(ngayTruocLK)+'</div>'+ttTogBtn+'<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+        th+='<th class="col-dt-sub" style="min-width:120px"><div class="th-main">THANH TOÁN</div><div class="th-date">'+fmtD(iso(k.ngay_bd_lan_ki))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_thu_tien))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    } else {
+        th+='<th class="col-dt" style="min-width:130px"><div class="th-main">THANH TOÁN</div><div class="th-date">'+fmtD(iso(k.ngay_bd_thu_tien))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_thu_tien))+'</div>'+ttTogBtn+'<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    }
+    th+='<th class="col-dntk" style="min-width:140px"><div class="th-main">DƯ NỢ CẦN THU TRONG KỲ</div><div class="th-date">Bán ra - Trả về<br>- Thanh toán - Thưởng</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th class="col-cn2" style="min-width:120px"><div class="th-main">DƯ NỢ CUỐI THÁNG</div><div class="th-date">ADMIN chốt số<br>'+fmtD(iso(k.ngay_du_no_cuoi_ki))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    th+='<th class="col-dnck" style="min-width:140px"><div class="th-main">DƯ NỢ CUỐI KỲ</div><div class="th-date">Toàn bộ dư nợ '+esc(k.ten_kbc)+' sau khi<br>thanh toán tới '+fmtD(iso(k.ngay_kt_thu_tien))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+
     document.getElementById('theadRow').innerHTML=th;
-    let tr2=document.querySelector('#tbl thead');let old=tr2.querySelector('.r2');if(old)old.remove();
-    const row2=document.createElement('tr');row2.className='r2';row2.innerHTML=th2;tr2.appendChild(row2);
-    // Fix sticky: set row2 top = row1 height
-    requestAnimationFrame(function(){
-        const row1H=document.getElementById('theadRow').offsetHeight;
-        row2.querySelectorAll('th').forEach(function(th){th.style.position='sticky';th.style.top=row1H+'px';th.style.zIndex='30'});
-    });
+    // Remove old row2 if exists
+    let tr2el=document.querySelector('#tbl thead');let old=tr2el.querySelector('.r2');if(old)old.remove();
+
+    // Helper: get cell value for a display column
+    function getCellNV(nd,c){
+        if(c==='tt_merged'){
+            const l1=colLoaded.tt1,l2=colLoaded.tt2;if(!l1&&!l2)return null;
+            const v1=(nd._vals.tt1?nd._vals.tt1.total:null),v2=(nd._vals.tt2?nd._vals.tt2.total:null);
+            if(v1==null&&v2==null)return null;return(v1||0)+(v2||0);
+        }
+        const cv=nd._vals[c];return cv?cv.total:null;
+    }
+    function getCellKH(pNV,mk,c){
+        if(c==='tt_merged'){
+            const v1=(pNV._vals.tt1&&pNV._vals.tt1.kh[mk])!=null?pNV._vals.tt1.kh[mk]:null;
+            const v2=(pNV._vals.tt2&&pNV._vals.tt2.kh[mk])!=null?pNV._vals.tt2.kh[mk]:null;
+            if(v1==null&&v2==null)return null;return(v1||0)+(v2||0);
+        }
+        return(pNV._vals[c]&&pNV._vals[c].kh[mk])!=null?pNV._vals[c].kh[mk]:null;
+    }
+    function isLoading(c){return c==='tt_merged'?(colLoading.tt1||colLoading.tt2):colLoading[c]}
+    function isLoaded(c){return c==='tt_merged'?(colLoaded.tt1||colLoaded.tt2):colLoaded[c]}
+
+    // BODY
     let html='';
     rows.forEach(row=>{
         if(row.type==='nv'){
             const nd=row.node,dep=row.depth,lv='lv'+Math.min(dep,5);
             const tl=dep>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,dep)+'</span>':'';
             const tog=row.hasKids?'<button class="tog" onclick="togNV(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 9 9">'+(row.expanded?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>':'<span class="tog-sp"></span>';
-            let tds='';COLS.forEach(c=>{if(colLoading[c]){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const cv=nd._vals[c];const v=cv?cv.total:null;tds+='<td style="text-align:right">'+(colLoaded[c]?(v!=null?numH(v,'sub'):'<span class="n zero">0</span>'):'<span class="dash">—</span>')+'</td>'});
+            let tds='';dispCols.forEach(c=>{if(isLoading(c)){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const v=getCellNV(nd,c);tds+='<td style="text-align:right">'+(isLoaded(c)?(v!=null?numH(v,'sub'):'<span class="n zero">0</span>'):'<span class="dash">—</span>')+'</td>'});
             html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+tl+tog+'<span class="nametxt">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+tds+'</tr>';
         }else{
             const mk=row.ma_kh,pNV=row.parentNV;
             const tl=row.depth>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,row.depth)+'</span>':'';
-            let tds='';COLS.forEach(c=>{if(colLoading[c]){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const v=(pNV._vals[c]&&pNV._vals[c].kh[mk])!=null?pNV._vals[c].kh[mk]:null;tds+='<td style="text-align:right">'+(colLoaded[c]?(v!=null?numH(v):'<span class="n zero">0</span>'):'<span class="dash">—</span>')+'</td>'});
-            html+='<tr class="row-kh"><td><div class="cell-name">'+tl+'<span class="tog-sp"></span><span class="nametxt">'+esc(row.ten_kh)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(mk)+'</span></td>'+tds+'</tr>';
+            let tds='';dispCols.forEach(c=>{if(isLoading(c)){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const v=getCellKH(pNV,mk,c);tds+='<td style="text-align:right">'+(isLoaded(c)?(v!=null?numH(v):'<span class="n zero">0</span>'):'<span class="dash">—</span>')+'</td>'});
+            html+='<tr class="row-kh"><td><div class="cell-name">'+tl+'<span class="tog-sp"></span><span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openHist(\''+mk.replace(/'/g,"\\'")+'\',\''+esc(row.ten_kh).replace(/'/g,"\\'")+'\')">'+esc(row.ten_kh)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(mk)+'</span></td>'+tds+'</tr>';
         }
     });
     document.getElementById('tbody').innerHTML=html;
-    const allRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]);
+
+    // FOOTER
+    let footRoots;
+    if(userNvkdList.length){footRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id])}
+    else{footRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd])}
     let tf='<td><span class="foot-lbl">Tổng cộng</span></td><td></td>';
-    COLS.forEach(c=>{if(!colLoaded[c]){tf+='<td style="text-align:right"><span class="n grand">—</span></td>';return}let sum=0,has=false;allRoots.forEach(r=>{const t=r._vals[c]?r._vals[c].total:null;if(t!=null){sum+=t;has=true}});tf+='<td style="text-align:right"><span class="n grand">'+(has?fmtV(sum):'—')+'</span></td>'});
+    dispCols.forEach(c=>{
+        if(!isLoaded(c)){tf+='<td style="text-align:right"><span class="n grand">—</span></td>';return}
+        let sum=0,has=false;
+        footRoots.forEach(r=>{const t=getCellNV(r,c);if(t!=null){sum+=t;has=true}});
+        tf+='<td style="text-align:right"><span class="n grand">'+(has?fmtV(sum):'—')+'</span></td>';
+    });
     document.getElementById('tfootRow').innerHTML=tf;
 }
+
+function toggleTT(){ttSplit=!ttSplit;renderAll()}
 
 // NV Picker — only shows allowed NVs
 function getAllDescendants(id){const r=[];function d(i){r.push(i);(nvMap[i]?nvMap[i].children:[]).forEach(c=>d(c.ma_nvkd))}d(id);return r}
@@ -485,7 +556,7 @@ function openSheet(type){
         body+='</div>';
     }else if(type==='actions'){
         title='Thao tác';
-        body='<div style="display:flex;flex-direction:column;gap:8px"><div class="sheet-btn" onclick="toggleExp();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><polyline points="5,8 10,13 15,8"/></svg>'+(allExp?'Thu gọn':'Mở rộng')+'</div><div class="sheet-btn" onclick="loadAllData();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M3 10a7 7 0 1 1 1.2 4"/><polyline points="3,6 3,10 7,10"/></svg>Tải lại</div></div>';
+        body='<div style="display:flex;flex-direction:column;gap:8px"><div class="sheet-btn" onclick="toggleExp();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><polyline points="5,8 10,13 15,8"/></svg>'+(allExp?'Thu gọn':'Mở rộng')+'</div><div class="sheet-btn" onclick="loadAllData();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M3 10a7 7 0 1 1 1.2 4"/><polyline points="3,6 3,10 7,10"/></svg>Tải lại</div><div class="sheet-btn green" onclick="exportExcel();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M10 3v10m0 0l-4-4m4 4l4-4"/><path d="M3 14v2a1.5 1.5 0 001.5 1.5h11A1.5 1.5 0 0017 16v-2"/></svg>Xuất file Excel</div></div>';
     }
     document.getElementById('sheet-title').textContent=title;document.getElementById('sheet-body').innerHTML=body;
     document.getElementById('sheet-overlay').classList.add('open');document.getElementById('bottom-sheet').classList.add('open');
@@ -495,6 +566,77 @@ function closeSheet(){document.getElementById('sheet-overlay').classList.remove(
 
 // Column resize
 function startResize(e,handle){e.preventDefault();e.stopPropagation();var th=handle.parentElement;var sx=e.clientX,sw=th.offsetWidth;handle.classList.add('active');function onM(ev){th.style.width=Math.max(80,sw+(ev.clientX-sx))+'px';th.style.minWidth=th.style.width}function onU(){handle.classList.remove('active');document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU)}document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU)}
+
+// Export Excel
+async function exportExcel(){
+    if(!lastRenderedRows.length||!currentKBC){toast('Chưa có dữ liệu','err');return}
+    setS('busy','Xuất Excel…');
+    const k=currentKBC;
+    let ngayTruocLK='';
+    if(iso(k.ngay_bd_lan_ki)){const d=new Date(iso(k.ngay_bd_lan_ki));d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
+    let ngayDNDKPlus1='';
+    if(iso(k.ngay_du_no_dau_ki)){const d=new Date(iso(k.ngay_du_no_dau_ki));d.setDate(d.getDate()+1);ngayDNDKPlus1=d.toISOString().substring(0,10)}
+
+    // Build column headers matching current dispCols
+    const colHeaderMap={
+        du_no_dk:'DƯ NỢ ĐẦU THÁNG\nADMIN chốt số '+fmtD(ngayDNDKPlus1),
+        ban_ra:'BÁN RA\n'+fmtD(iso(k.ngay_bd_xuat_ban))+' → '+fmtD(iso(k.ngay_kt_xuat_ban)),
+        tt1:'THANH TOÁN\n'+fmtD(iso(k.ngay_bd_thu_tien))+' → '+fmtD(ngayTruocLK),
+        tt2:'THANH TOÁN\n'+fmtD(iso(k.ngay_bd_lan_ki))+' → '+fmtD(iso(k.ngay_kt_thu_tien)),
+        tt_merged:'THANH TOÁN\n'+fmtD(iso(k.ngay_bd_thu_tien))+' → '+fmtD(iso(k.ngay_kt_thu_tien)),
+        du_no_tk:'DƯ NỢ CẦN THU\nTRONG KỲ',
+        du_no_ct:'DƯ NỢ CUỐI THÁNG\nADMIN chốt số '+fmtD(iso(k.ngay_du_no_cuoi_ki)),
+        du_no_ck:'DƯ NỢ CUỐI KỲ\nSau TT tới '+fmtD(iso(k.ngay_kt_thu_tien)),
+    };
+    const colHeaders=lastDispCols.map(c=>colHeaderMap[c]||c);
+
+    // Helper to get values for a row
+    function getCellNV(nd,c){
+        if(c==='tt_merged'){const v1=(nd._vals.tt1?nd._vals.tt1.total:null),v2=(nd._vals.tt2?nd._vals.tt2.total:null);if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}
+        const cv=nd._vals[c];return cv?cv.total:null;
+    }
+    function getCellKH(pNV,mk,c){
+        if(c==='tt_merged'){const v1=(pNV._vals.tt1&&pNV._vals.tt1.kh[mk])!=null?pNV._vals.tt1.kh[mk]:null;const v2=(pNV._vals.tt2&&pNV._vals.tt2.kh[mk])!=null?pNV._vals.tt2.kh[mk]:null;if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}
+        return(pNV._vals[c]&&pNV._vals[c].kh[mk])!=null?pNV._vals[c].kh[mk]:null;
+    }
+
+    // Build payload
+    const payload=[];
+    lastRenderedRows.forEach(function(row){
+        if(row.type==='nv'){
+            const nd=row.node;
+            const vals=lastDispCols.map(c=>getCellNV(nd,c));
+            payload.push({type:'nv',depth:row.depth,name:nd.ten_nvkd||nd.ma_nvkd,values:vals});
+        }else{
+            const vals=lastDispCols.map(c=>getCellKH(row.parentNV,row.ma_kh,c));
+            payload.push({type:'kh',depth:0,name:row.ten_kh,values:vals});
+        }
+    });
+
+    // Footer total
+    let footRoots;
+    if(userNvkdList.length){footRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id])}
+    else{footRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd])}
+    const totVals=lastDispCols.map(c=>{let sum=0,has=false;footRoots.forEach(r=>{const t=getCellNV(r,c);if(t!=null){sum+=t;has=true}});return has?sum:null});
+    payload.push({type:'total',depth:0,name:'TỔNG CỘNG',values:totVals});
+
+    try{
+        const resp=await fetch(API_BASE+'/api/export_excel',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({rows:payload,col_headers:colHeaders,kbc_name:k.ten_kbc||''})
+        });
+        if(!resp.ok)throw new Error('Server error '+resp.status);
+        const blob=await resp.blob();
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');a.href=url;
+        const cd=resp.headers.get('Content-Disposition');
+        let fn='BaoCaoKH.xlsx';
+        if(cd){const m=cd.match(/filename=(.+)/);if(m)fn=m[1].replace(/"/g,'')}
+        a.download=fn;document.body.appendChild(a);a.click();a.remove();
+        URL.revokeObjectURL(url);
+        setS('ok','OK');toast('Đã tải Excel');
+    }catch(e){setS('err','Lỗi');toast(e.message,'err')}
+}
 
 document.addEventListener('DOMContentLoaded',init);
 </script>

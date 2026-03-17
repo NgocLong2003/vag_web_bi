@@ -1,0 +1,133 @@
+<!-- ══ MODAL: Lịch sử KH ══ -->
+<style>
+.hist-overlay{position:fixed;inset:0;background:rgba(15,22,35,.5);z-index:9970;opacity:0;pointer-events:none;transition:opacity .2s}
+.hist-overlay.open{opacity:1;pointer-events:all}
+.hist-modal{position:fixed;z-index:9975;background:var(--white);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:scale(.96) translateY(12px);transition:all .25s cubic-bezier(.32,.72,0,1);pointer-events:none;top:5vh;left:5vw;right:5vw;bottom:5vh}
+.hist-modal.open{opacity:1;transform:none;pointer-events:all}
+.hist-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--g2);flex-shrink:0}
+.hist-title{font-size:15px;font-weight:800;color:var(--g7)}
+.hist-sub{font-size:11px;color:var(--g4);font-weight:500;margin-top:2px}
+.hist-close{width:32px;height:32px;border-radius:8px;border:none;background:var(--g1);color:var(--g5);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}.hist-close:hover{background:var(--red-lt);color:var(--red)}
+.hist-tabs{display:flex;border-bottom:2px solid var(--g2);flex-shrink:0}
+.hist-tab{flex:1;padding:10px 0;text-align:center;font-size:12px;font-weight:700;color:var(--g4);cursor:pointer;border:none;background:none;position:relative;transition:.12s}
+.hist-tab:hover{color:var(--g6);background:var(--g0)}
+.hist-tab.active{color:var(--emr)}
+.hist-tab.active::after{content:'';position:absolute;bottom:-2px;left:20%;right:20%;height:2.5px;background:var(--emr);border-radius:2px 2px 0 0}
+.hist-tab .htab-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 5px;background:var(--g2);color:var(--g4);border-radius:8px;font-size:9px;font-weight:800;margin-left:4px}
+.hist-tab.active .htab-cnt{background:var(--emr-lt);color:var(--emr)}
+.hist-body{flex:1;overflow:auto;padding:0}
+.hist-empty{padding:40px 20px;text-align:center;color:var(--g4);font-size:12px}
+.hist-loading{padding:40px 20px;text-align:center;color:var(--g4);font-size:12px}
+.hist-tbl{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}
+.hist-tbl th{position:sticky;top:0;background:var(--g0);padding:8px 10px;font-size:10px;font-weight:700;color:var(--g5);text-transform:uppercase;text-align:left;border-bottom:1px solid var(--g2);white-space:nowrap;z-index:2}
+.hist-tbl th.r{text-align:right}
+.hist-tbl th:first-child{position:sticky;left:0;z-index:4;background:var(--g0)}
+.hist-tbl td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--g1);white-space:nowrap}
+.hist-tbl td:first-child{position:sticky;left:0;z-index:1;box-shadow:2px 0 6px rgba(0,0,0,.06)}
+.hist-tbl tr.ds-row td:first-child{background:var(--white)}
+.hist-tbl tr.dt-row td:first-child{background:#f8fdf9}
+.hist-tbl tr:hover td:first-child{background:var(--g0)}
+.hist-tbl td.r{text-align:right;font-family:var(--mono);font-size:11px}
+.hist-tbl td.date{font-family:var(--mono);font-size:10px;color:var(--g4)}
+.hist-tbl td.desc{min-width:140px;color:var(--g5)}
+.hist-tbl tr:hover{background:var(--g0)}
+.hist-tbl tr.ds-row{background:var(--white)}.hist-tbl tr.dt-row{background:#f8fdf9}
+.hist-tbl .n.pos{color:var(--g7)}.hist-tbl .n.neg{color:var(--red)}.hist-tbl .n.zero{color:var(--g3)}
+.hist-total{display:flex;justify-content:space-between;align-items:center;padding:10px 18px;border-top:2px solid var(--g2);background:var(--g0);flex-shrink:0}
+.hist-total-label{font-size:11px;font-weight:700;color:var(--g5);text-transform:uppercase}
+.hist-total-val{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--g7)}
+@media(max-width:768px){
+  .hist-modal{top:0;left:0;right:0;bottom:0;border-radius:0}
+  .hist-tbl td{padding:6px 8px;font-size:11px}.hist-tbl td.r{font-size:10px}
+  .hist-tbl th{padding:6px 8px;font-size:9px}
+}
+</style>
+<div class="hist-overlay" id="histOverlay" onclick="closeHist()"></div>
+<div class="hist-modal" id="histModal">
+    <div class="hist-head">
+        <div><div class="hist-title" id="histTitle">LỊCH SỬ</div><div class="hist-sub" id="histSub"></div></div>
+        <button class="hist-close" onclick="closeHist()">✕</button>
+    </div>
+    <div class="hist-tabs">
+        <button class="hist-tab active" id="htabDS" onclick="switchHistTab('ds')">BÁN RA <span class="htab-cnt" id="htabDSCnt">0</span></button>
+        <button class="hist-tab" id="htabDT" onclick="switchHistTab('dt')">THANH TOÁN <span class="htab-cnt" id="htabDTCnt">0</span></button>
+    </div>
+    <div class="hist-body" id="histBody"></div>
+    <div class="hist-total"><span class="hist-total-label" id="histTotalLabel">Tổng</span><span class="hist-total-val" id="histTotalVal">—</span></div>
+</div>
+<script>
+let histDS=[],histDT=[],histTab='ds',histMaKH='';
+
+async function openHist(maKH,tenKH){
+    if(!currentKBC)return;
+    histMaKH=maKH;histDS=[];histDT=[];histTab='ds';
+    document.getElementById('histTitle').textContent='LỊCH SỬ — '+tenKH;
+    document.getElementById('histSub').textContent=maKH+' · '+(currentKBC.ten_kbc||'');
+    document.getElementById('histBody').innerHTML='<div class="hist-loading">Đang tải…</div>';
+    document.getElementById('htabDSCnt').textContent='…';
+    document.getElementById('htabDTCnt').textContent='…';
+    document.getElementById('histTotalVal').textContent='…';
+    document.getElementById('histOverlay').classList.add('open');
+    document.getElementById('histModal').classList.add('open');
+    switchHistTab('ds');
+
+    const k=currentKBC;
+    // BÁN RA: ngay_bd_xuat_ban → ngay_kt_xuat_ban
+    // THANH TOÁN: ngay_bd_thu_tien → ngay_kt_thu_tien
+    try{
+        const [rDS,rDT]=await Promise.all([
+            fetchPost('/api/doanhso_chitiet',{ngay_a:iso(k.ngay_bd_xuat_ban),ngay_b:iso(k.ngay_kt_xuat_ban),ma_kh:maKH}),
+            fetchPost('/api/doanhthu_chitiet',{ngay_a:iso(k.ngay_bd_thu_tien),ngay_b:iso(k.ngay_kt_thu_tien),ma_kh:maKH})
+        ]);
+        histDS=rDS.success?rDS.data:[];
+        histDT=rDT.success?rDT.data:[];
+    }catch(e){histDS=[];histDT=[];toast(e.message,'err')}
+    document.getElementById('htabDSCnt').textContent=histDS.length;
+    document.getElementById('htabDTCnt').textContent=histDT.length;
+    renderHistTab();
+}
+
+function closeHist(){
+    document.getElementById('histOverlay').classList.remove('open');
+    document.getElementById('histModal').classList.remove('open');
+}
+
+function switchHistTab(t){
+    histTab=t;
+    document.getElementById('htabDS').classList.toggle('active',t==='ds');
+    document.getElementById('htabDT').classList.toggle('active',t==='dt');
+    renderHistTab();
+}
+
+function renderHistTab(){
+    const body=document.getElementById('histBody');
+    if(histTab==='ds'){
+        if(!histDS.length){body.innerHTML='<div class="hist-empty">Không có dữ liệu bán ra</div>';document.getElementById('histTotalVal').textContent='0';document.getElementById('histTotalLabel').textContent='Tổng doanh số';return}
+        let html='<table class="hist-tbl"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>ĐVT</th><th class="r">SL</th><th class="r">Đơn giá</th><th class="r">Thành tiền</th><th class="r">CK</th><th class="r">Thuế</th><th class="r">Doanh số</th></tr></thead><tbody>';
+        let total=0;
+        histDS.forEach(r=>{
+            const ds=r.doanhso||0;total+=ds;
+            html+='<tr class="ds-row"><td class="date">'+fmtD(r.ngay_ct)+'</td><td class="desc">'+esc(r.ten_vt||'')+'</td><td>'+esc(r.dvt||'')+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.gia_nt2||0)+'</td><td class="r">'+fmtV(r.tien_nt2||0)+'</td><td class="r">'+fmtV(r.tien_ck_nt||0)+'</td><td class="r">'+fmtV(r.thue_gtgt_nt||0)+'</td><td class="r"><span class="n '+(ds<0?'neg':ds===0?'zero':'pos')+'">'+fmtV(ds)+'</span></td></tr>';
+        });
+        html+='</tbody></table>';
+        body.innerHTML=html;
+        document.getElementById('histTotalLabel').textContent='Tổng doanh số ('+histDS.length+' dòng)';
+        document.getElementById('histTotalVal').textContent=fmtV(total);
+    } else {
+        if(!histDT.length){body.innerHTML='<div class="hist-empty">Không có dữ liệu thanh toán</div>';document.getElementById('histTotalVal').textContent='0';document.getElementById('histTotalLabel').textContent='Tổng thanh toán';return}
+        let html='<table class="hist-tbl"><thead><tr><th>Ngày</th><th>Diễn giải</th><th class="r">Số tiền</th></tr></thead><tbody>';
+        let total=0;
+        histDT.forEach(r=>{
+            const dt=r.doanhthu||0;total+=dt;
+            html+='<tr class="dt-row"><td class="date">'+fmtD(r.ngay_ct)+'</td><td class="desc">'+esc(r.dien_giai||r.ten_kh||'')+'</td><td class="r"><span class="n '+(dt<0?'neg':dt===0?'zero':'pos')+'">'+fmtV(dt)+'</span></td></tr>';
+        });
+        html+='</tbody></table>';
+        body.innerHTML=html;
+        document.getElementById('histTotalLabel').textContent='Tổng thanh toán ('+histDT.length+' dòng)';
+        document.getElementById('histTotalVal').textContent=fmtV(total);
+    }
+}
+
+// Close on Escape
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeHist()});
+</script>

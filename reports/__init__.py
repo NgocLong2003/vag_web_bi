@@ -46,6 +46,10 @@ register_report('bao-cao-kinh-doanh', bckd_bp, 'baocao_kinhdoanh/baocao_kd.html'
 from reports.baocao_khachhang import bp as bckh_bp
 register_report('bao-cao-khach-hang', bckh_bp, 'baocao_khachhang/baocao_kh.html')
 
+# Báo cáo Chi Tiết
+from reports.baocao_chitiet import bp as bcct_bp
+register_report('bao-cao-chi-tiet', bcct_bp, 'baocao_chitiet/baocao_ct.html')
+
 # Thêm báo cáo mới:
 # from reports.baocao_tonkho import bp as bctonkho_bp
 # register_report('ton-kho', bctonkho_bp, 'baocao_tonkho/tonkho.html')

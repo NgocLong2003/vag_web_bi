@@ -63,6 +63,17 @@ def user_add():
         db.execute('INSERT INTO users (username, password_hash, password_plain, display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, ma_bp, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                    (username, hash_password(password), password, display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, ma_bp, role))
         db.commit()
+        # Get new user id and assign dashboards
+        row = db.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone()
+        if row:
+            new_uid = row['id'] if isinstance(row, dict) else row[0]
+            dash_ids = request.form.getlist('dash_ids')
+            for did in dash_ids:
+                try:
+                    db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (new_uid, int(did)))
+                except Exception:
+                    pass
+            db.commit()
         flash(f'Đã tạo tài khoản "{username}"', 'success')
     except Exception as e:
         err = str(e).lower()
@@ -94,6 +105,15 @@ def user_edit(user_id):
     else:
         db.execute('UPDATE users SET display_name=?, khoi=?, bo_phan=?, chuc_vu=?, ma_nvkd_list=?, email=?, ma_bp=?, role=?, is_active=? WHERE id=?',
                     (display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, ma_bp, role, is_active, user_id))
+    db.commit()
+    # Update dashboard permissions
+    dash_ids = request.form.getlist('dash_ids')
+    db.execute('DELETE FROM user_dashboards WHERE user_id=?', (user_id,))
+    for did in dash_ids:
+        try:
+            db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (user_id, int(did)))
+        except Exception:
+            pass
     db.commit()
     flash('Đã cập nhật user', 'success')
     return redirect(url_for('admin.admin_index') + '#users')
