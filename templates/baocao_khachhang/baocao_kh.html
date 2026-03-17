@@ -102,7 +102,7 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   .topbar{padding:0 10px}.topbar-right>*:not(.status-chip){display:none!important}.topbar-right .v-div{display:none!important}.brand-sub{display:none}.brand-name{font-size:13px}
   .mob-toolbar{display:flex}
   .table-wrap{padding-bottom:60px}
-  thead th:first-child,tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:28;box-shadow:3px 0 8px rgba(0,0,0,.12);min-width:140px!important;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+  thead th:first-child,tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:28;box-shadow:3px 0 8px rgba(0,0,0,.12);min-width:140px;max-width:200px;overflow:hidden;text-overflow:ellipsis}
   thead th:first-child{z-index:38;background:var(--white)}tfoot td:first-child{z-index:28;background:var(--white)}
   tr.row-nv td:first-child{background:inherit}
   tr.row-nv.lv0 td:first-child{background:#d2dcf2}
@@ -117,7 +117,7 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   .picker-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:80vh}.picker-tree{max-height:55vh}.pi{height:40px}
   #toasts{bottom:70px;right:10px;left:10px}.toast{max-width:100%}
 }
-@media(max-width:380px){thead th:first-child,tbody td:first-child,tfoot td:first-child{min-width:130px!important;max-width:160px}}
+@media(max-width:380px){thead th:first-child,tbody td:first-child,tfoot td:first-child{min-width:130px;max-width:160px}}
 </style>
 </head>
 <body>
@@ -565,7 +565,7 @@ function openSheet(type){
 function closeSheet(){document.getElementById('sheet-overlay').classList.remove('open');document.getElementById('bottom-sheet').classList.remove('open')}
 
 // Column resize
-function startResize(e,handle){e.preventDefault();e.stopPropagation();var th=handle.parentElement;var sx=e.clientX,sw=th.offsetWidth;handle.classList.add('active');function onM(ev){th.style.width=Math.max(80,sw+(ev.clientX-sx))+'px';th.style.minWidth=th.style.width}function onU(){handle.classList.remove('active');document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU)}document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU)}
+function startResize(e,handle){e.preventDefault();e.stopPropagation();var th=handle.parentElement;var sx=e.clientX,sw=th.offsetWidth;handle.classList.add('active');function onM(ev){var nw=Math.max(80,sw+(ev.clientX-sx))+'px';th.style.width=nw;th.style.minWidth=nw;th.style.maxWidth=nw}function onU(){handle.classList.remove('active');document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU)}document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU)}
 
 // Export Excel
 async function exportExcel(){
