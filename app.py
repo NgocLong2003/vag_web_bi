@@ -1,3 +1,4 @@
+from waitress import serve
 from datetime import timedelta
 from flask import Flask
 from config import SECRET_KEY, SESSION_TIMEOUT_MINUTES
@@ -8,6 +9,7 @@ app.secret_key = SECRET_KEY
 app.permanent_session_lifetime = timedelta(minutes=SESSION_TIMEOUT_MINUTES)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 app.teardown_appcontext(close_db)
 
@@ -60,4 +62,4 @@ if __name__ == '__main__':
     print('  VietAnh BI Dashboard')
     print('  http://localhost:5000')
     print('=' * 50)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    serve(app, host='0.0.0.0', port=5000, threads=8)  # ← thêm app vào đây

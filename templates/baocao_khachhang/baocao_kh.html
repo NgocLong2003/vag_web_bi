@@ -2,15 +2,29 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <title>Báo Cáo Khách Hàng</title>
+<!-- BUILD: 2026-03-17T22:00 -->
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% include "_header_css.html" %}
 <style>
 :root{--white:#fff;--g0:#f4f5f8;--g1:#eceef3;--g2:#d5d9e4;--g3:#a8b0c5;--g4:#6b7898;--g5:#414e6a;--g6:#28334d;--g7:#0f1623;--blue:#1a46c4;--blue-lt:#eef2ff;--blue-md:#5b82f5;--emr:#056944;--emr-lt:#eafaf4;--emr-md:#2db87e;--red:#aa1c1c;--red-lt:#fef2f2;--amber:#964a06;--purple:#7c3aed;--purple-lt:#f5f3ff;--sans:'Nunito Sans',sans-serif;--mono:'JetBrains Mono',monospace;--topbar-h:54px;--row-h:34px;--pad:12px;--tree-line:rgba(168,176,197,.35)}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:14px;overflow:hidden}
-.app{display:flex;flex-direction:column;height:calc(100vh - 40px)}
+.app{display:flex;flex-direction:column;height:calc(100dvh - 40px);height:calc(100vh - 40px)}
+@supports(height:100dvh){.app{height:calc(100dvh - 40px)}}
+/* Mobile hybrid scroll: trick browser into hiding address bar.
+   Add a tiny spacer after .app so body has 1px scrollable content.
+   When user scrolls the table, JS propagates a tiny body scroll to trigger address bar hide.
+   Table-wrap keeps its own scroll context for sticky thead/tfoot/first-col. */
+.app.hybrid-scroll{height:calc(100vh - 40px);height:calc(100dvh - 40px)}
+@supports(height:100dvh){.app.hybrid-scroll{height:calc(100dvh - 40px)}}
+.hybrid-spacer{height:1px;flex-shrink:0}
+
+/* Column resize grip — visible handle on right edge of NV/KH column */
+.col-grip{position:absolute;right:-1px;top:0;bottom:0;width:16px;cursor:col-resize;z-index:40;display:flex;align-items:center;justify-content:center;touch-action:none}
+.col-grip::before{content:'⋮';font-size:14px;color:var(--g3);font-weight:900;line-height:1;transition:color .15s}
+.col-grip:hover::before,.col-grip.active::before{color:var(--blue)}
 
 /* TOPBAR */
 .topbar{height:var(--topbar-h);background:var(--white);border-bottom:1px solid var(--g2);box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between;padding:0 var(--pad);flex-shrink:0;z-index:50}
@@ -22,7 +36,7 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 .s-dot{width:5px;height:5px;border-radius:50%;background:var(--g3)}.s-dot.ok{background:var(--emr)}.s-dot.err{background:var(--red)}.s-dot.busy{background:var(--amber);animation:pulse .9s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* PICKER (NV tree) — reuse from baocao_kd */
+/* PICKER (NV tree) */
 .picker-wrap{position:relative}.picker-trigger{height:32px;padding:0 10px 0 30px;min-width:140px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:13px;color:var(--g7);outline:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;position:relative}.picker-trigger:hover,.picker-trigger.open{border-color:var(--blue-md);background:var(--white)}.picker-trigger svg.ico-search{position:absolute;left:9px;width:13px;height:13px;stroke:var(--g4);fill:none;pointer-events:none}.picker-badge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 5px;background:var(--blue);color:#fff;border-radius:9px;font-size:10px;font-weight:700;margin-left:auto}.picker-badge.all{background:var(--g3)}
 .picker-panel{position:fixed;z-index:9990;background:var(--white);border:1px solid var(--g2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.14);width:300px;display:none;flex-direction:column;overflow:hidden}.picker-panel.open{display:flex}.picker-head{padding:10px 12px 8px;border-bottom:1px solid var(--g1);display:flex;flex-direction:column;gap:7px}.picker-search-row{position:relative;display:flex;align-items:center}.picker-search-row svg{position:absolute;left:8px;width:12px;height:12px;stroke:var(--g4);fill:none;pointer-events:none}#picker-q{width:100%;height:30px;padding:0 8px 0 27px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;outline:none}#picker-q:focus{border-color:var(--blue-md)}.picker-actions{display:flex;gap:6px}.picker-act-btn{flex:1;height:26px;border-radius:5px;border:1px solid var(--g2);background:var(--g0);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--g5);cursor:pointer}.picker-act-btn:hover{background:var(--blue-lt);color:var(--blue)}.picker-tree{overflow-y:auto;max-height:360px;padding:4px 0}
 .pi{display:flex;align-items:center;height:32px;padding:0 12px;cursor:pointer;transition:background .08s;user-select:none}.pi:hover{background:var(--g0)}.pi-cb{width:15px;height:15px;flex-shrink:0;margin-right:8px;border:1.5px solid var(--g3);border-radius:3px;background:var(--white);position:relative;display:flex;align-items:center;justify-content:center}.pi.checked .pi-cb{background:var(--blue);border-color:var(--blue)}.pi.indeterm .pi-cb{background:var(--blue-lt);border-color:var(--blue-md)}.pi.checked .pi-cb::after{content:'';position:absolute;width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}.pi.indeterm .pi-cb::after{content:'';position:absolute;width:7px;height:2px;background:var(--blue);border-radius:1px}.pi-tog{width:16px;height:16px;margin-right:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:3px;color:var(--g3);cursor:pointer}.pi-tog:hover{background:var(--g1);color:var(--g5)}.pi-tog svg{width:8px;height:8px;stroke:currentColor;fill:none;stroke-linecap:round}.pi-tog-sp{width:20px;flex-shrink:0}.pi-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;white-space:nowrap}.pi-name.lv0{font-weight:700}.pi-name.lv1{font-weight:600}.pi-name em{background:#fef9c3;font-style:normal;border-radius:2px}
@@ -87,23 +101,34 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
 
 /* MOBILE BOTTOM TOOLBAR */
 .mob-toolbar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;background:var(--white);border-top:1px solid var(--g2);box-shadow:0 -2px 12px rgba(0,0,0,.08);padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:4px;align-items:center;justify-content:space-around}
-.mob-toolbar .mob-btn{display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:none;cursor:pointer;color:var(--g5);padding:4px 8px;border-radius:8px;font-family:var(--sans);font-size:9px;font-weight:600;min-width:48px}.mob-btn:active{background:var(--g1);transform:scale(.95)}.mob-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-linecap:round}.mob-btn.accent{color:var(--blue)}.mob-btn.green{color:var(--emr)}
-.sheet-overlay{position:fixed;inset:0;background:rgba(15,22,35,.4);z-index:9980;opacity:0;pointer-events:none;transition:opacity .25s}.sheet-overlay.open{opacity:1;pointer-events:all}
+.mob-toolbar .mob-btn{display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:none;cursor:pointer;color:var(--g5);padding:4px 8px;border-radius:8px;font-family:var(--sans);font-size:9px;font-weight:600;min-width:48px;transition:all .1s}.mob-btn:active{background:var(--g1);transform:scale(.95)}.mob-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-linecap:round}.mob-btn.accent{color:var(--blue)}.mob-btn.green{color:var(--emr)}
+.sheet-overlay{position:fixed;inset:0;background:rgba(15,22,35,.4);z-index:9980;opacity:0;pointer-events:none;transition:opacity .25s;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}.sheet-overlay.open{opacity:1;pointer-events:all}
 .bottom-sheet{position:fixed;bottom:0;left:0;right:0;z-index:9985;background:var(--white);border-radius:16px 16px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.18);transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:85vh;display:flex;flex-direction:column;overflow:hidden}.bottom-sheet.open{transform:translateY(0)}
 .sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--g3);margin:10px auto 6px;flex-shrink:0}
 .sheet-title{font-size:14px;font-weight:700;padding:4px 16px 10px;border-bottom:1px solid var(--g1);flex-shrink:0}
-.sheet-body{flex:1;overflow-y:auto;padding:12px 16px 20px}
+.sheet-body{flex:1;overflow-y:auto;padding:12px 16px 20px;-webkit-overflow-scrolling:touch}
 .sheet-section{margin-bottom:16px}.sheet-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--g4);margin-bottom:8px}
 .sheet-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
-.sheet-btn{display:flex;align-items:center;gap:8px;width:100%;height:44px;padding:0 12px;border:1px solid var(--g2);border-radius:8px;background:var(--white);font-family:var(--sans);font-size:13px;font-weight:600;color:var(--g6);cursor:pointer}.sheet-btn:hover{background:var(--g0)}.sheet-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-linecap:round;flex-shrink:0}.sheet-btn.green{color:var(--emr);border-color:var(--emr-md)}
+.sheet-btn{display:flex;align-items:center;gap:8px;width:100%;height:44px;padding:0 12px;border:1px solid var(--g2);border-radius:8px;background:var(--white);font-family:var(--sans);font-size:13px;font-weight:600;color:var(--g6);cursor:pointer;transition:background .1s}.sheet-btn:hover,.sheet-btn:active{background:var(--g0)}.sheet-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-linecap:round;flex-shrink:0}.sheet-btn.green{color:var(--emr);border-color:var(--emr-md)}
 
+/* ============================================================
+   FIX #6: KH suggestion on mobile — use fixed positioning
+   ============================================================ */
+.kh-suggest-fixed{position:fixed!important;top:auto!important;bottom:60px;left:8px;right:8px;max-height:40vh;border-radius:12px;box-shadow:0 -4px 24px rgba(0,0,0,.15)}
+
+/* ============================================================
+   MOBILE PORTRAIT
+   ============================================================ */
 @media(max-width:768px){
   :root{--pad:8px;--row-h:36px;--topbar-h:48px}
   .topbar{padding:0 10px}.topbar-right>*:not(.status-chip){display:none!important}.topbar-right .v-div{display:none!important}.brand-sub{display:none}.brand-name{font-size:13px}
   .mob-toolbar{display:flex}
   .table-wrap{padding-bottom:60px}
-  thead th:first-child,tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:28;box-shadow:3px 0 8px rgba(0,0,0,.12);min-width:140px;max-width:200px;overflow:hidden;text-overflow:ellipsis}
-  thead th:first-child{z-index:38;background:var(--white)}tfoot td:first-child{z-index:28;background:var(--white)}
+
+  /* Sticky first column */
+  thead th:first-child{position:sticky;left:0;z-index:38;background:var(--white);box-shadow:3px 0 8px rgba(0,0,0,.12);min-width:140px;max-width:200px;overflow:visible}
+  tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:28;box-shadow:3px 0 8px rgba(0,0,0,.12);min-width:140px;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+  tfoot td:first-child{background:var(--white)}
   tr.row-nv td:first-child{background:inherit}
   tr.row-nv.lv0 td:first-child{background:#d2dcf2}
   tr.row-nv.lv1 td:first-child{background:#dee6f6}
@@ -111,12 +136,89 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   tr.row-nv.lv3 td:first-child{background:#ecf0fa}
   tr.row-nv:hover td:first-child{background:#cddaf3}
   tr.row-kh td:first-child{background:var(--white)}tr.row-kh:hover td:first-child{background:var(--g0)}
-  #tbl thead th:nth-child(2),#tbl tbody td:nth-child(2),#tbl tfoot td:nth-child(2){display:none}
+
+  /* FIX #3: Hide code column on mobile portrait */
+  thead th:nth-child(2),
+  tbody td:nth-child(2),
+  tfoot td:nth-child(2){display:none}
+
   .tree-seg{width:12px}tr.row-nv .nametxt{font-size:11.5px}tr.row-kh .nametxt{font-size:11px}.n{font-size:10.5px}.n.sub{font-size:11px}.n.grand{font-size:11.5px}
-  thead th{font-size:9px}.th-date{font-size:8px}
+  thead th{font-size:9px}.th-main{font-size:9px;padding:4px var(--pad)}.th-date{font-size:8px}
+
+  /* Picker panel → bottom sheet */
   .picker-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:80vh}.picker-tree{max-height:55vh}.pi{height:40px}
+
   #toasts{bottom:70px;right:10px;left:10px}.toast{max-width:100%}
 }
+
+/* ============================================================
+   FIX #1: PHONE LANDSCAPE — use hover:none + max-height
+   instead of max-width to avoid affecting desktop narrow windows
+   ============================================================ */
+@media(orientation:landscape) and (max-height:500px) and (hover:none){
+  :root{--topbar-h:32px;--row-h:26px;--pad:5px}
+
+  /* FIX #2: Don't override header height here — let _header_css.html handle it
+     Only override this page's topbar */
+  .topbar{height:32px;padding:0 6px}
+  .brand-mark{width:20px;height:20px;border-radius:4px}.brand-mark svg{width:10px;height:10px}
+  .brand-name{font-size:11px}.brand-sub{display:none}
+  .topbar-right>*:not(.status-chip){display:none!important}.topbar-right .v-div{display:none!important}
+
+  /* Compact toolbar */
+  .mob-toolbar{display:flex;padding:2px 4px calc(2px + env(safe-area-inset-bottom));height:auto}
+  .mob-btn{padding:2px 3px;min-width:32px}.mob-btn svg{width:13px;height:13px}.mob-btn span{font-size:7px}
+  .table-wrap{padding-bottom:36px}
+
+  /* Compact table */
+  thead th{font-size:8px;padding:2px var(--pad)}.th-main{padding:3px var(--pad);font-size:9px}.th-date{font-size:7px;padding:1px var(--pad)}
+  .n{font-size:9.5px}.n.sub{font-size:10px}.n.grand{font-size:10.5px}
+  tr.row-nv .nametxt{font-size:10px}tr.row-kh .nametxt{font-size:9.5px}
+  .tree-seg{width:8px}.tog{width:14px;height:14px}.tog svg{width:7px;height:7px}.tog-sp{width:16px}
+  .code{font-size:8px;padding:1px 4px}
+
+  /* Sticky first column */
+  thead th:first-child{position:sticky;left:0;top:0;z-index:38;background:var(--white);box-shadow:3px 0 6px rgba(0,0,0,.1);min-width:110px;max-width:160px;overflow:visible}
+  tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:28;box-shadow:3px 0 6px rgba(0,0,0,.1);min-width:110px;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+  tfoot td:first-child{background:var(--white)}
+  tr.row-nv td:first-child{background:inherit}
+  tr.row-nv.lv0 td:first-child{background:#d2dcf2}tr.row-nv.lv1 td:first-child{background:#dee6f6}tr.row-nv.lv2 td:first-child{background:#e6ecf8}
+  tr.row-kh td:first-child{background:var(--white)}
+
+  /* Hide code column on landscape too */
+  thead th:nth-child(2),
+  tbody td:nth-child(2),
+  tfoot td:nth-child(2){display:none}
+
+  /* FIX #4: Picker → left side panel with overlay backdrop */
+  .picker-panel{width:300px!important;left:0!important;right:auto!important;top:0!important;bottom:0!important;border-radius:0 10px 10px 0;max-height:100vh!important;box-shadow:4px 0 24px rgba(0,0,0,.18)}
+  .picker-tree{max-height:calc(100vh - 120px)}
+  .pi{height:34px}
+
+  /* Bottom sheet shorter for landscape */
+  .bottom-sheet{max-height:70vh;border-radius:12px 12px 0 0}
+  .sheet-handle{margin:6px auto 4px}
+  .sheet-title{font-size:13px;padding:3px 14px 8px}
+  .sheet-body{padding:8px 14px 14px}
+
+  /* Footer */
+  tfoot td{height:28px}
+
+  /* Toasts above toolbar */
+  #toasts{bottom:42px;right:10px;left:auto}.toast{max-width:260px}
+}
+
+/* Very short landscape (e.g. iPhone SE landscape) */
+@media(orientation:landscape) and (max-height:380px) and (hover:none){
+  :root{--row-h:24px;--topbar-h:30px}
+  .mob-btn span{display:none}
+  .mob-btn{min-width:28px;padding:3px}
+  .mob-btn svg{width:14px;height:14px}
+  .mob-toolbar{padding:1px 4px calc(1px + env(safe-area-inset-bottom))}
+  .table-wrap{padding-bottom:32px}
+  thead th:first-child,tbody td:first-child,tfoot td:first-child{min-width:100px!important;max-width:140px}
+}
+
 @media(max-width:380px){thead th:first-child,tbody td:first-child,tfoot td:first-child{min-width:130px;max-width:160px}}
 </style>
 </head>
@@ -180,7 +282,10 @@ const shimH=()=>'<span class="sh"></span>';
 function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
 function setS(st,t){document.getElementById('sDot').className='s-dot '+st;document.getElementById('sTxt').textContent=t}
 function toast(m,t){t=t||'ok';const e=document.createElement('div');e.className='toast '+t;e.innerHTML='<div class="ti">'+(t==='ok'?'✓':'✕')+'</div><span>'+m+'</span>';document.getElementById('toasts').appendChild(e);setTimeout(()=>e.remove(),3500)}
-function isMobile(){return window.innerWidth<=768}
+
+/* FIX #1: Better isMobile detection — includes landscape phone */
+function isMobile(){return window.innerWidth<=768||(window.matchMedia&&window.matchMedia('(orientation:landscape) and (max-height:500px) and (hover:none)').matches)}
+function isLandscapePhone(){return window.matchMedia&&window.matchMedia('(orientation:landscape) and (max-height:500px) and (hover:none)').matches}
 
 // Permission from server
 const USER_NVKD='{{ user_ma_nvkd }}';
@@ -191,17 +296,16 @@ const userBpList=USER_BP?USER_BP.split(',').map(s=>s.trim()).filter(Boolean):[];
 // State
 let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=true;
 let selectedNV=null,pendingNV=new Set(),pickerExp={},pickerOpen=false;
-let selectedBP='',selectedKH=null; // selectedKH = {ma_kh, ten_kh} or null
+let selectedBP='',selectedKH=null;
 let kbcList=[],currentKBC=null;
 let lastRenderedRows=[],lastDispCols=[];
-let ttSplit=false; // false=merged by default, true=2 sub-cols
+let ttSplit=false;
 let colData={du_no_dk:{},ban_ra:{},tt1:{},tt2:{},du_no_tk:{},du_no_ct:{},du_no_ck:{}};
 let colLoading={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_tk:false,du_no_ct:false,du_no_ck:false};
 let colLoaded={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_tk:false,du_no_ct:false,du_no_ck:false};
 function getCOLS(){return ttSplit?['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ct','du_no_ck']:['du_no_dk','ban_ra','tt_merged','du_no_tk','du_no_ct','du_no_ck']}
-const COLS=['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ct','du_no_ck']; // all data cols for loading/aggregation
+const COLS=['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ct','du_no_ck'];
 
-// Allowed NV set (from hierarchy, filtered by permission)
 let allowedNV=new Set();
 function computeAllowedNV(){
     if(!userNvkdList.length){allowedNV=new Set(hierarchy.map(h=>h.ma_nvkd));return}
@@ -209,8 +313,6 @@ function computeAllowedNV(){
     function addDescendants(id){allowedNV.add(id);(nvMap[id]?nvMap[id].children:[]).forEach(c=>addDescendants(c.ma_nvkd))}
     userNvkdList.forEach(id=>{if(nvMap[id])addDescendants(id)});
 }
-
-// Allowed BP list
 function getAllowedBP(){
     if(!userBpList.length){const s=new Set();Object.values(khMap).forEach(v=>{if(v.ma_bp)s.add(v.ma_bp)});return[...s].sort()}
     return userBpList.sort();
@@ -231,14 +333,11 @@ async function init(){
         khMap={};khNames={};
         if(rK.success)rK.data.forEach(k=>{if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
         computeAllowedNV();
-        // Populate BP dropdown
         const bps=getAllowedBP();
         const bpSel=document.getElementById('bp-select');
         bpSel.innerHTML=(bps.length>1?'<option value="">Tất cả BP</option>':'')+bps.map(b=>'<option value="'+esc(b)+'">'+esc(b)+'</option>').join('');
         if(bps.length===1){selectedBP=bps[0];bpSel.value=bps[0]}
-        // Picker: only show allowed NV
         hierarchy.forEach(h=>{pickerExp[h.ma_nvkd]=(h.level===0)});
-        // KBC
         kbcList=rKBC.success?rKBC.data:[];populateKBC();
         setS('ok',hierarchy.length+' NV');
         toast(allowedNV.size+' NV, '+Object.keys(khMap).length+' KH');
@@ -273,6 +372,8 @@ function onKHInput(v){
     const sg=document.getElementById('kh-suggest');
     if(!matches.length){sg.classList.remove('show');return}
     sg.innerHTML=matches.map(([mk,info])=>'<div class="kh-suggest-item" onclick="selectKH(\''+esc(mk)+'\',\''+esc(info.ten_kh||mk)+'\')"><span class="kh-name">'+esc(info.ten_kh||mk)+'</span><span class="kh-code">'+esc(mk)+'</span></div>').join('');
+    /* FIX #6: On mobile, use fixed positioning for suggestions */
+    if(isMobile()){sg.classList.add('kh-suggest-fixed')}else{sg.classList.remove('kh-suggest-fixed')}
     sg.classList.add('show');
 }
 function selectKH(mk,name){
@@ -316,7 +417,6 @@ async function loadAllData(){
             (dBDLK&&dKTTT)?fetchPost('/api/doanhthu',{ngay_a:dBDLK,ngay_b:dKTTT,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}):Promise.resolve({success:true,data:[]}),
             fetchPost('/api/dunotrongky',{ngay_a_hang:dBDXB,ngay_b_hang:dKTXB,ngay_a_tien:dBDTT,ngay_b_tien:dKTTT,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
             fetchPost('/api/congno',{ngay_cut:dDNCK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
-            // Dư nợ cuối kỳ: congno tới ngay_kt_thu_tien - doanh số lân kì
             fetchPost('/api/dunocuoiky',{ngay_cut:dKTTT,ngay_a_lk:dBDLK,ngay_b_lk:dKTLK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
         ]);
         colData.du_no_dk=parseCN(r1);colData.ban_ra=parseDS(r2);colData.tt1=parseDT(r3);colData.tt2=parseDT(r4);colData.du_no_tk=parseDNTK(r5);colData.du_no_ct=parseCN(r6);colData.du_no_ck=parseDNCK(r7);
@@ -325,7 +425,6 @@ async function loadAllData(){
     }catch(e){setS('err','Lỗi');toast(e.message,'err');COLS.forEach(c=>colLoading[c]=false);renderAll()}
 }
 
-// Aggregate
 function aggregate(){
     Object.values(nvMap).forEach(n=>{n._vals={}});
     COLS.forEach(cid=>{
@@ -347,32 +446,19 @@ function getKHName(mk){return khNames[mk]||(khMap[mk]&&khMap[mk].ten_kh)||mk}
 function treeH(anc,isL,dep){if(dep===0)return'';let h='';for(let i=0;i<anc.length;i++)h+=anc[i].cont?'<span class="tree-seg vline"></span>':'<span class="tree-seg"></span>';h+=isL?'<span class="tree-seg branch"></span>':'<span class="tree-seg branch-cont"></span>';return h}
 
 function buildRows(){
-    const isF=selectedNV!==null; // flat-list mode when NVs are specifically selected
+    const isF=selectedNV!==null;
     const rows=[];
     function getKH(nd){const s=new Set();COLS.forEach(c=>{if(colLoaded[c]&&nd._vals[c])Object.keys(nd._vals[c].kh).forEach(k=>s.add(k))});return[...s]}
-    function fKH(keys){
-        return keys.filter(k=>{
-            if(selectedKH&&k!==selectedKH.ma_kh)return false;
-            return true;
-        });
-    }
+    function fKH(keys){return keys.filter(k=>{if(selectedKH&&k!==selectedKH.ma_kh)return false;return true})}
     function hasData(nd){
         if(!allowedNV.has(nd.ma_nvkd))return false;
         for(const c of COLS){if(!colLoaded[c])continue;const cv=nd._vals[c];if(cv&&cv.total!=null&&cv.total!==0)return true}
         return nd.children.some(c=>hasData(c));
     }
-
-    // Determine tree roots: if user has permission, start from their allowed NVs; otherwise global roots
     let treeRoots;
-    if(userNvkdList.length){
-        // Start from the NVs specified in permission (they become depth 0)
-        treeRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
-    } else {
-        treeRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
-    }
-
+    if(userNvkdList.length){treeRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom))}
+    else{treeRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom))}
     if(isF){
-        // Flat-list mode: chỉ hiện NV được tick, không hiện cấp trên
         const list=hierarchy.filter(h=>selectedNV.has(h.ma_nvkd)&&allowedNV.has(h.ma_nvkd)&&hasData(nvMap[h.ma_nvkd])).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
         list.forEach((h,i)=>{
             const nd=nvMap[h.ma_nvkd],exp=expState[nd.ma_nvkd]!==false;
@@ -381,7 +467,6 @@ function buildRows(){
             if(exp&&fk.length)fk.forEach((k,ki)=>{rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:1,ancestors:[{cont:ki<fk.length-1}],isLast:ki===fk.length-1})});
         });
     } else {
-        // Tree mode: walk from allowed roots with relative depth
         function walk(nd,anc,isL,depthOffset){
             if(!hasData(nd))return;
             const relDepth=nd.level-depthOffset;
@@ -396,7 +481,6 @@ function buildRows(){
             }
         }
         const visRoots=treeRoots.filter(r=>hasData(r));
-        // depthOffset: make the first allowed NV appear at depth 0
         const baseLevel=visRoots.length?visRoots[0].level:0;
         visRoots.forEach((r,ri,arr)=>walk(r,[],ri===arr.length-1,baseLevel));
     }
@@ -410,18 +494,12 @@ function renderAll(){
     let ngayTruocLK='';if(iso(k.ngay_bd_lan_ki)){const d=new Date(iso(k.ngay_bd_lan_ki));d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
     let ngayDNDKPlus1='';
     if(iso(k.ngay_du_no_dau_ki)){const d=new Date(iso(k.ngay_du_no_dau_ki));d.setDate(d.getDate()+1);ngayDNDKPlus1=d.toISOString().substring(0,10)}
-
-    // Display columns based on ttSplit
     const dispCols=ttSplit
         ?['du_no_dk','ban_ra','tt1','tt2','du_no_tk','du_no_ct','du_no_ck']
         :['du_no_dk','ban_ra','tt_merged','du_no_tk','du_no_ct','du_no_ck'];
     lastDispCols=dispCols;
-
-    // Toggle button for TT
     const ttTogBtn='<button onclick="toggleTT()" style="display:inline-flex;align-items:center;gap:2px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.08);color:var(--purple);cursor:pointer;padding:2px 6px;border-radius:4px;font-family:var(--sans);font-size:9px;font-weight:700;margin-top:3px;white-space:nowrap" title="'+(ttSplit?'Gộp thành 1 cột':'Chia làm 2 cột')+'">'+(ttSplit?'⟨ Gộp ⟩':'⟩ Tách ⟨')+'</button>';
-
-    // SINGLE HEADER ROW — no rowspan/colspan
-    let th='<th style="text-align:left;min-width:220px">NV / KH<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    let th='<th style="text-align:left;min-width:220px">NV / KH<div class="col-grip" onmousedown="startResize(event,this)" ontouchstart="startResizeTouch(event,this)"></div></th>';
     th+='<th style="text-align:left;min-width:60px;width:70px">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
     th+='<th class="col-cn" style="min-width:120px"><div class="th-main">DƯ NỢ ĐẦU THÁNG</div><div class="th-date">ADMIN chốt số<br>'+fmtD(ngayDNDKPlus1)+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
     th+='<th class="col-ds" style="min-width:120px"><div class="th-main">BÁN RA</div><div class="th-date">'+fmtD(iso(k.ngay_bd_xuat_ban))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_xuat_ban))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
@@ -434,32 +512,18 @@ function renderAll(){
     th+='<th class="col-dntk" style="min-width:140px"><div class="th-main">DƯ NỢ CẦN THU TRONG KỲ</div><div class="th-date">Bán ra - Trả về<br>- Thanh toán - Thưởng</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
     th+='<th class="col-cn2" style="min-width:120px"><div class="th-main">DƯ NỢ CUỐI THÁNG</div><div class="th-date">ADMIN chốt số<br>'+fmtD(iso(k.ngay_du_no_cuoi_ki))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
     th+='<th class="col-dnck" style="min-width:140px"><div class="th-main">DƯ NỢ CUỐI KỲ</div><div class="th-date">Toàn bộ dư nợ '+esc(k.ten_kbc)+' sau khi<br>thanh toán tới '+fmtD(iso(k.ngay_kt_thu_tien))+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
-
     document.getElementById('theadRow').innerHTML=th;
-    // Remove old row2 if exists
     let tr2el=document.querySelector('#tbl thead');let old=tr2el.querySelector('.r2');if(old)old.remove();
-
-    // Helper: get cell value for a display column
     function getCellNV(nd,c){
-        if(c==='tt_merged'){
-            const l1=colLoaded.tt1,l2=colLoaded.tt2;if(!l1&&!l2)return null;
-            const v1=(nd._vals.tt1?nd._vals.tt1.total:null),v2=(nd._vals.tt2?nd._vals.tt2.total:null);
-            if(v1==null&&v2==null)return null;return(v1||0)+(v2||0);
-        }
+        if(c==='tt_merged'){const l1=colLoaded.tt1,l2=colLoaded.tt2;if(!l1&&!l2)return null;const v1=(nd._vals.tt1?nd._vals.tt1.total:null),v2=(nd._vals.tt2?nd._vals.tt2.total:null);if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}
         const cv=nd._vals[c];return cv?cv.total:null;
     }
     function getCellKH(pNV,mk,c){
-        if(c==='tt_merged'){
-            const v1=(pNV._vals.tt1&&pNV._vals.tt1.kh[mk])!=null?pNV._vals.tt1.kh[mk]:null;
-            const v2=(pNV._vals.tt2&&pNV._vals.tt2.kh[mk])!=null?pNV._vals.tt2.kh[mk]:null;
-            if(v1==null&&v2==null)return null;return(v1||0)+(v2||0);
-        }
+        if(c==='tt_merged'){const v1=(pNV._vals.tt1&&pNV._vals.tt1.kh[mk])!=null?pNV._vals.tt1.kh[mk]:null;const v2=(pNV._vals.tt2&&pNV._vals.tt2.kh[mk])!=null?pNV._vals.tt2.kh[mk]:null;if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}
         return(pNV._vals[c]&&pNV._vals[c].kh[mk])!=null?pNV._vals[c].kh[mk]:null;
     }
     function isLoading(c){return c==='tt_merged'?(colLoading.tt1||colLoading.tt2):colLoading[c]}
     function isLoaded(c){return c==='tt_merged'?(colLoaded.tt1||colLoaded.tt2):colLoaded[c]}
-
-    // BODY
     let html='';
     rows.forEach(row=>{
         if(row.type==='nv'){
@@ -476,8 +540,6 @@ function renderAll(){
         }
     });
     document.getElementById('tbody').innerHTML=html;
-
-    // FOOTER
     let footRoots;
     if(userNvkdList.length){footRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id])}
     else{footRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd])}
@@ -493,7 +555,6 @@ function renderAll(){
 
 function toggleTT(){ttSplit=!ttSplit;renderAll()}
 
-// NV Picker — only shows allowed NVs
 function getAllDescendants(id){const r=[];function d(i){r.push(i);(nvMap[i]?nvMap[i].children:[]).forEach(c=>d(c.ma_nvkd))}d(id);return r}
 function getAllNV(){return[...allowedNV]}
 function getCheckState(id){const a=getAllDescendants(id).filter(i=>allowedNV.has(i)),c=a.filter(i=>pendingNV.has(i)).length;return c===0?'none':c===a.length?'checked':'indeterm'}
@@ -518,16 +579,24 @@ function renderPickerTree(){
 }
 function pickerToggleExp(id,e){e.stopPropagation();pickerExp[id]=!(pickerExp[id]!==false);renderPickerTree()}
 function togglePicker(){pickerOpen?closePicker():openPicker()}
+
+/* FIX #1 & #4: openPicker handles portrait, landscape, and desktop separately */
 function openPicker(){
     pickerOpen=true;pendingNV=selectedNV===null?new Set():new Set(selectedNV);
     const p=document.getElementById('picker-panel');
     const tr=document.getElementById('picker-trigger');
-    if(isMobile()){
-        // Mobile: fixed bottom sheet style
+    if(isLandscapePhone()){
+        // Landscape phone: left side panel
+        p.style.position='fixed';
+        p.style.top='0';p.style.left='0';p.style.right='auto';p.style.bottom='0';
+        p.style.width='300px';p.style.borderRadius='0 10px 10px 0';p.style.maxHeight='100vh';
+    } else if(isMobile()){
+        // Portrait phone: bottom sheet
         p.style.position='fixed';
         p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';
         p.style.width='100%';p.style.borderRadius='16px 16px 0 0';p.style.maxHeight='80vh';
     } else {
+        // Desktop: dropdown below trigger
         p.style.position='fixed';
         const r=tr.getBoundingClientRect();
         p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-310)+'px';
@@ -564,8 +633,41 @@ function openSheet(type){
 }
 function closeSheet(){document.getElementById('sheet-overlay').classList.remove('open');document.getElementById('bottom-sheet').classList.remove('open')}
 
+/* FIX #5: Swipe-down to dismiss bottom sheet */
+(function(){
+    var sheet=null,startY=0,currentY=0,isDragging=false;
+    document.addEventListener('DOMContentLoaded',function(){
+        sheet=document.getElementById('bottom-sheet');
+        if(!sheet)return;
+        var handle=sheet.querySelector('.sheet-handle');
+        var titleEl=sheet.querySelector('.sheet-title');
+        [handle,titleEl].forEach(function(el){
+            if(!el)return;
+            el.addEventListener('touchstart',function(e){
+                startY=e.touches[0].clientY;currentY=startY;isDragging=true;
+                sheet.style.transition='none';
+            },{passive:true});
+        });
+        document.addEventListener('touchmove',function(e){
+            if(!isDragging)return;
+            currentY=e.touches[0].clientY;
+            var dy=Math.max(0,currentY-startY);
+            sheet.style.transform='translateY('+dy+'px)';
+        },{passive:true});
+        document.addEventListener('touchend',function(){
+            if(!isDragging)return;
+            isDragging=false;
+            sheet.style.transition='';
+            var dy=currentY-startY;
+            if(dy>80) closeSheet();
+            else sheet.style.transform='';
+        });
+    });
+})();
+
 // Column resize
 function startResize(e,handle){e.preventDefault();e.stopPropagation();var th=handle.parentElement;var sx=e.clientX,sw=th.offsetWidth;handle.classList.add('active');function onM(ev){var nw=Math.max(80,sw+(ev.clientX-sx))+'px';th.style.width=nw;th.style.minWidth=nw;th.style.maxWidth=nw}function onU(){handle.classList.remove('active');document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU)}document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU)}
+function startResizeTouch(e,handle){e.stopPropagation();var th=handle.parentElement;var sx=e.touches[0].clientX,sw=th.offsetWidth;handle.classList.add('active');function onM(ev){ev.preventDefault();var nw=Math.max(80,sw+(ev.touches[0].clientX-sx))+'px';th.style.width=nw;th.style.minWidth=nw;th.style.maxWidth=nw}function onU(){handle.classList.remove('active');document.removeEventListener('touchmove',onM);document.removeEventListener('touchend',onU)}document.addEventListener('touchmove',onM,{passive:false});document.addEventListener('touchend',onU)}
 
 // Export Excel
 async function exportExcel(){
@@ -576,8 +678,6 @@ async function exportExcel(){
     if(iso(k.ngay_bd_lan_ki)){const d=new Date(iso(k.ngay_bd_lan_ki));d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
     let ngayDNDKPlus1='';
     if(iso(k.ngay_du_no_dau_ki)){const d=new Date(iso(k.ngay_du_no_dau_ki));d.setDate(d.getDate()+1);ngayDNDKPlus1=d.toISOString().substring(0,10)}
-
-    // Build column headers matching current dispCols
     const colHeaderMap={
         du_no_dk:'DƯ NỢ ĐẦU THÁNG\nADMIN chốt số '+fmtD(ngayDNDKPlus1),
         ban_ra:'BÁN RA\n'+fmtD(iso(k.ngay_bd_xuat_ban))+' → '+fmtD(iso(k.ngay_kt_xuat_ban)),
@@ -589,8 +689,6 @@ async function exportExcel(){
         du_no_ck:'DƯ NỢ CUỐI KỲ\nSau TT tới '+fmtD(iso(k.ngay_kt_thu_tien)),
     };
     const colHeaders=lastDispCols.map(c=>colHeaderMap[c]||c);
-
-    // Helper to get values for a row
     function getCellNV(nd,c){
         if(c==='tt_merged'){const v1=(nd._vals.tt1?nd._vals.tt1.total:null),v2=(nd._vals.tt2?nd._vals.tt2.total:null);if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}
         const cv=nd._vals[c];return cv?cv.total:null;
@@ -599,46 +697,90 @@ async function exportExcel(){
         if(c==='tt_merged'){const v1=(pNV._vals.tt1&&pNV._vals.tt1.kh[mk])!=null?pNV._vals.tt1.kh[mk]:null;const v2=(pNV._vals.tt2&&pNV._vals.tt2.kh[mk])!=null?pNV._vals.tt2.kh[mk]:null;if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}
         return(pNV._vals[c]&&pNV._vals[c].kh[mk])!=null?pNV._vals[c].kh[mk]:null;
     }
-
-    // Build payload
     const payload=[];
     lastRenderedRows.forEach(function(row){
-        if(row.type==='nv'){
-            const nd=row.node;
-            const vals=lastDispCols.map(c=>getCellNV(nd,c));
-            payload.push({type:'nv',depth:row.depth,name:nd.ten_nvkd||nd.ma_nvkd,values:vals});
-        }else{
-            const vals=lastDispCols.map(c=>getCellKH(row.parentNV,row.ma_kh,c));
-            payload.push({type:'kh',depth:0,name:row.ten_kh,values:vals});
-        }
+        if(row.type==='nv'){const nd=row.node;const vals=lastDispCols.map(c=>getCellNV(nd,c));payload.push({type:'nv',depth:row.depth,name:nd.ten_nvkd||nd.ma_nvkd,values:vals})}
+        else{const vals=lastDispCols.map(c=>getCellKH(row.parentNV,row.ma_kh,c));payload.push({type:'kh',depth:0,name:row.ten_kh,values:vals})}
     });
-
-    // Footer total
     let footRoots;
     if(userNvkdList.length){footRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id])}
     else{footRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd])}
     const totVals=lastDispCols.map(c=>{let sum=0,has=false;footRoots.forEach(r=>{const t=getCellNV(r,c);if(t!=null){sum+=t;has=true}});return has?sum:null});
     payload.push({type:'total',depth:0,name:'TỔNG CỘNG',values:totVals});
-
     try{
-        const resp=await fetch(API_BASE+'/api/export_excel',{
-            method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({rows:payload,col_headers:colHeaders,kbc_name:k.ten_kbc||''})
-        });
+        const resp=await fetch(API_BASE+'/api/export_excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows:payload,col_headers:colHeaders,kbc_name:k.ten_kbc||''})});
         if(!resp.ok)throw new Error('Server error '+resp.status);
-        const blob=await resp.blob();
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a');a.href=url;
-        const cd=resp.headers.get('Content-Disposition');
-        let fn='BaoCaoKH.xlsx';
-        if(cd){const m=cd.match(/filename=(.+)/);if(m)fn=m[1].replace(/"/g,'')}
-        a.download=fn;document.body.appendChild(a);a.click();a.remove();
-        URL.revokeObjectURL(url);
+        const blob=await resp.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;
+        const cd=resp.headers.get('Content-Disposition');let fn='BaoCaoKH.xlsx';if(cd){const m=cd.match(/filename=(.+)/);if(m)fn=m[1].replace(/"/g,'')}
+        a.download=fn;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
         setS('ok','OK');toast('Đã tải Excel');
     }catch(e){setS('err','Lỗi');toast(e.message,'err')}
 }
 
-document.addEventListener('DOMContentLoaded',init);
+/* ============================================================
+   HYBRID SCROLL — trick mobile browser into hiding address bar
+   
+   Problem: overflow:hidden on body prevents browser from auto-hiding
+   address bar on scroll, because body never scrolls.
+   
+   Solution: On mobile, unlock body overflow and add a tiny spacer
+   element so the page is 1px taller than viewport. When user touches
+   the table, we do a one-time window.scrollTo(0,1) which triggers
+   the browser to hide the address bar. All table functionality
+   (sticky thead/tfoot/first-col, horizontal scroll) stays inside
+   .table-wrap's own scroll context — unchanged.
+   ============================================================ */
+let hybridActive=false;
+let spacerEl=null;
+function activateHybridScroll(){
+    const app=document.querySelector('.app');
+    if(!app)return;
+    const isTouch=window.matchMedia('(hover:none)').matches;
+    const isNarrow=window.innerWidth<=768;
+    const isLandscape=window.matchMedia('(orientation:landscape) and (max-height:500px) and (hover:none)').matches;
+
+    if(isTouch&&(isNarrow||isLandscape)){
+        if(hybridActive)return;
+        hybridActive=true;
+        // Unlock body scroll
+        document.documentElement.style.overflow='auto';
+        document.body.style.overflow='auto';
+        document.documentElement.style.height='auto';
+        document.body.style.height='auto';
+        app.classList.add('hybrid-scroll');
+        // Add spacer to make page 1px taller than viewport
+        if(!spacerEl){
+            spacerEl=document.createElement('div');
+            spacerEl.className='hybrid-spacer';
+            document.body.appendChild(spacerEl);
+        }
+        // On first touch inside table-wrap, scroll body by 1px to trigger address bar hide
+        const tw=document.querySelector('.table-wrap');
+        if(tw&&!tw._hybridBound){
+            tw._hybridBound=true;
+            tw.addEventListener('touchstart',function(){
+                if(window.scrollY<1)window.scrollTo(0,1);
+            },{passive:true,once:false});
+        }
+    } else {
+        if(!hybridActive)return;
+        hybridActive=false;
+        document.documentElement.style.overflow='hidden';
+        document.body.style.overflow='hidden';
+        document.documentElement.style.height='100%';
+        document.body.style.height='100%';
+        app.classList.remove('hybrid-scroll');
+        if(spacerEl){spacerEl.remove();spacerEl=null}
+        window.scrollTo(0,0);
+    }
+}
+window.addEventListener('resize',activateHybridScroll);
+window.addEventListener('orientationchange',function(){setTimeout(activateHybridScroll,200)});
+
+document.addEventListener('DOMContentLoaded',function(){
+    activateHybridScroll();
+    init();
+});
 </script>
 </body>
 </html>

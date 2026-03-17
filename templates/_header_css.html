@@ -163,4 +163,43 @@
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
     }
+
+    /* ============================================================
+       PHONE LANDSCAPE — short viewport, wide screen
+       Detect: landscape + short height + no hover (touch device)
+       Typical phone landscape: 700-920px wide × 320-420px tall
+       ============================================================ */
+    @media (orientation: landscape) and (max-height: 500px) and (hover: none) {
+        .vbi-topbar { height: 34px; padding: 0 10px; }
+
+        /* Hide desktop-only, show hamburger */
+        .vbi-fullscreen-btn { display: none; }
+        .vbi-topbar .user-info { display: none; }
+        .vbi-hamburger { display: flex; width: 28px; height: 28px; }
+        .vbi-hamburger svg { width: 15px; height: 15px; }
+
+        /* Compact selector */
+        .vbi-dash-selector-btn { font-size: 12px; padding: 3px 6px; }
+        .vbi-back-btn { width: 22px; height: 22px; font-size: 12px; margin-right: 3px; }
+
+        /* Dropdown: side panel instead of bottom sheet (more vertical space) */
+        .vbi-dash-dropdown {
+            position: fixed; top: 34px; bottom: 0; left: 0; right: auto;
+            margin-top: 0; border-radius: 0 8px 8px 0; min-width: 260px;
+            max-height: none; width: 280px;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.2);
+        }
+        .vbi-dash-dropdown-item { padding: 8px 12px; font-size: 12px; }
+        .vbi-dash-dropdown-item .desc { font-size: 10px; }
+
+        .vbi-dropdown-backdrop.show { display: block; background: rgba(0,0,0,0.3); }
+
+        /* Slide-in menu: compact items for short viewport */
+        .vbi-mob-menu { width: 240px; }
+        .vbi-mob-menu-head { padding: 10px 14px 8px; }
+        .vbi-mob-menu-head .user-label { font-size: 12px; }
+        .vbi-mob-menu-item { padding: 7px 14px; font-size: 12px; gap: 8px; }
+        .vbi-mob-menu-item svg { width: 14px; height: 14px; }
+        .vbi-mob-menu-section-label { padding: 4px 14px 2px; font-size: 9px; }
+    }
 </style>

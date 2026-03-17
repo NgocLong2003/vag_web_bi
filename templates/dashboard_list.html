@@ -7,19 +7,102 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f5f7; min-height: 100vh; }
-        .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 48px; background: #1a1a2e; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-        .top-bar .brand { font-weight: 700; font-size: 15px; }
+
+        /* Top bar */
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; height: 48px; background: #1a1a2e; color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .top-bar .brand { font-weight: 700; font-size: 15px; white-space: nowrap; }
         .top-bar .user-info { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-        .btn-nav { padding: 5px 14px; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; font-size: 12px; cursor: pointer; text-decoration: none; transition: background 0.2s; }
+        .btn-nav {
+            padding: 5px 14px; background: rgba(255,255,255,0.12); color: #fff;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;
+            font-size: 12px; cursor: pointer; text-decoration: none; transition: background 0.2s;
+        }
         .btn-nav:hover { background: rgba(255,255,255,0.25); }
+
+        /* Mobile hamburger */
+        .hamburger {
+            display: none; align-items: center; justify-content: center;
+            width: 36px; height: 36px; border: none; background: rgba(255,255,255,0.1);
+            border-radius: 6px; cursor: pointer; color: #fff; padding: 0;
+        }
+        .hamburger:active { background: rgba(255,255,255,0.25); }
+        .hamburger svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-linecap: round; }
+
+        /* Mobile menu overlay */
+        .mob-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+            z-index: 100; opacity: 0; transition: opacity 0.25s;
+        }
+        .mob-overlay.open { display: block; opacity: 1; }
+        .mob-menu {
+            position: fixed; top: 0; right: 0; bottom: 0; z-index: 101;
+            width: 240px; max-width: 75vw; background: #1a1a2e;
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        .mob-menu.open { transform: translateX(0); }
+        .mob-menu-head {
+            padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .mob-menu-head span { font-size: 13px; font-weight: 600; color: #fff; }
+        .mob-menu-close {
+            width: 28px; height: 28px; border: none; background: rgba(255,255,255,0.1);
+            border-radius: 6px; color: rgba(255,255,255,0.6); font-size: 16px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .mob-menu-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; text-decoration: none; color: rgba(255,255,255,0.8);
+            font-size: 14px; font-weight: 500; border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .mob-menu-item:active { background: rgba(255,255,255,0.1); }
+        .mob-menu-item.danger { color: rgba(255,120,120,0.9); }
+
+        /* Content */
         .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
         h2 { font-size: 20px; color: #1a1a2e; margin-bottom: 20px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-        .card { background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1.5px solid #eee; text-decoration: none; color: inherit; transition: all 0.2s; }
+        .card {
+            background: #fff; border-radius: 10px; padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1.5px solid #eee;
+            text-decoration: none; color: inherit; transition: all 0.2s;
+        }
         .card:hover { border-color: #0078d4; box-shadow: 0 4px 16px rgba(0,120,212,0.12); transform: translateY(-2px); }
         .card h3 { font-size: 16px; color: #1a1a2e; margin-bottom: 6px; }
         .card p { font-size: 13px; color: #888; line-height: 1.5; }
         .empty { text-align: center; padding: 60px 20px; color: #999; font-size: 14px; }
+
+        /* ===== MOBILE PORTRAIT ===== */
+        @media (max-width: 768px) {
+            .top-bar { padding: 0 12px; height: 44px; }
+            .top-bar .user-info { display: none; }
+            .hamburger { display: flex; }
+            .container { margin: 20px auto; padding: 0 12px; }
+            h2 { font-size: 18px; margin-bottom: 14px; }
+            .grid { grid-template-columns: 1fr; gap: 10px; }
+            .card { padding: 18px; }
+            .card h3 { font-size: 15px; }
+        }
+
+        /* ===== PHONE LANDSCAPE ===== */
+        @media (orientation: landscape) and (max-height: 500px) and (hover: none) {
+            .top-bar { height: 36px; padding: 0 10px; }
+            .top-bar .brand { font-size: 13px; }
+            .top-bar .user-info { display: none; }
+            .hamburger { display: flex; width: 30px; height: 30px; }
+            .hamburger svg { width: 16px; height: 16px; }
+            .container { margin: 12px auto; padding: 0 12px; }
+            h2 { font-size: 16px; margin-bottom: 10px; }
+            .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+            .card { padding: 14px; }
+            .card h3 { font-size: 14px; }
+            .card p { font-size: 12px; }
+        }
     </style>
 </head>
 <body>
@@ -31,7 +114,28 @@
             <a href="/settings" class="btn-nav">Cài đặt</a>
             <a href="/logout" class="btn-nav">Đăng xuất</a>
         </div>
+        <button class="hamburger" id="hamBtn" aria-label="Menu">
+            <svg viewBox="0 0 20 20" stroke-width="2">
+                <line x1="3" y1="5" x2="17" y2="5"/>
+                <line x1="3" y1="10" x2="17" y2="10"/>
+                <line x1="3" y1="15" x2="17" y2="15"/>
+            </svg>
+        </button>
     </div>
+
+    <div class="mob-overlay" id="mobOverlay"></div>
+    <nav class="mob-menu" id="mobMenu">
+        <div class="mob-menu-head">
+            <span>{{ username }}</span>
+            <button class="mob-menu-close" id="mobClose">✕</button>
+        </div>
+        {% if role == 'admin' %}
+        <a href="/admin" class="mob-menu-item">Quản trị</a>
+        {% endif %}
+        <a href="/settings" class="mob-menu-item">Cài đặt</a>
+        <a href="/logout" class="mob-menu-item danger">Đăng xuất</a>
+    </nav>
+
     <div class="container">
         <h2>Chọn Dashboard</h2>
         {% if dashboards %}
@@ -47,5 +151,26 @@
         <div class="empty">Chưa có dashboard nào được gán cho bạn.<br>Vui lòng liên hệ quản trị viên.</div>
         {% endif %}
     </div>
+
+    <script>
+    (function(){
+        var btn=document.getElementById('hamBtn');
+        var menu=document.getElementById('mobMenu');
+        var overlay=document.getElementById('mobOverlay');
+        var close=document.getElementById('mobClose');
+        function open(){menu.classList.add('open');overlay.classList.add('open')}
+        function shut(){menu.classList.remove('open');overlay.classList.remove('open')}
+        if(btn)btn.addEventListener('click',open);
+        if(overlay)overlay.addEventListener('click',shut);
+        if(close)close.addEventListener('click',shut);
+        /* Swipe right to close */
+        var sx=0,cx=0,drag=false;
+        if(menu){
+            menu.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;cx=sx;drag=true;menu.style.transition='none'},{passive:true});
+            document.addEventListener('touchmove',function(e){if(!drag||!menu.classList.contains('open'))return;cx=e.touches[0].clientX;var dx=Math.max(0,cx-sx);menu.style.transform='translateX('+dx+'px)'},{passive:true});
+            document.addEventListener('touchend',function(){if(!drag)return;drag=false;menu.style.transition='';if(cx-sx>50)shut();else if(menu.classList.contains('open'))menu.style.transform=''});
+        }
+    })();
+    </script>
 </body>
 </html>
