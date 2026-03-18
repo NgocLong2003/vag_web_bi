@@ -1,0 +1,70 @@
+{# _loading_overlay.html — Reusable full-screen loading overlay
+   Usage:
+     1. {% include "_loading_overlay.html" %} anywhere in <body>
+     2. JS: showLoading('Đang tải dữ liệu…')  → show
+     3. JS: hideLoading()                       → hide
+     4. JS: showLoading()                       → show with default msg
+   Works on desktop + mobile, responsive, z-index 9950 (above content, below modals)
+#}
+<style>
+.vbi-loading-overlay{
+    position:fixed;inset:0;z-index:9950;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+    background:rgba(244,245,248,.85);
+    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+    opacity:0;pointer-events:none;
+    transition:opacity .25s ease;
+}
+.vbi-loading-overlay.visible{opacity:1;pointer-events:all}
+/* Animated spinner — 3 bouncing dots */
+.vbi-loader{display:flex;align-items:center;gap:8px}
+.vbi-loader-dot{
+    width:14px;height:14px;border-radius:50%;
+    background:linear-gradient(135deg,#1a46c4,#5b82f5);
+    animation:vbi-bounce .6s ease-in-out infinite alternate;
+}
+.vbi-loader-dot:nth-child(2){animation-delay:.15s}
+.vbi-loader-dot:nth-child(3){animation-delay:.3s}
+@keyframes vbi-bounce{
+    0%{transform:translateY(0);opacity:.4}
+    100%{transform:translateY(-16px);opacity:1}
+}
+.vbi-loading-msg{
+    font-family:'Nunito Sans',sans-serif;
+    font-size:14px;font-weight:600;
+    color:#414e6a;
+    text-align:center;
+    max-width:260px;
+    line-height:1.4;
+}
+/* Mobile: slightly smaller */
+@media(max-width:768px){
+    .vbi-loader-dot{width:12px;height:12px}
+    .vbi-loading-msg{font-size:13px}
+}
+/* Landscape phone */
+@media(orientation:landscape) and (max-height:500px) and (hover:none){
+    .vbi-loader-dot{width:10px;height:10px}
+    .vbi-loading-msg{font-size:12px}
+}
+</style>
+<div class="vbi-loading-overlay" id="vbiLoadingOverlay">
+    <div class="vbi-loader">
+        <div class="vbi-loader-dot"></div>
+        <div class="vbi-loader-dot"></div>
+        <div class="vbi-loader-dot"></div>
+    </div>
+    <div class="vbi-loading-msg" id="vbiLoadingMsg">Đang tải…</div>
+</div>
+<script>
+function showLoading(msg){
+    var el=document.getElementById('vbiLoadingOverlay');
+    if(!el)return;
+    document.getElementById('vbiLoadingMsg').textContent=msg||'Đang tải…';
+    el.classList.add('visible');
+}
+function hideLoading(){
+    var el=document.getElementById('vbiLoadingOverlay');
+    if(el)el.classList.remove('visible');
+}
+</script>

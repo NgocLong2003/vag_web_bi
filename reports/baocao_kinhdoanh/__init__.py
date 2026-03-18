@@ -251,67 +251,49 @@ def api_doanhthu():
     bp_param = None if not ma_bp else ma_bp
 
     sql = """
-    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?;
-    DECLARE @MaBP NVARCHAR(50)=?; DECLARE @DSMaNVKD NVARCHAR(MAX)=?; DECLARE @DSMaKH NVARCHAR(MAX)=?;
+    SET NOCOUNT ON;
+DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?;
+DECLARE @MaBP NVARCHAR(50)=?; DECLARE @DSMaNVKD NVARCHAR(MAX)=?; DECLARE @DSMaKH NVARCHAR(MAX)=?;
 
-    SELECT dt.ngay_ct,dt.ma_kh_ct,dt.ma_bp,dt.ps_co
-    INTO #TempDoanhThu_DT FROM PTHUBAOCO_VIEW dt
-    WHERE dt.tk_co='131' AND dt.ma_bp!='TN'
-      AND ((dt.ngay_ct>='2026-01-01' AND dt.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
-        OR (dt.ngay_ct<'2026-01-01' AND dt.ma_ct='CA1'))
-      AND (@MaBP IS NULL OR @MaBP='' OR dt.ma_bp=@MaBP)
-      AND dt.ngay_ct>=@NgayA AND dt.ngay_ct<=@NgayB
-      AND (@DSMaKH='' OR dt.ma_kh_ct IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH,',')));
-
-    CREATE INDEX IX_Temp_DT_KH ON #TempDoanhThu_DT(ma_kh_ct,ngay_ct);
-    SELECT DISTINCT ma_kh_ct INTO #MaKH_CanTim_DT FROM #TempDoanhThu_DT;
-
-    SELECT ds.ma_kh,ds.ma_nvkd,ds.ngay_ct INTO #TempDoanhSo_DT
-    FROM BKHDBANHANG_VIEW ds INNER JOIN #MaKH_CanTim_DT mk ON ds.ma_kh=mk.ma_kh_ct;
-    CREATE INDEX IX_Temp_DS_DT ON #TempDoanhSo_DT(ma_kh,ngay_ct DESC);
-
-    SELECT dmkh.ma_kh,dmkh.ma_nvkd INTO #TempDMKH_DT
-    FROM DMKHACHHANG_VIEW dmkh INNER JOIN #MaKH_CanTim_DT mk ON dmkh.ma_kh=mk.ma_kh_ct;
-    CREATE INDEX IX_Temp_DMKH_DT ON #TempDMKH_DT(ma_kh);
-
-    SELECT dt.ngay_ct,
-        CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END AS ngay_admin,
-        YEAR(CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END) AS year_admin,
-        MONTH(CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END) AS month_admin,
-        dt.ma_kh_ct,dt.ma_bp,COALESCE(ds.ma_nvkd,dmkh.ma_nvkd) AS ma_nvkd,SUM(dt.ps_co) AS doanhthu
-    INTO #KetQua_DT
-    FROM #TempDoanhThu_DT dt
-    OUTER APPLY (SELECT TOP 1 ma_nvkd FROM #TempDoanhSo_DT tds WHERE tds.ma_kh=dt.ma_kh_ct AND tds.ngay_ct<=dt.ngay_ct ORDER BY tds.ngay_ct DESC) ds
-    OUTER APPLY (SELECT TOP 1 ma_nvkd FROM #TempDMKH_DT tdmkh WHERE tdmkh.ma_kh=dt.ma_kh_ct) dmkh
-    WHERE @DSMaNVKD='' OR COALESCE(ds.ma_nvkd,dmkh.ma_nvkd) IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,','))
-    GROUP BY dt.ngay_ct,CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END,
-        YEAR(CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END),
-        MONTH(CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END),
-        dt.ma_kh_ct,dt.ma_bp,COALESCE(ds.ma_nvkd,dmkh.ma_nvkd);
-
-    SELECT ngay_ct,ngay_admin,year_admin,month_admin,ma_kh_ct AS ma_kh,ma_bp,ma_nvkd,doanhthu
-    FROM #KetQua_DT ORDER BY ngay_admin,ma_kh_ct,ma_nvkd;
-
-    DROP TABLE IF EXISTS #TempDoanhThu_DT;
-    DROP TABLE IF EXISTS #MaKH_CanTim_DT;
-    DROP TABLE IF EXISTS #TempDoanhSo_DT;
-    DROP TABLE IF EXISTS #TempDMKH_DT;
-    DROP TABLE IF EXISTS #KetQua_DT;
+SELECT
+    dt.ngay_ct,
+    CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END AS ngay_admin,
+    YEAR(CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END) AS year_admin,
+    MONTH(CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END) AS month_admin,
+    dt.ma_kh_ct AS ma_kh,
+    dt.ma_bp,
+    dt.ma_nvkd,
+    SUM(dt.ps_co) AS doanhthu
+FROM PTHUBAOCO_VIEW dt WITH (NOLOCK)
+WHERE dt.tk_co='131' AND dt.ma_bp!='TN'
+  AND ((dt.ngay_ct>='2026-01-01' AND dt.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
+    OR (dt.ngay_ct<'2026-01-01' AND dt.ma_ct='CA1'))
+  AND dt.ngay_ct>=@NgayA AND dt.ngay_ct<=@NgayB
+  AND (@MaBP IS NULL OR @MaBP='' OR dt.ma_bp=@MaBP)
+  AND (@DSMaKH='' OR dt.ma_kh_ct IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH,',')))
+  AND (@DSMaNVKD='' OR dt.ma_nvkd IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,',')))
+GROUP BY
+    dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, dt.ma_nvkd,
+    CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END,
+    YEAR(CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END),
+    MONTH(CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END)
+ORDER BY ngay_admin, ma_kh, ma_nvkd;
     """
     try:
         conn = get_connection()
+        conn.autocommit = True          # ← KEY FIX: mỗi statement commit riêng
         cur = conn.cursor()
         cur.execute(sql, (ngay_a, ngay_b, bp_param, ds_nvkd, ds_kh))
+
         data = []
-        while True:
-            if cur.description:
-                cols = [c[0] for c in cur.description]
-                if 'doanhthu' in cols:
-                    for row in cur.fetchall():
-                        d = dict(zip(cols, row))
-                        if d.get('doanhthu') is not None: d['doanhthu'] = float(d['doanhthu'])
-                        data.append(d)
-            if not cur.nextset(): break
+        if cur.description:
+            cols = [c[0] for c in cur.description]
+            for row in cur.fetchall():
+                d = dict(zip(cols, row))
+                if d.get('doanhthu') is not None:
+                    d['doanhthu'] = float(d['doanhthu'])
+                data.append(d)
+
         conn.close()
         return jsonify({'success': True, 'data': data})
     except Exception as e:

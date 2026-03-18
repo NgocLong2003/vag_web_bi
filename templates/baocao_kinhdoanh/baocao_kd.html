@@ -1,447 +1,661 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Báo Cáo Khách Hàng</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-{% include "_header_css.html" %}
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Báo Cáo Kinh Doanh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<!-- Excel export handled server-side via openpyxl -->
 <style>
-:root{--white:#fff;--g0:#f4f5f8;--g1:#eceef3;--g2:#d5d9e4;--g3:#a8b0c5;--g4:#6b7898;--g5:#414e6a;--g6:#28334d;--g7:#0f1623;--blue:#1a46c4;--blue-lt:#eef2ff;--blue-md:#5b82f5;--emr:#056944;--emr-lt:#eafaf4;--emr-md:#2db87e;--red:#aa1c1c;--red-lt:#fef2f2;--amber:#964a06;--purple:#7c3aed;--purple-lt:#f5f3ff;--sans:'Nunito Sans',sans-serif;--mono:'JetBrains Mono',monospace;--topbar-h:54px;--row-h:34px;--pad:12px;--tree-line:rgba(168,176,197,.35)}
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:14px;overflow:hidden}
-.app{display:flex;flex-direction:column;height:calc(100vh - 40px)}
-
-/* TOPBAR */
-.topbar{height:var(--topbar-h);background:var(--white);border-bottom:1px solid var(--g2);box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between;padding:0 var(--pad);flex-shrink:0;z-index:50}
-.brand{display:flex;align-items:center;gap:10px}.brand-mark{width:28px;height:28px;border-radius:7px;background:var(--blue);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(37,99,235,.35)}.brand-mark svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}.brand-name{font-size:15px;font-weight:700}.brand-sub{font-size:12px;color:var(--g4)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--white:#fff;--gray-0:#f4f5f8;--gray-1:#eceef3;--gray-2:#d5d9e4;--gray-3:#a8b0c5;--gray-4:#6b7898;--gray-5:#414e6a;--gray-6:#28334d;--gray-7:#0f1623;--blue:#1a46c4;--blue-lt:#eef2ff;--blue-md:#5b82f5;--emr:#056944;--emr-lt:#eafaf4;--emr-md:#2db87e;--red:#aa1c1c;--red-lt:#fef2f2;--amber:#964a06;--purple:#7c3aed;--purple-lt:#f5f3ff;--purple-md:#a78bfa;--sans:'Nunito Sans',sans-serif;--mono:'JetBrains Mono',monospace;--topbar-h:54px;--row-h:34px;--pad:16px;--tree-line:rgba(168,176,197,.35)}
+html,body{height:100%;background:var(--gray-0);color:var(--gray-7);font-family:var(--sans);font-size:14px;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+.topbar{height:var(--topbar-h);background:var(--white);border-bottom:1px solid var(--gray-2);box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;justify-content:space-between;padding:0 var(--pad);flex-shrink:0;z-index:50}
+.brand{display:flex;align-items:center;gap:10px}.brand-mark{width:28px;height:28px;border-radius:7px;background:var(--blue);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(37,99,235,.35)}.brand-mark svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}.brand-name{font-size:15px;font-weight:700;color:var(--gray-7)}.brand-sub{font-size:12px;color:var(--gray-4)}
 .topbar-right{display:flex;align-items:center;gap:8px}
-.tbtn{height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--g2);background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g5);cursor:pointer;transition:.12s;display:flex;align-items:center;gap:5px;white-space:nowrap}.tbtn:hover{border-color:var(--g3);background:var(--g0)}.tbtn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-linecap:round;flex-shrink:0}.tbtn.green{border-color:var(--emr-md);color:var(--emr)}.tbtn.green:hover{background:var(--emr-lt)}
-.v-div{width:1px;height:20px;background:var(--g2)}
-.status-chip{height:24px;padding:0 10px;border-radius:12px;display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;background:var(--g1);border:1px solid var(--g2);color:var(--g5);white-space:nowrap}
-.s-dot{width:5px;height:5px;border-radius:50%;background:var(--g3)}.s-dot.ok{background:var(--emr)}.s-dot.err{background:var(--red)}.s-dot.busy{background:var(--amber);animation:pulse .9s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* PICKER (NV tree) — reuse from baocao_kd */
-.picker-wrap{position:relative}.picker-trigger{height:32px;padding:0 10px 0 30px;min-width:140px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:13px;color:var(--g7);outline:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;position:relative}.picker-trigger:hover,.picker-trigger.open{border-color:var(--blue-md);background:var(--white)}.picker-trigger svg.ico-search{position:absolute;left:9px;width:13px;height:13px;stroke:var(--g4);fill:none;pointer-events:none}.picker-badge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 5px;background:var(--blue);color:#fff;border-radius:9px;font-size:10px;font-weight:700;margin-left:auto}.picker-badge.all{background:var(--g3)}
-.picker-panel{position:fixed;z-index:9990;background:var(--white);border:1px solid var(--g2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.14);width:300px;display:none;flex-direction:column;overflow:hidden}.picker-panel.open{display:flex}.picker-head{padding:10px 12px 8px;border-bottom:1px solid var(--g1);display:flex;flex-direction:column;gap:7px}.picker-search-row{position:relative;display:flex;align-items:center}.picker-search-row svg{position:absolute;left:8px;width:12px;height:12px;stroke:var(--g4);fill:none;pointer-events:none}#picker-q{width:100%;height:30px;padding:0 8px 0 27px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;outline:none}#picker-q:focus{border-color:var(--blue-md)}.picker-actions{display:flex;gap:6px}.picker-act-btn{flex:1;height:26px;border-radius:5px;border:1px solid var(--g2);background:var(--g0);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--g5);cursor:pointer}.picker-act-btn:hover{background:var(--blue-lt);color:var(--blue)}.picker-tree{overflow-y:auto;max-height:360px;padding:4px 0}
-.pi{display:flex;align-items:center;height:32px;padding:0 12px;cursor:pointer;transition:background .08s;user-select:none}.pi:hover{background:var(--g0)}.pi-cb{width:15px;height:15px;flex-shrink:0;margin-right:8px;border:1.5px solid var(--g3);border-radius:3px;background:var(--white);position:relative;display:flex;align-items:center;justify-content:center}.pi.checked .pi-cb{background:var(--blue);border-color:var(--blue)}.pi.indeterm .pi-cb{background:var(--blue-lt);border-color:var(--blue-md)}.pi.checked .pi-cb::after{content:'';position:absolute;width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}.pi.indeterm .pi-cb::after{content:'';position:absolute;width:7px;height:2px;background:var(--blue);border-radius:1px}.pi-tog{width:16px;height:16px;margin-right:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:3px;color:var(--g3);cursor:pointer}.pi-tog:hover{background:var(--g1);color:var(--g5)}.pi-tog svg{width:8px;height:8px;stroke:currentColor;fill:none;stroke-linecap:round}.pi-tog-sp{width:20px;flex-shrink:0}.pi-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;white-space:nowrap}.pi-name.lv0{font-weight:700}.pi-name.lv1{font-weight:600}.pi-name em{background:#fef9c3;font-style:normal;border-radius:2px}
-.picker-foot{border-top:1px solid var(--g1);padding:8px 12px;display:flex;justify-content:flex-end;gap:6px}.picker-apply{height:28px;padding:0 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}.picker-close{height:28px;padding:0 12px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-size:12px;font-weight:600;color:var(--g5);cursor:pointer}
-
-/* KH SEARCH with suggestions */
-.kh-search-wrap{position:relative;display:flex;align-items:center;background:var(--g0);border:1px solid var(--g2);border-radius:6px;height:32px;padding:0 8px 0 28px}.kh-search-wrap:focus-within{border-color:var(--emr-md);background:var(--white)}.kh-search-wrap svg{position:absolute;left:9px;width:13px;height:13px;stroke:var(--g4);fill:none;pointer-events:none}#kh-q{width:160px;border:none;background:transparent;font-family:var(--sans);font-size:13px;outline:none}.kh-clear{border:none;background:none;color:var(--g3);cursor:pointer;font-size:12px;padding:0 0 0 4px}.kh-clear:hover{color:var(--red)}
-.kh-suggest{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--white);border:1px solid var(--g2);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:80;max-height:200px;overflow-y:auto;display:none}
-.kh-suggest.show{display:block}
-.kh-suggest-item{padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--g1);display:flex;justify-content:space-between;align-items:center}.kh-suggest-item:last-child{border:none}.kh-suggest-item:hover{background:var(--g0)}.kh-suggest-item .kh-name{font-weight:600;color:var(--g6)}.kh-suggest-item .kh-code{font-family:var(--mono);font-size:10px;color:var(--g4)}
-.kh-selected-chip{display:flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 10px;background:var(--emr-lt);border:1px solid var(--emr-md);border-radius:13px;font-size:11px;font-weight:600;color:var(--emr);white-space:nowrap}
-.kh-selected-chip .kh-chip-x{cursor:pointer;font-size:14px;opacity:.6}.kh-selected-chip .kh-chip-x:hover{opacity:1}
-
-.bp-select{height:32px;padding:0 8px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g6);outline:none;cursor:pointer;min-width:80px}.bp-select:focus{border-color:var(--blue-md)}
-.bp-label{font-size:11px;font-weight:600;color:var(--g4);margin-right:2px}
-
-/* TABLE */
-.table-wrap{flex:1;overflow:auto;position:relative}
-.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--g4)}
-table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}
-thead th{position:sticky;top:0;z-index:30;background:var(--white);border-bottom:2px solid var(--g2);padding:0;text-align:center;font-size:10px;font-weight:700;color:var(--g5);white-space:nowrap;vertical-align:middle;letter-spacing:.03em}
-thead th:first-child{text-align:left}thead th:nth-child(2){text-align:left}
-.th-main{padding:6px var(--pad);border-bottom:1px solid var(--g1)}
-.th-date{font-family:var(--mono);font-size:9px;color:var(--g3);font-weight:500;margin-top:1px;padding:2px var(--pad)}
-.col-cn{border-left:3px solid var(--blue);color:var(--blue)}
-.col-ds{border-left:3px solid var(--emr);color:var(--emr)}
-.col-dt{border-left:3px solid var(--purple);color:var(--purple)}
-.col-cn2{border-left:3px solid var(--amber);color:var(--amber)}
-tbody tr{border-bottom:1px solid var(--g1);transition:background .07s}
-tr.row-nv{background:rgba(200,212,245,.35)}tr.row-nv.lv0{background:rgba(190,205,245,.40)}tr.row-nv.lv1{background:rgba(210,220,248,.30)}tr.row-nv.lv2{background:rgba(222,230,250,.22)}tr.row-nv.lv3{background:rgba(232,237,252,.18)}
-tr.row-nv:hover{background:rgba(200,215,250,.45)!important}tr.row-kh{background:var(--white)}tr.row-kh:hover{background:var(--g0)}
+.tbtn{height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--gray-2);background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--gray-5);cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:5px;white-space:nowrap}.tbtn:hover{border-color:var(--gray-3);color:var(--gray-7);background:var(--gray-0)}.tbtn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-linecap:round;flex-shrink:0}.tbtn.green{border-color:var(--emr-md);color:var(--emr)}.tbtn.green:hover{background:var(--emr-lt)}.tbtn.blue{border-color:var(--blue-md);color:var(--blue)}.tbtn.blue:hover{background:var(--blue-lt)}
+.picker-wrap{position:relative}.picker-trigger{height:32px;padding:0 10px 0 30px;min-width:180px;background:var(--gray-0);border:1px solid var(--gray-2);border-radius:6px;font-family:var(--sans);font-size:13px;color:var(--gray-7);outline:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:border .15s;white-space:nowrap;position:relative}.picker-trigger:hover,.picker-trigger.open{border-color:var(--blue-md);background:var(--white);box-shadow:0 0 0 3px rgba(37,99,235,.08)}.picker-trigger svg.ico-search{position:absolute;left:9px;width:13px;height:13px;stroke:var(--gray-4);fill:none;pointer-events:none}.picker-badge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 5px;background:var(--blue);color:#fff;border-radius:9px;font-size:10px;font-weight:700;margin-left:auto}.picker-badge.all{background:var(--gray-3)}
+.picker-panel{position:fixed;z-index:9990;background:var(--white);border:1px solid var(--gray-2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.14);width:300px;display:none;flex-direction:column;overflow:hidden}.picker-panel.open{display:flex}.picker-head{padding:10px 12px 8px;border-bottom:1px solid var(--gray-1);display:flex;flex-direction:column;gap:7px}.picker-search-row{position:relative;display:flex;align-items:center}.picker-search-row svg{position:absolute;left:8px;width:12px;height:12px;stroke:var(--gray-4);fill:none;pointer-events:none}#picker-q{width:100%;height:30px;padding:0 8px 0 27px;background:var(--gray-0);border:1px solid var(--gray-2);border-radius:6px;font-family:var(--sans);font-size:12px;color:var(--gray-7);outline:none}#picker-q:focus{border-color:var(--blue-md);background:var(--white)}.picker-actions{display:flex;gap:6px}.picker-act-btn{flex:1;height:26px;border-radius:5px;border:1px solid var(--gray-2);background:var(--gray-0);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--gray-5);cursor:pointer}.picker-act-btn:hover{background:var(--blue-lt);color:var(--blue);border-color:var(--blue-md)}.picker-tree{overflow-y:auto;max-height:360px;padding:4px 0}
+.pi{display:flex;align-items:center;height:32px;padding:0 12px;cursor:pointer;transition:background .08s;user-select:none}.pi:hover{background:var(--gray-0)}.pi-cb{width:15px;height:15px;flex-shrink:0;margin-right:8px;border:1.5px solid var(--gray-3);border-radius:3px;background:var(--white);position:relative;display:flex;align-items:center;justify-content:center}.pi.checked .pi-cb{background:var(--blue);border-color:var(--blue)}.pi.indeterm .pi-cb{background:var(--blue-lt);border-color:var(--blue-md)}.pi.checked .pi-cb::after{content:'';position:absolute;width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}.pi.indeterm .pi-cb::after{content:'';position:absolute;width:7px;height:2px;background:var(--blue);border-radius:1px}.pi-tog{width:16px;height:16px;margin-right:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:3px;color:var(--gray-3);cursor:pointer}.pi-tog:hover{background:var(--gray-1);color:var(--gray-5)}.pi-tog svg{width:8px;height:8px;stroke:currentColor;fill:none;stroke-linecap:round}.pi-tog-sp{width:20px;flex-shrink:0}.pi-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;color:var(--gray-7);white-space:nowrap}.pi-name.lv0{font-weight:700}.pi-name.lv1{font-weight:600}.pi-name em{background:#fef9c3;font-style:normal;border-radius:2px}
+.picker-foot{border-top:1px solid var(--gray-1);padding:8px 12px;display:flex;justify-content:flex-end;gap:6px}.picker-apply{height:28px;padding:0 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer}.picker-close{height:28px;padding:0 12px;background:var(--gray-0);border:1px solid var(--gray-2);border-radius:6px;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--gray-5);cursor:pointer}
+.kh-search-wrap{position:relative;display:flex;align-items:center;background:var(--gray-0);border:1px solid var(--gray-2);border-radius:6px;height:32px;padding:0 8px 0 28px}.kh-search-wrap:focus-within{border-color:var(--emr-md);background:var(--white);box-shadow:0 0 0 3px rgba(5,105,68,.08)}.kh-search-wrap svg{position:absolute;left:9px;width:13px;height:13px;stroke:var(--gray-4);fill:none;pointer-events:none}#kh-q{width:160px;border:none;background:transparent;font-family:var(--sans);font-size:13px;color:var(--gray-7);outline:none}.kh-clear{border:none;background:none;color:var(--gray-3);cursor:pointer;font-size:12px;padding:0 0 0 4px}.kh-clear:hover{color:var(--red)}
+.status-chip{height:24px;padding:0 10px;border-radius:12px;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;font-weight:500;background:var(--gray-1);border:1px solid var(--gray-2);color:var(--gray-5)}.s-dot{width:5px;height:5px;border-radius:50%;background:var(--gray-3)}.s-dot.ok{background:var(--emr)}.s-dot.err{background:var(--red)}.s-dot.busy{background:var(--amber);animation:pulse .9s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}.v-div{width:1px;height:20px;background:var(--gray-2)}
+.table-wrap{flex:1;overflow:auto;position:relative}.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--gray-4)}.empty-icon{width:48px;height:48px;border-radius:12px;background:var(--gray-1);border:1px solid var(--gray-2);display:flex;align-items:center;justify-content:center}.empty-icon svg{width:22px;height:22px;stroke:var(--gray-3);fill:none}
+table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}thead th{position:sticky;top:0;z-index:30;background:var(--white);border-bottom:2px solid var(--gray-2);padding:4px var(--pad);text-align:right;font-family:var(--sans);font-size:11px;font-weight:600;color:var(--gray-5);white-space:nowrap;user-select:none;vertical-align:top}thead th:first-child{text-align:left}thead th:nth-child(2){text-align:left}th{position:relative;overflow:visible}th .col-resize{position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:31}th .col-resize:hover,th .col-resize.active{background:var(--blue-md);opacity:.4}th.col-cn{border-left:3px solid var(--blue);color:var(--blue)}th.col-ds{border-left:3px solid var(--emr);color:var(--emr)}th.col-dt{border-left:3px solid var(--purple);color:var(--purple)}th.drag-over-left{box-shadow:inset 3px 0 0 var(--blue-md)}th.drag-over-right{box-shadow:inset -3px 0 0 var(--blue-md)}th[draggable]{cursor:grab}th.dragging{opacity:.4}
+.th-inner{display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:3px 0}.th-title{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;line-height:1.2}.th-dates{display:flex;align-items:center;gap:3px}.th-btns{display:flex;align-items:center;gap:3px;margin-top:1px}input[type="date"]{height:22px;padding:0 5px;background:var(--gray-0);border:1px solid var(--gray-2);border-radius:4px;font-family:var(--mono);font-size:10px;color:var(--gray-6);outline:none;cursor:pointer;width:105px}input[type="date"]:focus{border-color:var(--blue-md);background:var(--white)}.aply{height:22px;padding:0 8px;border:none;border-radius:4px;font-family:var(--sans);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px}.aply.cn{background:var(--blue);color:#fff}.aply.ds{background:var(--emr);color:#fff}.aply.dt{background:var(--purple);color:#fff}.aply:hover{opacity:.88}.aply:disabled{opacity:.5;cursor:not-allowed}.clr{height:22px;width:22px;border:1px solid var(--gray-2);border-radius:4px;background:var(--gray-0);color:var(--gray-4);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}.clr:hover{background:var(--red-lt);color:var(--red);border-color:#fca5a5}.th-sep{color:var(--gray-3);font-size:10px;font-weight:600}.col-remove{height:22px;width:22px;border:1px solid var(--gray-2);border-radius:4px;background:var(--gray-0);color:var(--gray-4);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}.col-remove:hover{background:var(--red-lt);color:var(--red);border-color:#fca5a5}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+tbody tr{border-bottom:1px solid var(--gray-1);transition:background .07s;cursor:default}tr.row-nv{background:rgba(200,212,245,.38)}tr.row-nv.lv0{background:rgba(190,205,245,.42)}tr.row-nv.lv1{background:rgba(210,220,248,.32)}tr.row-nv.lv2{background:rgba(222,230,250,.25)}tr.row-nv.lv3{background:rgba(232,237,252,.20)}tr.row-nv.lv4{background:rgba(240,243,253,.16)}tr.row-nv.lv5{background:rgba(245,247,254,.12)}tr.row-nv:hover{background:rgba(200,215,250,.45)!important}tr.row-kh{background:var(--white)}tr.row-kh:hover{background:var(--gray-0)}
 td{height:var(--row-h);padding:0 var(--pad);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cell-name{display:flex;align-items:center;height:100%}
-.tree-lines{display:inline-flex;flex-shrink:0;height:var(--row-h)}.tree-seg{width:18px;height:var(--row-h);position:relative;flex-shrink:0}
-.tree-seg.vline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1px;background:var(--tree-line)}
-.tree-seg.branch::before{content:'';position:absolute;left:8px;top:0;width:1px;height:50%;background:var(--tree-line)}.tree-seg.branch::after{content:'';position:absolute;left:8px;top:50%;width:9px;height:1px;background:var(--tree-line)}
-.tree-seg.branch-cont::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1px;background:var(--tree-line)}.tree-seg.branch-cont::after{content:'';position:absolute;left:8px;top:50%;width:9px;height:1px;background:var(--tree-line)}
-.tog{width:18px;height:18px;margin-right:3px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:none;background:none;cursor:pointer;color:var(--g4)}.tog:hover{background:var(--g2)}.tog svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-linecap:round}
-.tog-sp{width:20px;display:inline-block;flex-shrink:0}
-.nametxt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-tr.row-nv .nametxt{font-size:12.5px;font-weight:600}tr.row-nv.lv0 .nametxt{font-size:13px;font-weight:700}tr.row-kh .nametxt{font-size:12px;color:var(--g5)}
-.code{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;background:var(--g1);color:var(--g4)}
-.n{font-family:var(--mono);font-size:11.5px;display:block;text-align:right}.n.pos{color:var(--g7)}.n.neg{color:var(--red)}.n.zero{color:var(--g3)}.n.sub{font-weight:600;font-size:12px}
-.dash{color:var(--g3);font-family:var(--mono);font-size:11px}
-.sh{display:inline-block;height:10px;width:55px;border-radius:3px;background:linear-gradient(90deg,var(--g1)25%,var(--g2)50%,var(--g1)75%);background-size:200%;animation:shim 1.3s infinite}@keyframes shim{0%{background-position:200%}100%{background-position:-200%}}
-tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad);background:var(--white);font-weight:600;position:sticky;bottom:0;z-index:20;box-shadow:0 -1px 0 var(--g2)}
-.foot-lbl{font-size:11px;font-weight:700;color:var(--g5);text-transform:uppercase}.n.grand{font-size:12.5px;font-weight:700}
-#toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none}
-.toast{background:var(--white);border:1px solid var(--g2);border-radius:8px;padding:8px 12px;box-shadow:0 4px 16px rgba(0,0,0,.1);font-size:12px;display:flex;align-items:center;gap:6px;animation:si .2s ease;pointer-events:all;max-width:280px}
-.toast .ti{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px}
-.toast.ok .ti{background:var(--emr-lt);color:var(--emr)}.toast.err .ti{background:var(--red-lt);color:var(--red)}
-@keyframes si{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
-::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g2);border-radius:3px}
+.cell-name{display:flex;align-items:center;height:100%;position:relative}.tree-lines{display:inline-flex;flex-shrink:0;height:var(--row-h)}.tree-seg{width:20px;height:var(--row-h);position:relative;flex-shrink:0}.tree-seg.vline::before{content:'';position:absolute;left:9px;top:0;bottom:0;width:1px;background:var(--tree-line)}.tree-seg.branch::before{content:'';position:absolute;left:9px;top:0;width:1px;height:50%;background:var(--tree-line)}.tree-seg.branch::after{content:'';position:absolute;left:9px;top:50%;width:10px;height:1px;background:var(--tree-line);transform:translateY(-.5px)}.tree-seg.branch-cont::before{content:'';position:absolute;left:9px;top:0;bottom:0;width:1px;background:var(--tree-line)}.tree-seg.branch-cont::after{content:'';position:absolute;left:9px;top:50%;width:10px;height:1px;background:var(--tree-line);transform:translateY(-.5px)}
+.tog{width:18px;height:18px;margin-right:4px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:none;background:none;cursor:pointer;color:var(--gray-4)}.tog:hover{background:var(--gray-2);color:var(--gray-6)}.tog svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-linecap:round;stroke-linejoin:round}.tog-sp{width:22px;display:inline-block;flex-shrink:0}.nametxt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;line-height:1.3}tr.row-nv .nametxt{font-size:13px;font-weight:600;color:var(--gray-7)}tr.row-nv.lv0 .nametxt{font-size:13.5px;font-weight:700}tr.row-kh .nametxt{font-size:12.5px;color:var(--gray-5)}.code{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;background:var(--gray-1);color:var(--gray-4);border:1px solid var(--gray-2);display:inline-block}tr.lv0 .code{background:var(--blue-lt);color:var(--blue);border-color:var(--blue-md)}
+.n{font-family:var(--mono);font-size:12px;display:block;text-align:right}.n.pos{color:var(--gray-7)}.n.neg{color:var(--red)}.n.zero{color:var(--gray-3)}.n.sub{font-weight:500;font-size:12.5px}.n.cn{color:var(--blue)}.n.ds{color:var(--emr)}.n.dt{color:var(--purple)}.dash{color:var(--gray-3);font-family:var(--mono);font-size:12px}.sh{display:inline-block;height:10px;width:60px;border-radius:3px;background:linear-gradient(90deg,var(--gray-1)25%,var(--gray-2)50%,var(--gray-1)75%);background-size:200%;animation:shim 1.3s infinite}@keyframes shim{0%{background-position:200%}100%{background-position:-200%}}
+tfoot tr{border-top:2px solid var(--gray-2)}tfoot td{height:40px;padding:0 var(--pad);background:var(--white);font-weight:600;position:sticky;bottom:0;z-index:20;box-shadow:0 -1px 0 var(--gray-2)}.foot-lbl{font-size:12px;font-weight:700;color:var(--gray-5);letter-spacing:.02em;text-transform:uppercase}.n.grand{font-size:13px;font-weight:700}
+#toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none}.toast{background:var(--white);border:1px solid var(--gray-2);border-radius:8px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.1);font-size:12px;color:var(--gray-7);display:flex;align-items:center;gap:8px;animation:slide-in .2s ease;pointer-events:all;max-width:300px}.toast .t-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px}.toast.ok .t-icon{background:var(--emr-lt);color:var(--emr)}.toast.err .t-icon{background:var(--red-lt);color:var(--red)}@keyframes slide-in{from{transform:translateY(8px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--gray-2);border-radius:3px}
+.bp-select{height:32px;padding:0 8px;background:var(--gray-0);border:1px solid var(--gray-2);border-radius:6px;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--gray-6);outline:none;cursor:pointer;min-width:80px;transition:border .15s}.bp-select:hover,.bp-select:focus{border-color:var(--blue-md);background:var(--white);box-shadow:0 0 0 3px rgba(37,99,235,.08)}.bp-label{font-size:11px;font-weight:600;color:var(--gray-4);margin-right:2px}
+.add-col-menu{position:absolute;top:100%;right:0;background:var(--white);border:1px solid var(--gray-2);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:100;padding:4px 0;min-width:140px;display:none}.add-col-menu.open{display:block}.add-col-menu div{padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray-6)}.add-col-menu div:hover{background:var(--gray-0)}
 
-/* MOBILE BOTTOM TOOLBAR */
-.mob-toolbar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;background:var(--white);border-top:1px solid var(--g2);box-shadow:0 -2px 12px rgba(0,0,0,.08);padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:4px;align-items:center;justify-content:space-around}
-.mob-toolbar .mob-btn{display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:none;cursor:pointer;color:var(--g5);padding:4px 8px;border-radius:8px;font-family:var(--sans);font-size:9px;font-weight:600;min-width:48px}.mob-btn:active{background:var(--g1);transform:scale(.95)}.mob-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-linecap:round}.mob-btn.accent{color:var(--blue)}.mob-btn.green{color:var(--emr)}
-.sheet-overlay{position:fixed;inset:0;background:rgba(15,22,35,.4);z-index:9980;opacity:0;pointer-events:none;transition:opacity .25s}.sheet-overlay.open{opacity:1;pointer-events:all}
-.bottom-sheet{position:fixed;bottom:0;left:0;right:0;z-index:9985;background:var(--white);border-radius:16px 16px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.18);transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:85vh;display:flex;flex-direction:column;overflow:hidden}.bottom-sheet.open{transform:translateY(0)}
-.sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--g3);margin:10px auto 6px;flex-shrink:0}
-.sheet-title{font-size:14px;font-weight:700;padding:4px 16px 10px;border-bottom:1px solid var(--g1);flex-shrink:0}
-.sheet-body{flex:1;overflow-y:auto;padding:12px 16px 20px}
-.sheet-section{margin-bottom:16px}.sheet-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--g4);margin-bottom:8px}
-.sheet-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
-.sheet-btn{display:flex;align-items:center;gap:8px;width:100%;height:44px;padding:0 12px;border:1px solid var(--g2);border-radius:8px;background:var(--white);font-family:var(--sans);font-size:13px;font-weight:600;color:var(--g6);cursor:pointer}.sheet-btn:hover{background:var(--g0)}.sheet-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-linecap:round;flex-shrink:0}.sheet-btn.green{color:var(--emr);border-color:var(--emr-md)}
+/* ============================================================
+   MOBILE BOTTOM SHEET OVERLAY
+   ============================================================ */
+.sheet-overlay{position:fixed;inset:0;background:rgba(15,22,35,.4);z-index:9980;opacity:0;pointer-events:none;transition:opacity .25s ease;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.sheet-overlay.open{opacity:1;pointer-events:all}
+.bottom-sheet{position:fixed;bottom:0;left:0;right:0;z-index:9985;background:var(--white);border-radius:16px 16px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.18);transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+.bottom-sheet.open{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--gray-3);margin:10px auto 6px;flex-shrink:0}
+.sheet-title{font-size:14px;font-weight:700;color:var(--gray-7);padding:4px 16px 10px;border-bottom:1px solid var(--gray-1);flex-shrink:0}
+.sheet-body{flex:1;overflow-y:auto;padding:12px 16px 20px;-webkit-overflow-scrolling:touch}
+.sheet-body .sheet-section{margin-bottom:16px}
+.sheet-body .sheet-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-4);margin-bottom:8px}
+.sheet-body .sheet-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.sheet-body .sheet-row input[type="date"]{flex:1;height:36px;font-size:12px;min-width:0}
+.sheet-body .sheet-row .aply{height:36px;padding:0 14px;font-size:12px;border-radius:6px}
+.sheet-body .sheet-row .clr{height:36px;width:36px;font-size:13px;border-radius:6px}
+.sheet-btn{display:flex;align-items:center;gap:8px;width:100%;height:44px;padding:0 12px;border:1px solid var(--gray-2);border-radius:8px;background:var(--white);font-family:var(--sans);font-size:13px;font-weight:600;color:var(--gray-6);cursor:pointer;transition:background .1s}
+.sheet-btn:hover,.sheet-btn:active{background:var(--gray-0)}
+.sheet-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-linecap:round;flex-shrink:0}
+.sheet-btn.danger{color:var(--red);border-color:#fca5a5}
+.sheet-btn.primary{background:var(--blue);color:#fff;border-color:var(--blue);justify-content:center}
+.sheet-btn.green{color:var(--emr);border-color:var(--emr-md)}
 
+/* ============================================================
+   MOBILE BOTTOM TOOLBAR (FAB bar)
+   ============================================================ */
+.mob-toolbar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;background:var(--white);border-top:1px solid var(--gray-2);box-shadow:0 -2px 12px rgba(0,0,0,.08);padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:4px;align-items:center;justify-content:space-around}
+.mob-toolbar .mob-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:none;cursor:pointer;color:var(--gray-5);padding:4px 8px;border-radius:8px;font-family:var(--sans);font-size:9px;font-weight:600;min-width:52px;transition:all .1s}
+.mob-toolbar .mob-btn:active{background:var(--gray-1);transform:scale(.95)}
+.mob-toolbar .mob-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-linecap:round}
+.mob-toolbar .mob-btn.accent{color:var(--blue)}
+.mob-toolbar .mob-btn.green{color:var(--emr)}
+
+/* ============================================================
+   MOBILE RESPONSIVE OVERRIDES
+   ============================================================ */
 @media(max-width:768px){
-  :root{--pad:8px;--row-h:36px;--topbar-h:48px}
-  .topbar{padding:0 10px}.topbar-right>*:not(.status-chip){display:none!important}.topbar-right .v-div{display:none!important}.brand-sub{display:none}.brand-name{font-size:13px}
+  :root{--pad:8px;--row-h:38px;--topbar-h:48px}
+
+  /* Topbar: only brand + status */
+  .topbar{padding:0 10px}
+  .topbar-right>*:not(.status-chip){display:none!important}
+  .topbar-right .v-div{display:none!important}
+  .brand-sub{display:none}
+  .brand-name{font-size:13px}
+
+  /* Show mobile bottom toolbar */
   .mob-toolbar{display:flex}
+
+  /* Table adjustments */
   .table-wrap{padding-bottom:60px}
-  thead th:first-child,tbody td:first-child,tfoot td:first-child{position:sticky;left:0;z-index:25;background:inherit;box-shadow:2px 0 6px rgba(0,0,0,.06);min-width:140px!important;max-width:180px}
-  thead th:first-child{z-index:35;background:var(--white)}tfoot td:first-child{z-index:25;background:var(--white)}
-  thead th:nth-child(2),tbody td:nth-child(2),tfoot td:nth-child(2){display:none}
-  .tree-seg{width:12px}tr.row-nv .nametxt{font-size:11.5px}tr.row-kh .nametxt{font-size:11px}.n{font-size:10.5px}.n.sub{font-size:11px}.n.grand{font-size:11.5px}
-  thead th{font-size:9px}.th-date{font-size:8px}
-  .picker-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:80vh}.picker-tree{max-height:55vh}.pi{height:40px}
-  #toasts{bottom:70px;right:10px;left:10px}.toast{max-width:100%}
+
+  /* Sticky first column (name) */
+  thead th:first-child,
+  tbody td:first-child,
+  tfoot td:first-child{
+    position:sticky;left:0;z-index:25;
+    background:inherit;
+    box-shadow:2px 0 6px rgba(0,0,0,.06);
+    min-width:160px!important;max-width:200px;
+  }
+  thead th:first-child{z-index:35;background:var(--white)}
+  tfoot td:first-child{z-index:25;background:var(--white)}
+  tr.row-nv td:first-child{background:inherit}
+  tr.row-kh td:first-child{background:var(--white)}
+  tr.row-kh:hover td:first-child{background:var(--gray-0)}
+
+  /* Hide code column on mobile */
+  thead th:nth-child(2),
+  tbody td:nth-child(2),
+  tfoot td:nth-child(2){display:none}
+
+  /* Smaller tree indentation */
+  .tree-seg{width:14px}
+  .tree-seg.branch::after{width:7px}
+  .tree-seg.branch-cont::after{width:7px}
+  .tree-seg.vline::before{left:6px}
+  .tree-seg.branch::before{left:6px}
+  .tree-seg.branch-cont::before{left:6px}
+  .tree-seg.branch::after{left:6px}
+  .tree-seg.branch-cont::after{left:6px}
+
+  /* Smaller text */
+  tr.row-nv .nametxt{font-size:12px}
+  tr.row-nv.lv0 .nametxt{font-size:12.5px}
+  tr.row-kh .nametxt{font-size:11.5px}
+  .n{font-size:11px}
+  .n.sub{font-size:11.5px}
+  .n.grand{font-size:12px}
+  .tog-sp{width:16px}
+
+  /* Column headers more compact */
+  thead th{padding:4px 8px;min-width:110px!important}
+  .th-title{font-size:10px}
+  .th-dates{flex-wrap:wrap;gap:2px}
+  input[type="date"]{width:90px;height:20px;font-size:9px}
+  .th-btns{gap:2px}
+  .aply{height:20px;padding:0 6px;font-size:9px}
+  .clr{height:20px;width:20px;font-size:9px}
+  .col-remove{height:20px;width:20px;font-size:9px}
+  .th-sep{font-size:9px}
+
+  /* Picker panel → full screen on mobile */
+  .picker-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:80vh}
+  .picker-tree{max-height:55vh}
+  .pi{height:40px}
+
+  /* Toasts position */
+  #toasts{bottom:70px;right:10px;left:10px}
+  .toast{max-width:100%}
+
+  /* Footer */
+  tfoot td{height:36px;padding:0 8px}
+  .foot-lbl{font-size:11px}
 }
-@media(max-width:380px){thead th:first-child,tbody td:first-child,tfoot td:first-child{min-width:130px!important;max-width:160px}}
+
+@media(max-width:380px){
+  thead th:first-child,
+  tbody td:first-child,
+  tfoot td:first-child{min-width:130px!important;max-width:160px}
+  thead th{min-width:95px!important}
+}
 </style>
+{% include "_header_css.html" %}
 </head>
 <body>
 {% include "_header.html" %}
 <div class="app">
 <div class="topbar">
-  <div class="brand"><div class="brand-mark"><svg viewBox="0 0 16 16"><polyline points="2,12 6,7 10,10 14,4"/><line x1="14" y1="4" x2="14" y2="8"/><line x1="14" y1="4" x2="10" y2="4"/></svg></div><div><div class="brand-name">Báo Cáo Khách Hàng</div><div class="brand-sub">Theo kỳ báo cáo</div></div></div>
+  <div class="brand"><div class="brand-mark"><svg viewBox="0 0 16 16"><polyline points="2,12 6,7 10,10 14,4"/><line x1="14" y1="4" x2="14" y2="8"/><line x1="14" y1="4" x2="10" y2="4"/></svg></div><div><div class="brand-name">Báo Cáo Kinh Doanh</div><div class="brand-sub">Công nợ · Doanh số · Doanh thu</div></div></div>
   <div class="topbar-right">
-    <!-- NV Picker -->
-    <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NV</span><span class="picker-badge all" id="picker-badge">—</span></button>
+    <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">Tất cả NV</span><span class="picker-badge all" id="picker-badge">—</span></button>
       <div class="picker-panel" id="picker-panel"><div class="picker-head"><div class="picker-search-row"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="picker-q" placeholder="Tìm NV..." oninput="renderPickerTree()"/></div><div class="picker-actions"><button class="picker-act-btn" onclick="pickerSelectAll()">Chọn tất cả</button><button class="picker-act-btn" onclick="pickerClearAll()">Bỏ chọn</button></div></div><div class="picker-tree" id="picker-tree"></div><div class="picker-foot"><button class="picker-close" onclick="closePicker()">Đóng</button><button class="picker-apply" onclick="applyPicker()">Áp dụng</button></div></div>
     </div>
-    <!-- KH Search -->
-    <div class="kh-search-wrap" id="kh-wrap"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="kh-q" placeholder="Tìm KH..." oninput="onKHInput(this.value)" autocomplete="off"/><button class="kh-clear" id="kh-clear" onclick="clearKH()" style="display:none">✕</button>
-      <div class="kh-suggest" id="kh-suggest"></div>
-    </div>
-    <span id="kh-chip-area"></span>
-    <span class="bp-label">BP:</span><select class="bp-select" id="bp-select" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select>
+    <div class="kh-search-wrap"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="kh-q" placeholder="Tìm KH..." oninput="applyKHFilter(this.value)"/><button class="kh-clear" id="kh-clear" onclick="clearKHFilter()" style="display:none">✕</button></div>
+    <span class="bp-label">BP:</span><select class="bp-select" id="bp-select" onchange="applyBPFilter(this.value)"><option value="">Tất cả</option></select>
     <div class="v-div"></div>
-    <select class="bp-select" id="sel-kbc" onchange="onKBCChange()" style="min-width:120px"><option>Đang tải...</option></select>
+    <button class="tbtn" id="btn-exp" onclick="toggleExpandAll()"><svg viewBox="0 0 16 16" stroke-width="2"><polyline points="4,6 8,10 12,6"/></svg>Mở</button>
+    <button class="tbtn" onclick="init()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải lại</button>
     <div class="v-div"></div>
-    <button class="tbtn" id="btn-exp" onclick="toggleExp()"><svg viewBox="0 0 16 16" stroke-width="2"><polyline points="4,6 8,10 12,6"/></svg>Mở</button>
-    <button class="tbtn" onclick="loadAllData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải lại</button>
+    <div style="position:relative"><button class="tbtn blue" onclick="toggleAddMenu()"><svg viewBox="0 0 16 16" stroke-width="2"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>Thêm cột</button><div class="add-col-menu" id="add-col-menu"><div onclick="addColumn('cn')" style="color:var(--blue)">＋ Công nợ</div><div onclick="addColumn('ds')" style="color:var(--emr)">＋ Doanh số</div><div onclick="addColumn('dt')" style="color:var(--purple)">＋ Doanh thu</div></div></div>
+    <button class="tbtn green" onclick="exportExcel()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
     <div class="v-div"></div>
-    <div class="status-chip"><div class="s-dot" id="sDot"></div><span id="sTxt">—</span></div>
+    <div class="status-chip"><div class="s-dot" id="s-dot"></div><span id="s-txt">—</span></div>
   </div>
 </div>
 <div class="table-wrap">
-  <div class="empty-state" id="empty"><p id="emptyMsg">Đang tải…</p></div>
-  <table id="tbl" style="display:none"><thead><tr id="theadRow"></tr></thead><tbody id="tbody"></tbody><tfoot><tr id="tfootRow"></tr></tfoot></table>
+  <div class="empty-state" id="empty"><div class="empty-icon"><svg viewBox="0 0 24 24" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg></div><p id="empty-msg">Đang tải…</p><small>Vui lòng chờ</small></div>
+  <table id="tbl" style="display:none"><thead><tr id="thead-row"></tr></thead><tbody id="tbody"></tbody><tfoot><tr id="tfoot-row"></tr></tfoot></table>
 </div>
 </div>
 
-<!-- MOBILE TOOLBAR -->
-<nav class="mob-toolbar">
-  <button class="mob-btn" onclick="togglePicker()"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="8" cy="8" r="5"/><line x1="12" y1="12" x2="17" y2="17"/></svg><span>NV</span></button>
-  <button class="mob-btn" onclick="openSheet('filter')"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="3" y1="5" x2="17" y2="5"/><line x1="5" y1="10" x2="15" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg><span>Lọc</span></button>
-  <button class="mob-btn accent" onclick="openSheet('kbc')"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="3" x2="7" y2="8"/><line x1="13" y1="3" x2="13" y2="8"/></svg><span>Kỳ</span></button>
-  <button class="mob-btn" onclick="openSheet('actions')"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="10" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="16" r="1.5" fill="currentColor" stroke="none"/></svg><span>Khác</span></button>
+<!-- ============================================================
+     MOBILE BOTTOM TOOLBAR
+     ============================================================ -->
+<nav class="mob-toolbar" id="mob-toolbar">
+  <button class="mob-btn" onclick="togglePicker()">
+    <svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="8" cy="8" r="5"/><line x1="12" y1="12" x2="17" y2="17"/></svg>
+    <span>NV</span>
+  </button>
+  <button class="mob-btn" onclick="openMobSheet('filter')">
+    <svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="3" y1="5" x2="17" y2="5"/><line x1="5" y1="10" x2="15" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg>
+    <span>Lọc</span>
+  </button>
+  <button class="mob-btn accent" onclick="openMobSheet('columns')">
+    <svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="5" height="14" rx="1"/><rect x="12" y="3" width="5" height="14" rx="1"/></svg>
+    <span>Cột</span>
+  </button>
+  <button class="mob-btn" onclick="openMobSheet('actions')">
+    <svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="10" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="16" r="1.5" fill="currentColor" stroke="none"/></svg>
+    <span>Khác</span>
+  </button>
+  <button class="mob-btn green" onclick="exportExcel()">
+    <svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M10 3v10m0 0l-4-4m4 4l4-4"/><path d="M3 14v2a1.5 1.5 0 001.5 1.5h11A1.5 1.5 0 0017 16v-2"/></svg>
+    <span>Excel</span>
+  </button>
 </nav>
 
-<div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()"></div>
-<div class="bottom-sheet" id="bottom-sheet"><div class="sheet-handle"></div><div class="sheet-title" id="sheet-title"></div><div class="sheet-body" id="sheet-body"></div></div>
+<!-- ============================================================
+     BOTTOM SHEET (reusable)
+     ============================================================ -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeMobSheet()"></div>
+<div class="bottom-sheet" id="bottom-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="sheet-title"></div>
+  <div class="sheet-body" id="sheet-body"></div>
+</div>
 
 <div id="toasts"></div>
-{% include "_header_js.html" %}
 <script>
-const API_BASE='/reports/bao-cao-khach-hang';
+/*
+ * DATA MODEL (FACT-first, NVKD as primary key)
+ * col.data = { [ma_nvkd]: { [ma_kh]: value } }
+ * khNames  = { [ma_kh]: ten_kh }
+ */
+let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=false;
+let selectedNV=null,pendingNV=new Set(),pickerExp={},pickerOpen=false,khFilter='';
+let selectedBP='';
+let lastRenderedRows=[];
+let columns=[
+  {id:'c0',type:'cn',dateA:'2025-01-27',dateB:'',data:{},loaded:false,loading:false},
+  {id:'c1',type:'ds',dateA:'2025-01-01',dateB:'2025-01-27',data:{},loaded:false,loading:false},
+  {id:'c2',type:'dt',dateA:'2025-01-01',dateB:'2025-01-27',data:{},loaded:false,loading:false},
+];
+let colIdCounter=3;
+const API_BASE="/reports/bao-cao-kinh-doanh";
+const COL_META={
+  cn:{label:'CÔNG NỢ TỚI',cls:'cn',accent:'col-cn',api:'/api/congno'},
+  ds:{label:'DOANH SỐ',cls:'ds',accent:'col-ds',api:'/api/doanhso'},
+  dt:{label:'DOANH THU',cls:'dt',accent:'col-dt',api:'/api/doanhthu'},
+};
 const FMT=new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0});
 const fmtV=v=>FMT.format(Math.round(v));
-const fmtD=s=>{if(!s)return'';s=s.substring(0,10);const p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0]};
-const iso=d=>d?String(d).substring(0,10):'';
-function numH(v,c){if(v==null)return'<span class="dash">—</span>';const n=Math.round(v),s=n<0?'neg':n===0?'zero':'pos';return'<span class="n '+s+' '+(c||'')+'">'+ fmtV(v)+'</span>'}
-const shimH=()=>'<span class="sh"></span>';
+function numHtml(v,cls){if(v==null)return'<span class="dash">—</span>';const n=Math.round(v),s=n<0?'neg':n===0?'zero':'pos';return'<span class="n '+s+' '+(cls||'')+'">'+ fmtV(v)+'</span>'}
+const shimHtml=()=>'<span class="sh"></span>';
+function fmtDateVN(s){if(!s)return'';const p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+function setStatus(st,txt){document.getElementById('s-dot').className='s-dot '+st;document.getElementById('s-txt').textContent=txt}
+function toast(msg,type){type=type||'ok';const el=document.createElement('div');el.className='toast '+type;el.innerHTML='<div class="t-icon">'+(type==='ok'?'✓':'✕')+'</div><span>'+msg+'</span>';document.getElementById('toasts').appendChild(el);setTimeout(function(){el.remove()},3500)}
 function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
-function setS(st,t){document.getElementById('sDot').className='s-dot '+st;document.getElementById('sTxt').textContent=t}
-function toast(m,t){t=t||'ok';const e=document.createElement('div');e.className='toast '+t;e.innerHTML='<div class="ti">'+(t==='ok'?'✓':'✕')+'</div><span>'+m+'</span>';document.getElementById('toasts').appendChild(e);setTimeout(()=>e.remove(),3500)}
+function getKHName(mk){return khNames[mk]||(khMap[mk]&&khMap[mk].ten_kh)||mk}
 function isMobile(){return window.innerWidth<=768}
 
-// Permission from server
-const USER_NVKD='{{ user_ma_nvkd }}';
-const USER_BP='{{ user_ma_bp }}';
-const userNvkdList=USER_NVKD?USER_NVKD.split(',').map(s=>s.trim()).filter(Boolean):[];
-const userBpList=USER_BP?USER_BP.split(',').map(s=>s.trim()).filter(Boolean):[];
-
-// State
-let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=false;
-let selectedNV=null,pendingNV=new Set(),pickerExp={},pickerOpen=false;
-let selectedBP='',selectedKH=null; // selectedKH = {ma_kh, ten_kh} or null
-let kbcList=[],currentKBC=null;
-let colData={du_no_dk:{},ban_ra:{},tt1:{},tt2:{},du_no_ck:{}};
-let colLoading={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_ck:false};
-let colLoaded={du_no_dk:false,ban_ra:false,tt1:false,tt2:false,du_no_ck:false};
-const COLS=['du_no_dk','ban_ra','tt1','tt2','du_no_ck'];
-
-// Allowed NV set (from hierarchy, filtered by permission)
-let allowedNV=new Set();
-function computeAllowedNV(){
-    if(!userNvkdList.length){allowedNV=new Set(hierarchy.map(h=>h.ma_nvkd));return}
-    allowedNV=new Set();
-    function addDescendants(id){allowedNV.add(id);(nvMap[id]?nvMap[id].children:[]).forEach(c=>addDescendants(c.ma_nvkd))}
-    userNvkdList.forEach(id=>{if(nvMap[id])addDescendants(id)});
+/* ============================================================
+   MOBILE BOTTOM SHEET SYSTEM
+   ============================================================ */
+let currentSheet=null;
+function openMobSheet(type){
+  currentSheet=type;
+  var title='',body='';
+  if(type==='filter'){
+    title='Bộ lọc';
+    body='<div class="sheet-section">'
+      +'<div class="sheet-section-label">Tìm khách hàng</div>'
+      +'<div class="sheet-row"><div class="kh-search-wrap" style="width:100%;height:40px"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="mob-kh-q" placeholder="Tìm KH..." value="'+esc(khFilter)+'" oninput="applyKHFilter(this.value);document.getElementById(\'kh-q\').value=this.value" style="width:100%"/></div></div>'
+      +'</div>'
+      +'<div class="sheet-section">'
+      +'<div class="sheet-section-label">Bộ phận (BP)</div>'
+      +'<div class="sheet-row"><select class="bp-select" style="width:100%;height:40px;font-size:13px" onchange="applyBPFilter(this.value);document.getElementById(\'bp-select\').value=this.value" id="mob-bp-select"></select></div>'
+      +'</div>';
+  } else if(type==='columns'){
+    title='Quản lý cột';
+    body='<div class="sheet-section">';
+    columns.forEach(function(col,ci){
+      var m=COL_META[col.type];
+      var colorVar=col.type==='cn'?'var(--blue)':col.type==='ds'?'var(--emr)':'var(--purple)';
+      var statusTxt=col.loading?'Đang tải…':col.loaded?'Đã tải':'Chưa tải';
+      body+='<div style="border:1px solid var(--gray-2);border-radius:10px;padding:12px;margin-bottom:10px;border-left:3px solid '+colorVar+'">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-weight:700;font-size:13px;color:'+colorVar+'">'+m.label+'</span><span style="font-size:10px;color:var(--gray-4)">'+statusTxt+'</span></div>';
+      if(col.type==='cn'){
+        body+='<div class="sheet-row"><input type="date" value="'+col.dateA+'" onchange="columns['+ci+'].dateA=this.value" style="flex:1"/></div>';
+      } else {
+        body+='<div class="sheet-row"><input type="date" value="'+col.dateA+'" onchange="columns['+ci+'].dateA=this.value" style="flex:1"/><span class="th-sep" style="font-size:12px">→</span><input type="date" value="'+(col.dateB||'')+'" onchange="columns['+ci+'].dateB=this.value" style="flex:1"/></div>';
+      }
+      body+='<div class="sheet-row" style="gap:6px">'
+        +'<button class="aply '+m.cls+'" style="flex:1;height:36px;font-size:12px;border-radius:6px;justify-content:center" onclick="loadColumn(columns['+ci+']);closeMobSheet()" '+(col.loading?'disabled':'')+'>'+(col.loading?'<span class="spin"></span>':'Tải dữ liệu')+'</button>'
+        +'<button class="clr" style="height:36px;width:36px;border-radius:6px;font-size:13px" onclick="clearColumn(columns['+ci+']);openMobSheet(\'columns\')" title="Xóa dữ liệu">✕</button>'
+        +'<button class="col-remove" style="height:36px;width:36px;border-radius:6px;font-size:13px" onclick="removeColumn('+ci+');openMobSheet(\'columns\')" title="Xóa cột">🗑</button>'
+        +'</div>';
+      body+='</div>';
+    });
+    body+='</div>';
+    body+='<div class="sheet-section"><div class="sheet-section-label">Thêm cột mới</div>'
+      +'<div style="display:flex;gap:8px">'
+      +'<button class="sheet-btn" style="flex:1;justify-content:center;color:var(--blue);border-color:var(--blue-md)" onclick="addColumn(\'cn\');openMobSheet(\'columns\')">+ Công nợ</button>'
+      +'<button class="sheet-btn" style="flex:1;justify-content:center;color:var(--emr);border-color:var(--emr-md)" onclick="addColumn(\'ds\');openMobSheet(\'columns\')">+ Doanh số</button>'
+      +'<button class="sheet-btn" style="flex:1;justify-content:center;color:var(--purple);border-color:var(--purple-md)" onclick="addColumn(\'dt\');openMobSheet(\'columns\')">+ Doanh thu</button>'
+      +'</div></div>';
+  } else if(type==='actions'){
+    title='Thao tác';
+    body='<div style="display:flex;flex-direction:column;gap:8px">'
+      +'<button class="sheet-btn" onclick="toggleExpandAll();closeMobSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><polyline points="5,8 10,13 15,8"/></svg>'+(allExp?'Thu gọn tất cả':'Mở rộng tất cả')+'</button>'
+      +'<button class="sheet-btn" onclick="init();closeMobSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M3 10a7 7 0 1 1 1.2 4"/><polyline points="3,6 3,10 7,10"/></svg>Tải lại dữ liệu</button>'
+      +'<button class="sheet-btn green" onclick="exportExcel();closeMobSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M10 3v10m0 0l-4-4m4 4l4-4"/><path d="M3 14v2a1.5 1.5 0 001.5 1.5h11A1.5 1.5 0 0017 16v-2"/></svg>Xuất file Excel</button>'
+      +'</div>';
+  }
+  document.getElementById('sheet-title').textContent=title;
+  document.getElementById('sheet-body').innerHTML=body;
+  document.getElementById('sheet-overlay').classList.add('open');
+  document.getElementById('bottom-sheet').classList.add('open');
+  // Sync BP select in sheet
+  if(type==='filter'){
+    var mobBP=document.getElementById('mob-bp-select');
+    if(mobBP) mobBP.innerHTML=document.getElementById('bp-select').innerHTML;
+    if(mobBP) mobBP.value=selectedBP;
+  }
+}
+function closeMobSheet(){
+  currentSheet=null;
+  document.getElementById('sheet-overlay').classList.remove('open');
+  document.getElementById('bottom-sheet').classList.remove('open');
 }
 
-// Allowed BP list
-function getAllowedBP(){
-    if(!userBpList.length){const s=new Set();Object.values(khMap).forEach(v=>{if(v.ma_bp)s.add(v.ma_bp)});return[...s].sort()}
-    return userBpList.sort();
-}
+/* Touch-to-swipe-down dismiss for bottom sheet */
+(function(){
+  var sheet=null,startY=0,currentY=0,isDragging=false;
+  document.addEventListener('DOMContentLoaded',function(){
+    sheet=document.getElementById('bottom-sheet');
+    var handle=sheet.querySelector('.sheet-handle');
+    var titleEl=sheet.querySelector('.sheet-title');
+    [handle,titleEl].forEach(function(el){
+      el.addEventListener('touchstart',function(e){
+        startY=e.touches[0].clientY;currentY=startY;isDragging=true;
+        sheet.style.transition='none';
+      },{passive:true});
+    });
+    document.addEventListener('touchmove',function(e){
+      if(!isDragging)return;
+      currentY=e.touches[0].clientY;
+      var dy=Math.max(0,currentY-startY);
+      sheet.style.transform='translateY('+dy+'px)';
+    },{passive:true});
+    document.addEventListener('touchend',function(){
+      if(!isDragging)return;
+      isDragging=false;
+      sheet.style.transition='';
+      var dy=currentY-startY;
+      if(dy>80) closeMobSheet();
+      else sheet.style.transform='';
+    });
+  });
+})();
 
 async function init(){
-    setS('busy','Tải...');
-    try{
-        const [rH,rK,rKBC]=await Promise.all([
-            fetch(API_BASE+'/api/hierarchy').then(r=>r.json()),
-            fetch(API_BASE+'/api/khachhang').then(r=>r.json()),
-            fetch(API_BASE+'/api/ky-bao-cao').then(r=>r.json())
-        ]);
-        if(!rH.success)throw new Error(rH.error);
-        hierarchy=rH.data;nvMap={};
-        hierarchy.forEach(h=>{nvMap[h.ma_nvkd]={...h,children:[],_vals:{}};if(!(h.ma_nvkd in expState))expState[h.ma_nvkd]=(h.level===0)});
-        hierarchy.forEach(h=>{if(h.ma_ql&&nvMap[h.ma_ql])nvMap[h.ma_ql].children.push(nvMap[h.ma_nvkd])});
-        khMap={};khNames={};
-        if(rK.success)rK.data.forEach(k=>{if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
-        computeAllowedNV();
-        // Populate BP dropdown
-        const bps=getAllowedBP();
-        const bpSel=document.getElementById('bp-select');
-        bpSel.innerHTML=(bps.length>1?'<option value="">Tất cả BP</option>':'')+bps.map(b=>'<option value="'+esc(b)+'">'+esc(b)+'</option>').join('');
-        if(bps.length===1){selectedBP=bps[0];bpSel.value=bps[0]}
-        // Picker: only show allowed NV
-        hierarchy.forEach(h=>{pickerExp[h.ma_nvkd]=(h.level===0)});
-        // KBC
-        kbcList=rKBC.success?rKBC.data:[];populateKBC();
-        setS('ok',hierarchy.length+' NV');
-        toast(allowedNV.size+' NV, '+Object.keys(khMap).length+' KH');
-        updatePickerBadge();
-        if(currentKBC)loadAllData();
-        else{document.getElementById('empty').style.display='flex';document.getElementById('emptyMsg').textContent='Chưa có kỳ báo cáo phù hợp';}
-    }catch(e){setS('err','Lỗi');document.getElementById('emptyMsg').textContent='⚠ '+e.message;toast(e.message,'err')}
+  setStatus('busy','Đang tải…');document.getElementById('tbl').style.display='none';document.getElementById('empty').style.display='flex';
+  columns.forEach(function(c){c.data={};c.loaded=false;c.loading=false});
+  try{
+    var res=await Promise.all([fetch(API_BASE+'/api/hierarchy'),fetch(API_BASE+'/api/khachhang')]);
+    var json=await Promise.all([res[0].json(),res[1].json()]);
+    var jH=json[0],jK=json[1];
+    if(!jH.success)throw new Error(jH.error);
+    hierarchy=jH.data;nvMap={};
+    hierarchy.forEach(function(h){nvMap[h.ma_nvkd]={ma_nvkd:h.ma_nvkd,ten_nvkd:h.ten_nvkd,ma_ql:h.ma_ql,level:h.level,stt_nhom:h.stt_nhom,children:[],_vals:{}};if(!(h.ma_nvkd in expState))expState[h.ma_nvkd]=(h.level===0)});
+    hierarchy.forEach(function(h){if(h.ma_ql&&nvMap[h.ma_ql])nvMap[h.ma_ql].children.push(nvMap[h.ma_nvkd])});
+    khMap={};khNames={};
+    if(jK.success)jK.data.forEach(function(k){if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
+    var bpSet=new Set();Object.values(khMap).forEach(function(v){if(v.ma_bp)bpSet.add(v.ma_bp)});
+    var bpList=[...bpSet].sort();
+    var bpSel=document.getElementById('bp-select');
+    bpSel.innerHTML='<option value="">Tất cả BP</option>'+bpList.map(function(bp){return'<option value="'+esc(bp)+'"'+(bp===selectedBP?' selected':'')+'>'+esc(bp)+'</option>'}).join('');
+    document.getElementById('empty').style.display='none';document.getElementById('tbl').style.display='';
+    setStatus('ok',hierarchy.length+' NV');selectedNV=null;pendingNV=new Set();
+    hierarchy.forEach(function(h){pickerExp[h.ma_nvkd]=(h.level===0)});
+    updatePickerBadge();renderAll();toast(hierarchy.length+' NV, '+Object.keys(khMap).length+' KH');
+  }catch(e){setStatus('err','Lỗi');document.getElementById('empty-msg').textContent='⚠ '+e.message;toast(e.message,'err')}
 }
 
-function populateKBC(){
-    const sel=document.getElementById('sel-kbc');
-    const today=new Date().toISOString().substring(0,10);
-    let defId=null;
-    kbcList.forEach(k=>{if(k.loai_kbc==='Tháng'){const bd=iso(k.ngay_bd_thu_tien),kt=iso(k.ngay_kt_thu_tien);if(bd&&kt&&today>=bd&&today<=kt&&!defId)defId=k.id}});
-    if(!defId&&kbcList.length)defId=kbcList[0].id;
-    sel.innerHTML=kbcList.map(k=>'<option value="'+k.id+'"'+(k.id===defId?' selected':'')+'>'+esc(k.ten_kbc)+' ('+k.loai_kbc+')</option>').join('');
-    currentKBC=defId?kbcList.find(k=>k.id===defId):null;
-}
-function onKBCChange(){currentKBC=kbcList.find(k=>k.id===parseInt(document.getElementById('sel-kbc').value))||null;if(currentKBC)loadAllData()}
-function onBPChange(v){selectedBP=v;if(currentKBC)loadAllData()}
+async function loadColumn(col){
+  var m=COL_META[col.type];
+  col.loading=true;col.loaded=false;col.data={};
+  renderAll();setStatus('busy','Tải '+m.label+'…');
+  try{
+    var body,url=m.api;
+    if(col.type==='cn') body={ngay_cut:col.dateA,ma_bp:selectedBP,ds_nvkd:'',ds_kh:''};
+    else body={ngay_a:col.dateA,ngay_b:col.dateB,ma_bp:selectedBP,ds_nvkd:'',ds_kh:''};
+    var r=await fetch(API_BASE+url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var j=await r.json();if(!j.success)throw new Error(j.error);
+    col.data={};var rowCount=0;
 
-// KH search with suggestions
-function onKHInput(v){
-    v=v.trim();
-    if(v.length<2){document.getElementById('kh-suggest').classList.remove('show');return}
-    const q=v.toLowerCase();
-    const matches=Object.entries(khMap).filter(([mk,info])=>{
-        if(selectedBP&&info.ma_bp!==selectedBP)return false;
-        if(userBpList.length&&!userBpList.includes(info.ma_bp))return false;
-        return(info.ten_kh||'').toLowerCase().includes(q)||mk.toLowerCase().includes(q);
-    }).slice(0,8);
-    const sg=document.getElementById('kh-suggest');
-    if(!matches.length){sg.classList.remove('show');return}
-    sg.innerHTML=matches.map(([mk,info])=>'<div class="kh-suggest-item" onclick="selectKH(\''+esc(mk)+'\',\''+esc(info.ten_kh||mk)+'\')"><span class="kh-name">'+esc(info.ten_kh||mk)+'</span><span class="kh-code">'+esc(mk)+'</span></div>').join('');
-    sg.classList.add('show');
-}
-function selectKH(mk,name){
-    selectedKH={ma_kh:mk,ten_kh:name};
-    document.getElementById('kh-q').value='';
-    document.getElementById('kh-suggest').classList.remove('show');
-    document.getElementById('kh-clear').style.display='none';
-    document.getElementById('kh-chip-area').innerHTML='<span class="kh-selected-chip">'+esc(name)+' <span class="kh-chip-x" onclick="clearKH()">✕</span></span>';
-    if(currentKBC)loadAllData();
-}
-function clearKH(){selectedKH=null;document.getElementById('kh-chip-area').innerHTML='';document.getElementById('kh-q').value='';if(currentKBC)loadAllData()}
-document.addEventListener('click',e=>{if(!document.getElementById('kh-wrap').contains(e.target))document.getElementById('kh-suggest').classList.remove('show')});
+    j.data.forEach(function(row){
+      var nv=row.ma_nvkd||'_UNKNOWN';
+      var mk=row.ma_kh;
+      var val=0;
+      if(col.type==='cn') val=row.du_no_ck||0;
+      else if(col.type==='ds') val=row.tong_doanhso||0;
+      else val=row.doanhthu||0;
 
-// Fetch helper
-async function fetchPost(url,body){const r=await fetch(API_BASE+url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json()}
-function parseCN(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.du_no_ck||0);if(r.ten_kh)khNames[r.ma_kh]=r.ten_kh});return m}
-function parseDS(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.tong_doanhso||0)});return m}
-function parseDT(j){const m={};if(j.success)j.data.forEach(r=>{const nv=r.ma_nvkd||'_UNK';if(!m[nv])m[nv]={};m[nv][r.ma_kh]=(m[nv][r.ma_kh]||0)+(r.doanhthu||0)});return m}
+      if(!col.data[nv]) col.data[nv]={};
+      col.data[nv][mk]=(col.data[nv][mk]||0)+val;
 
-async function loadAllData(){
-    if(!currentKBC)return;
-    const k=currentKBC;
-    COLS.forEach(c=>{colData[c]={};colLoaded[c]=false;colLoading[c]=true});
-    document.getElementById('tbl').style.display='';document.getElementById('empty').style.display='none';
-    renderAll();setS('busy','Tải...');
-    const bp=selectedBP||(userBpList.length?userBpList.join(','):'');
-    const nv=USER_NVKD||'';
-    const kh=selectedKH?selectedKH.ma_kh:'';
-    const dDNDK=iso(k.ngay_du_no_dau_ki),dBDXB=iso(k.ngay_bd_xuat_ban),dKTXB=iso(k.ngay_kt_xuat_ban);
-    const dBDTT=iso(k.ngay_bd_thu_tien),dKTTT=iso(k.ngay_kt_thu_tien),dBDLK=iso(k.ngay_bd_lan_ki),dDNCK=iso(k.ngay_du_no_cuoi_ki);
-    let ngayTruocLK='';
-    if(dBDLK){const d=new Date(dBDLK);d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
-    if(!dDNDK||!dBDXB||!dKTXB||!dBDTT||!dKTTT||!dDNCK){setS('err','Thiếu ngày');toast('Kỳ thiếu ngày','err');COLS.forEach(c=>colLoading[c]=false);renderAll();return}
-    try{
-        const [r1,r2,r3,r4,r5]=await Promise.all([
-            fetchPost('/api/congno',{ngay_cut:dDNDK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
-            fetchPost('/api/doanhso',{ngay_a:dBDXB,ngay_b:dKTXB,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
-            (dBDTT&&ngayTruocLK)?fetchPost('/api/doanhthu',{ngay_a:dBDTT,ngay_b:ngayTruocLK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}):Promise.resolve({success:true,data:[]}),
-            (dBDLK&&dKTTT)?fetchPost('/api/doanhthu',{ngay_a:dBDLK,ngay_b:dKTTT,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}):Promise.resolve({success:true,data:[]}),
-            fetchPost('/api/congno',{ngay_cut:dDNCK,ma_bp:bp,ds_nvkd:nv,ds_kh:kh}),
-        ]);
-        colData.du_no_dk=parseCN(r1);colData.ban_ra=parseDS(r2);colData.tt1=parseDT(r3);colData.tt2=parseDT(r4);colData.du_no_ck=parseCN(r5);
-        COLS.forEach(c=>{colLoaded[c]=true;colLoading[c]=false});
-        setS('ok','OK');renderAll();toast('Đã tải xong');
-    }catch(e){setS('err','Lỗi');toast(e.message,'err');COLS.forEach(c=>colLoading[c]=false);renderAll()}
-}
-
-// Aggregate
-function aggregate(){
-    Object.values(nvMap).forEach(n=>{n._vals={}});
-    COLS.forEach(cid=>{
-        if(!colLoaded[cid])return;
-        Object.values(nvMap).forEach(n=>{n._vals[cid]={kh:{},total:null}});
-        Object.keys(colData[cid]).forEach(nvkd=>{const nd=nvMap[nvkd];if(!nd)return;Object.entries(colData[cid][nvkd]).forEach(([mk,v])=>{nd._vals[cid].kh[mk]=(nd._vals[cid].kh[mk]||0)+v})});
-        [...hierarchy].sort((a,b)=>b.level-a.level).forEach(h=>{
-            const nd=nvMap[h.ma_nvkd],cv=nd._vals[cid];
-            const sel=selectedNV===null||selectedNV.has(h.ma_nvkd);
-            let sum=0,has=false;
-            if(sel)Object.values(cv.kh).forEach(v=>{sum+=v;has=true});
-            nd.children.forEach(c=>{const ct=c._vals[cid]?c._vals[cid].total:null;if(ct!=null){sum+=ct;has=true}});
-            cv.total=has?sum:null;
-        });
+      if(row.ten_kh) khNames[mk]=row.ten_kh;
+      rowCount++;
     });
+
+    col.loaded=true;col.loading=false;setStatus('ok','OK');renderAll();
+    toast(m.label+': '+rowCount+' dòng');
+  }catch(e){col.loading=false;setStatus('err','Lỗi');renderAll();toast(e.message,'err')}
+}
+function clearColumn(col){col.data={};col.loaded=false;col.loading=false;renderAll()}
+
+function aggregate(){
+  Object.values(nvMap).forEach(function(n){n._vals={}});
+  columns.forEach(function(col){
+    if(!col.loaded)return;
+    Object.values(nvMap).forEach(function(n){n._vals[col.id]={kh:{},total:null}});
+    Object.keys(col.data).forEach(function(nvkd){
+      var nd=nvMap[nvkd];
+      if(!nd) return;
+      var khObj=col.data[nvkd];
+      Object.keys(khObj).forEach(function(mk){
+        nd._vals[col.id].kh[mk]=(nd._vals[col.id].kh[mk]||0)+khObj[mk];
+      });
+    });
+    var sorted=[...hierarchy].sort(function(a,b){return b.level-a.level});
+    sorted.forEach(function(h){
+      var nd=nvMap[h.ma_nvkd],cv=nd._vals[col.id];
+      var sel=selectedNV===null||selectedNV.has(h.ma_nvkd);
+      var sum=0,has=false;
+      if(sel) Object.values(cv.kh).forEach(function(v){sum+=v;has=true});
+      nd.children.forEach(function(c){var ct=c._vals[col.id]?c._vals[col.id].total:null;if(ct!=null){sum+=ct;has=true}});
+      cv.total=has?sum:null;
+    });
+  });
 }
 
-function getKHName(mk){return khNames[mk]||(khMap[mk]&&khMap[mk].ten_kh)||mk}
-function treeH(anc,isL,dep){if(dep===0)return'';let h='';for(let i=0;i<anc.length;i++)h+=anc[i].cont?'<span class="tree-seg vline"></span>':'<span class="tree-seg"></span>';h+=isL?'<span class="tree-seg branch"></span>':'<span class="tree-seg branch-cont"></span>';return h}
+function getAllDescendants(id){var r=[];function d(i){r.push(i);(nvMap[i]?nvMap[i].children:[]).forEach(function(c){d(c.ma_nvkd)})}d(id);return r}
+function getAllNV(){return hierarchy.map(function(h){return h.ma_nvkd})}
+function treeLineHtml(ancestors,isLast,depth){if(depth===0)return'';var h='';for(var i=0;i<ancestors.length;i++)h+=ancestors[i].cont?'<span class="tree-seg vline"></span>':'<span class="tree-seg"></span>';h+=isLast?'<span class="tree-seg branch"></span>':'<span class="tree-seg branch-cont"></span>';return h}
 
 function buildRows(){
-    const roots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
-    const rows=[];
-    function getKH(nd){const s=new Set();COLS.forEach(c=>{if(colLoaded[c]&&nd._vals[c])Object.keys(nd._vals[c].kh).forEach(k=>s.add(k))});return[...s]}
-    function fKH(keys){
-        return keys.filter(k=>{
-            if(selectedKH&&k!==selectedKH.ma_kh)return false;
-            return true;
-        });
+  var isF=selectedNV!==null;
+  var roots=hierarchy.filter(function(h){return!h.ma_ql||!nvMap[h.ma_ql]}).map(function(h){return nvMap[h.ma_nvkd]}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
+  var rows=[];
+  function getKHKeys(nd){var s=new Set();columns.forEach(function(col){if(col.loaded&&nd._vals[col.id])Object.keys(nd._vals[col.id].kh).forEach(function(k){s.add(k)})});return[...s]}
+  function filterKH(keys){return keys.filter(function(k){if(!khFilter)return true;var t=getKHName(k).toLowerCase();return t.includes(khFilter)||k.toLowerCase().includes(khFilter)})}
+  var anyColLoaded=columns.some(function(c){return c.loaded});
+  var nvsWithBPKH=null;
+  if(selectedBP){nvsWithBPKH=new Set();Object.entries(khMap).forEach(function(e){if(e[1].ma_bp===selectedBP&&e[1].ma_nvkd)nvsWithBPKH.add(e[1].ma_nvkd)})}
+  var _relCache={};
+  function hasRelevantData(nd){
+    if(nd.ma_nvkd in _relCache)return _relCache[nd.ma_nvkd];
+    var result=false;
+    if(anyColLoaded){for(var i=0;i<columns.length;i++){var col=columns[i];if(!col.loaded)continue;var cv=nd._vals[col.id];if(cv&&cv.total!=null&&cv.total!==0){result=true;break}}}
+    else if(nvsWithBPKH){if(nvsWithBPKH.has(nd.ma_nvkd))result=true}
+    if(!result)result=nd.children.some(function(c){return hasRelevantData(c)});
+    _relCache[nd.ma_nvkd]=result;return result;
+  }
+  var shouldPrune=!!selectedBP;
+  if(isF){
+    var list=hierarchy.filter(function(h){return selectedNV.has(h.ma_nvkd)}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
+    var filtered=shouldPrune?list.filter(function(h){return hasRelevantData(nvMap[h.ma_nvkd])}):list;
+    filtered.forEach(function(h,i){
+      var nd=nvMap[h.ma_nvkd],exp=expState[nd.ma_nvkd]!==false;
+      var fKH=filterKH(getKHKeys(nd));
+      rows.push({type:'nv',node:nd,expanded:exp,hasKids:fKH.length>0,depth:0,ancestors:[],isLast:i===filtered.length-1});
+      if(exp&&fKH.length)fKH.forEach(function(k,ki){rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:1,ancestors:[{cont:ki<fKH.length-1}],isLast:ki===fKH.length-1})});
+    });
+  } else {
+    function walk(nd,ancestors,isLastAmongSiblings){
+      if(shouldPrune&&!hasRelevantData(nd))return;
+      var exp=expState[nd.ma_nvkd]!==false;
+      var fKH=filterKH(getKHKeys(nd));
+      var visC=[...nd.children].sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)}).filter(function(c){return!shouldPrune||hasRelevantData(c)});
+      var actualHasKids=visC.length>0||fKH.length>0;
+      rows.push({type:'nv',node:nd,expanded:exp,hasKids:actualHasKids,depth:nd.level,ancestors:[...ancestors],isLast:isLastAmongSiblings});
+      if(exp){
+        var total=fKH.length+visC.length;var si=0;
+        fKH.forEach(function(k){var isL=si===total-1;rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:nd.level+1,ancestors:[...ancestors,{cont:!isL}],isLast:isL});si++});
+        visC.forEach(function(child){var isL=si===total-1;walk(child,[...ancestors,{cont:!isL}],isL);si++});
+      }
     }
-    function hasData(nd){
-        if(!allowedNV.has(nd.ma_nvkd))return false;
-        for(const c of COLS){if(!colLoaded[c])continue;const cv=nd._vals[c];if(cv&&cv.total!=null&&cv.total!==0)return true}
-        return nd.children.some(c=>hasData(c));
-    }
-    function walk(nd,anc,isL){
-        if(!hasData(nd))return;
-        const exp=expState[nd.ma_nvkd]!==false;
-        const fk=fKH(getKH(nd));
-        const vc=[...nd.children].sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).filter(c=>hasData(c));
-        rows.push({type:'nv',node:nd,expanded:exp,hasKids:vc.length>0||fk.length>0,depth:nd.level,ancestors:[...anc],isLast:isL});
-        if(exp){
-            const tot=fk.length+vc.length;let si=0;
-            fk.forEach(k=>{const il=si===tot-1;rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:nd.level+1,ancestors:[...anc,{cont:!il}],isLast:il});si++});
-            vc.forEach(child=>{const il=si===tot-1;walk(child,[...anc,{cont:!il}],il);si++});
-        }
-    }
-    roots.filter(r=>hasData(r)).forEach((r,ri,arr)=>walk(r,[],ri===arr.length-1));
-    return rows;
+    var visRoots=shouldPrune?roots.filter(function(r){return hasRelevantData(r)}):roots;
+    visRoots.forEach(function(r,ri){walk(r,[],ri===visRoots.length-1)});
+  }
+  return rows;
 }
 
 function renderAll(){
-    if(!hierarchy.length||!currentKBC)return;
-    aggregate();const rows=buildRows();const k=currentKBC;
-    let ngayTruocLK='';if(iso(k.ngay_bd_lan_ki)){const d=new Date(iso(k.ngay_bd_lan_ki));d.setDate(d.getDate()-1);ngayTruocLK=d.toISOString().substring(0,10)}
-    let th='<th style="text-align:left;min-width:220px" rowspan="2">NV / KH</th>';
-    th+='<th style="text-align:left;min-width:60px;width:70px" rowspan="2">Mã</th>';
-    th+='<th class="col-cn" rowspan="2" style="min-width:110px"><div class="th-main">DƯ NỢ ĐẦU KÌ</div><div class="th-date">'+fmtD(iso(k.ngay_du_no_dau_ki))+'</div></th>';
-    th+='<th class="col-ds" rowspan="2" style="min-width:110px"><div class="th-main">BÁN RA</div><div class="th-date">'+fmtD(iso(k.ngay_bd_xuat_ban))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_xuat_ban))+'</div></th>';
-    th+='<th class="col-dt" colspan="2" style="min-width:220px"><div class="th-main">THANH TOÁN</div></th>';
-    th+='<th class="col-cn2" rowspan="2" style="min-width:110px"><div class="th-main">DƯ NỢ CUỐI KỲ</div><div class="th-date">'+fmtD(iso(k.ngay_du_no_cuoi_ki))+'</div></th>';
-    let th2='<th class="col-dt" style="min-width:110px;border-left:none"><div class="th-date">'+fmtD(iso(k.ngay_bd_thu_tien))+'<br>↓<br>'+fmtD(ngayTruocLK)+'</div></th>';
-    th2+='<th class="col-dt" style="min-width:110px"><div class="th-date">'+fmtD(iso(k.ngay_bd_lan_ki))+'<br>↓<br>'+fmtD(iso(k.ngay_kt_thu_tien))+'</div></th>';
-    document.getElementById('theadRow').innerHTML=th;
-    let tr2=document.querySelector('#tbl thead');let old=tr2.querySelector('.r2');if(old)old.remove();
-    const row2=document.createElement('tr');row2.className='r2';row2.innerHTML=th2;tr2.appendChild(row2);
-    let html='';
-    rows.forEach(row=>{
-        if(row.type==='nv'){
-            const nd=row.node,dep=row.depth,lv='lv'+Math.min(dep,5);
-            const tl=dep>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,dep)+'</span>':'';
-            const tog=row.hasKids?'<button class="tog" onclick="togNV(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 9 9">'+(row.expanded?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>':'<span class="tog-sp"></span>';
-            let tds='';COLS.forEach(c=>{if(colLoading[c]){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const cv=nd._vals[c];const v=cv?cv.total:null;tds+='<td style="text-align:right">'+(colLoaded[c]?(v!=null?numH(v,'sub'):'<span class="n zero">0</span>'):'<span class="dash">—</span>')+'</td>'});
-            html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+tl+tog+'<span class="nametxt">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+tds+'</tr>';
-        }else{
-            const mk=row.ma_kh,pNV=row.parentNV;
-            const tl=row.depth>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,row.depth)+'</span>':'';
-            let tds='';COLS.forEach(c=>{if(colLoading[c]){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const v=(pNV._vals[c]&&pNV._vals[c].kh[mk])!=null?pNV._vals[c].kh[mk]:null;tds+='<td style="text-align:right">'+(colLoaded[c]?(v!=null?numH(v):'<span class="n zero">0</span>'):'<span class="dash">—</span>')+'</td>'});
-            html+='<tr class="row-kh"><td><div class="cell-name">'+tl+'<span class="tog-sp"></span><span class="nametxt">'+esc(row.ten_kh)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(mk)+'</span></td>'+tds+'</tr>';
-        }
-    });
-    document.getElementById('tbody').innerHTML=html;
-    const allRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]);
-    let tf='<td><span class="foot-lbl">Tổng cộng</span></td><td></td>';
-    COLS.forEach(c=>{if(!colLoaded[c]){tf+='<td style="text-align:right"><span class="n grand">—</span></td>';return}let sum=0,has=false;allRoots.forEach(r=>{const t=r._vals[c]?r._vals[c].total:null;if(t!=null){sum+=t;has=true}});tf+='<td style="text-align:right"><span class="n grand">'+(has?fmtV(sum):'—')+'</span></td>'});
-    document.getElementById('tfootRow').innerHTML=tf;
+  if(!hierarchy.length)return;
+  aggregate();var rows=buildRows();lastRenderedRows=rows;
+  var th='<th style="text-align:left;min-width:250px">NV / KH<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+  th+='<th style="text-align:left;min-width:60px;width:75px">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+  columns.forEach(function(col,ci){
+    var m=COL_META[col.type];var dates='';
+    if(col.type==='cn')dates='<input type="date" value="'+col.dateA+'" onchange="columns['+ci+'].dateA=this.value"/>';
+    else dates='<input type="date" value="'+col.dateA+'" onchange="columns['+ci+'].dateA=this.value"/><span class="th-sep">→</span><input type="date" value="'+col.dateB+'" onchange="columns['+ci+'].dateB=this.value"/>';
+    var spinH=col.loading?'<span class="spin"></span>':'';var btnL=col.loading?spinH:'Tải';
+    th+='<th class="'+m.accent+'" style="min-width:150px" draggable="true" ondragstart="colDragStart(event,'+ci+')" ondragover="colDragOver(event,'+ci+')" ondragleave="colDragLeave(event)" ondrop="colDrop(event,'+ci+')"><div class="th-inner"><div class="th-title">'+m.label+'</div><div class="th-dates">'+dates+'</div><div class="th-btns"><button class="aply '+m.cls+'" onclick="loadColumn(columns['+ci+'])" '+(col.loading?'disabled':'')+'>'+btnL+'</button><button class="clr" onclick="clearColumn(columns['+ci+'])" title="Xóa dữ liệu">✕</button><button class="col-remove" onclick="removeColumn('+ci+')" title="Xóa cột">🗑</button></div></div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+  });
+  document.getElementById('thead-row').innerHTML=th;
+  var html='';
+  rows.forEach(function(row){
+    if(row.type==='nv'){
+      var nd=row.node,exp=row.expanded,hk=row.hasKids,anc=row.ancestors,isL=row.isLast,dep=row.depth;
+      var lv='lv'+Math.min(dep,5);
+      var treeLn=dep>0?'<span class="tree-lines">'+treeLineHtml(anc,isL,dep)+'</span>':'';
+      var tog=hk?'<button class="tog" onclick="toggleNV(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 9 9">'+(exp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>':'<span class="tog-sp"></span>';
+      var tds='';
+      columns.forEach(function(col){
+        if(col.loading){tds+='<td style="text-align:right">'+shimHtml()+'</td>';return}
+        var cv=nd._vals[col.id];var val=cv?cv.total:null;var m=COL_META[col.type];
+        tds+='<td style="text-align:right">'+((!col.loaded)?'<span class="dash">—</span>':(val!=null?numHtml(val,'sub '+m.cls):'<span class="n zero">0</span>'))+'</td>';
+      });
+      html+='<tr class="row-nv '+lv+'" data-id="'+nd.ma_nvkd+'"><td><div class="cell-name">'+treeLn+tog+'<span class="nametxt">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+tds+'</tr>';
+    } else {
+      var anc=row.ancestors,isL=row.isLast,dep=row.depth,mk=row.ma_kh,tn=row.ten_kh,pNV=row.parentNV;
+      var treeLn=dep>0?'<span class="tree-lines">'+treeLineHtml(anc,isL,dep)+'</span>':'';
+      var tds='';
+      columns.forEach(function(col){
+        if(col.loading){tds+='<td style="text-align:right">'+shimHtml()+'</td>';return}
+        var val=(pNV._vals[col.id]&&pNV._vals[col.id].kh[mk])!=null?pNV._vals[col.id].kh[mk]:null;
+        tds+='<td style="text-align:right">'+((!col.loaded)?'<span class="dash">—</span>':(val!=null?numHtml(val):'<span class="n zero">0</span>'))+'</td>';
+      });
+      html+='<tr class="row-kh"><td><div class="cell-name">'+treeLn+'<span class="tog-sp"></span><span class="nametxt">'+esc(tn)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--gray-4)">'+esc(mk)+'</span></td>'+tds+'</tr>';
+    }
+  });
+  document.getElementById('tbody').innerHTML=html;
+  var roots=hierarchy.filter(function(h){return!h.ma_ql||!nvMap[h.ma_ql]}).map(function(h){return nvMap[h.ma_nvkd]});
+  var tf='<td><span class="foot-lbl">Tổng cộng</span></td><td></td>';
+  columns.forEach(function(col){
+    if(!col.loaded||col.loading){tf+='<td style="text-align:right"><span class="n grand">—</span></td>';return}
+    var sum=0,has=false;roots.forEach(function(r){var t=r._vals[col.id]?r._vals[col.id].total:null;if(t!=null){sum+=t;has=true}});
+    tf+='<td style="text-align:right"><span class="n grand '+COL_META[col.type].cls+'">'+(has?fmtV(sum):'—')+'</span></td>';
+  });
+  document.getElementById('tfoot-row').innerHTML=tf;
 }
 
-// NV Picker — only shows allowed NVs
-function getAllDescendants(id){const r=[];function d(i){r.push(i);(nvMap[i]?nvMap[i].children:[]).forEach(c=>d(c.ma_nvkd))}d(id);return r}
-function getAllNV(){return[...allowedNV]}
-function getCheckState(id){const a=getAllDescendants(id).filter(i=>allowedNV.has(i)),c=a.filter(i=>pendingNV.has(i)).length;return c===0?'none':c===a.length?'checked':'indeterm'}
-function pickerToggle(id){const s=getCheckState(id),d=getAllDescendants(id).filter(i=>allowedNV.has(i));if(s==='none')d.forEach(i=>pendingNV.add(i));else d.forEach(i=>pendingNV.delete(i));renderPickerTree();updatePickerBadge()}
-function pickerSelectAll(){getAllNV().forEach(i=>pendingNV.add(i));renderPickerTree();updatePickerBadge()}
+function addColumn(type){var now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');var dA=type==='cn'?y+'-'+m+'-'+String(now.getDate()).padStart(2,'0'):y+'-'+m+'-01';var dB=type==='cn'?'':y+'-'+m+'-'+String(now.getDate()).padStart(2,'0');columns.push({id:'c'+(colIdCounter++),type:type,dateA:dA,dateB:dB,data:{},loaded:false,loading:false});closeAddMenu();renderAll()}
+function removeColumn(ci){columns.splice(ci,1);renderAll()}
+function toggleAddMenu(){document.getElementById('add-col-menu').classList.toggle('open')}
+function closeAddMenu(){document.getElementById('add-col-menu').classList.remove('open')}
+document.addEventListener('click',function(e){if(!e.target.closest('.add-col-menu')&&!e.target.closest('.tbtn.blue'))closeAddMenu()});
+var dragColIdx=null;
+function colDragStart(e,ci){dragColIdx=ci;e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging')}
+function colDragOver(e,ci){e.preventDefault();e.dataTransfer.dropEffect='move';document.querySelectorAll('th').forEach(function(t){t.classList.remove('drag-over-left','drag-over-right')});if(ci!==dragColIdx){var th=e.target.closest('th');if(th)th.classList.add(ci<dragColIdx?'drag-over-left':'drag-over-right')}}
+function colDragLeave(e){var th=e.target.closest('th');if(th)th.classList.remove('drag-over-left','drag-over-right')}
+function colDrop(e,ci){e.preventDefault();document.querySelectorAll('th').forEach(function(t){t.classList.remove('drag-over-left','drag-over-right','dragging')});if(dragColIdx!=null&&dragColIdx!==ci){var mv=columns.splice(dragColIdx,1)[0];columns.splice(ci,0,mv);renderAll()}dragColIdx=null}
+function startResize(e,handle){e.preventDefault();e.stopPropagation();var th=handle.parentElement;var sx=e.clientX,sw=th.offsetWidth;handle.classList.add('active');function onM(ev){th.style.width=Math.max(80,sw+(ev.clientX-sx))+'px';th.style.minWidth=th.style.width}function onU(){handle.classList.remove('active');document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU)}document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU)}
+function toggleNV(id,e){if(e)e.stopPropagation();expState[id]=!expState[id];renderAll()}
+function toggleExpandAll(){allExp=!allExp;hierarchy.forEach(function(h){expState[h.ma_nvkd]=allExp});document.getElementById('btn-exp').innerHTML=allExp?'<svg viewBox="0 0 16 16" stroke-width="2" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-linecap:round"><polyline points="4,10 8,6 12,10"/></svg>Thu':'<svg viewBox="0 0 16 16" stroke-width="2" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-linecap:round"><polyline points="4,6 8,10 12,6"/></svg>Mở';renderAll()}
+function getCheckState(id){var a=getAllDescendants(id),c=a.filter(function(i){return pendingNV.has(i)}).length;return c===0?'none':c===a.length?'checked':'indeterm'}
+function pickerToggle(id){var s=getCheckState(id),d=getAllDescendants(id);if(s==='none')d.forEach(function(i){pendingNV.add(i)});else d.forEach(function(i){pendingNV.delete(i)});renderPickerTree();updatePickerBadge()}
+function pickerSelectAll(){getAllNV().forEach(function(i){pendingNV.add(i)});renderPickerTree();updatePickerBadge()}
 function pickerClearAll(){pendingNV=new Set();renderPickerTree();updatePickerBadge()}
-function updatePickerBadge(){const b=document.getElementById('picker-badge'),l=document.getElementById('picker-label');if(selectedNV===null){b.textContent='Tất cả';b.className='picker-badge all';l.textContent='Tất cả NV'}else{const c=selectedNV.size;b.textContent=c;b.className='picker-badge'+(c===0?' all':'');l.textContent=c===0?'Chưa chọn':c+' NV'}}
+function updatePickerBadge(){var b=document.getElementById('picker-badge'),l=document.getElementById('picker-label');if(selectedNV===null){b.textContent='Tất cả';b.className='picker-badge all';l.textContent='Tất cả NV'}else{var c=selectedNV.size;b.textContent=c;b.className='picker-badge'+(c===0?' all':'');l.textContent=c===0?'Chưa chọn':c+' NV'}}
 function renderPickerTree(){
-    const q=(document.getElementById('picker-q')?document.getElementById('picker-q').value:'').toLowerCase().trim();
-    const roots=hierarchy.filter(h=>(!h.ma_ql||!nvMap[h.ma_ql])&&allowedNV.has(h.ma_nvkd)).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
-    let html='';
-    function match(nd){if(!allowedNV.has(nd.ma_nvkd))return false;if(!q)return true;if((nd.ten_nvkd+' '+nd.ma_nvkd).toLowerCase().includes(q))return true;return nd.children.some(c=>match(c))}
-    function hl(t){if(!q)return esc(t);const i=t.toLowerCase().indexOf(q);if(i<0)return esc(t);return esc(t.slice(0,i))+'<em>'+esc(t.slice(i,i+q.length))+'</em>'+esc(t.slice(i+q.length))}
-    function wp(nd,d){
-        if(!match(nd))return;const s=getCheckState(nd.ma_nvkd),hk=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)).length>0,ind=d*18,isE=pickerExp[nd.ma_nvkd]!==false;
-        const tog=hk?'<span class="pi-tog" onclick="pickerToggleExp(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="pi-tog-sp"></span>';
-        html+='<div class="pi '+s+'" onclick="pickerToggle(\''+nd.ma_nvkd+'\')" style="padding-left:'+(8+ind)+'px"><span class="pi-cb"></span>'+tog+'<span class="pi-name lv'+Math.min(d,1)+'">'+hl(nd.ten_nvkd||nd.ma_nvkd)+'</span><span style="margin-left:5px;font-family:var(--mono);font-size:10px;color:var(--g3)">'+nd.ma_nvkd+'</span></div>';
-        if(hk&&(isE||q))nd.children.filter(c=>allowedNV.has(c.ma_nvkd)).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).forEach(c=>wp(c,d+1));
-    }
-    roots.forEach(r=>wp(r,0));
-    document.getElementById('picker-tree').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">Không tìm thấy</div>';
+  var q=(document.getElementById('picker-q')?document.getElementById('picker-q').value:'').toLowerCase().trim();
+  var roots=hierarchy.filter(function(h){return!h.ma_ql||!nvMap[h.ma_ql]}).map(function(h){return nvMap[h.ma_nvkd]}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
+  var html='';
+  function match(nd){if(!q)return true;if((nd.ten_nvkd+' '+nd.ma_nvkd).toLowerCase().includes(q))return true;return(nd.children||[]).some(function(c){return match(c)})}
+  function hl(t){if(!q)return esc(t);var i=t.toLowerCase().indexOf(q);if(i<0)return esc(t);return esc(t.slice(0,i))+'<em>'+esc(t.slice(i,i+q.length))+'</em>'+esc(t.slice(i+q.length))}
+  function wp(nd,d){if(!match(nd))return;var s=getCheckState(nd.ma_nvkd),hk=nd.children.length>0,ind=d*18,isE=pickerExp[nd.ma_nvkd]!==false;
+    var tog=hk?'<span class="pi-tog" onclick="pickerToggleExp(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="pi-tog-sp"></span>';
+    html+='<div class="pi '+s+'" onclick="pickerToggle(\''+nd.ma_nvkd+'\')" style="padding-left:'+(8+ind)+'px"><span class="pi-cb"></span>'+tog+'<span class="pi-name lv'+Math.min(d,1)+'">'+hl(nd.ten_nvkd||nd.ma_nvkd)+'</span><span style="margin-left:5px;font-family:var(--mono);font-size:10px;color:var(--gray-3)">'+nd.ma_nvkd+'</span></div>';
+    if(hk&&(isE||q))nd.children.sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)}).forEach(function(c){wp(c,d+1)});
+  }
+  roots.forEach(function(r){wp(r,0)});
+  document.getElementById('picker-tree').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--gray-4);font-size:12px">Không tìm thấy</div>';
 }
 function pickerToggleExp(id,e){e.stopPropagation();pickerExp[id]=!(pickerExp[id]!==false);renderPickerTree()}
 function togglePicker(){pickerOpen?closePicker():openPicker()}
-function openPicker(){pickerOpen=true;pendingNV=selectedNV===null?new Set():new Set(selectedNV);const p=document.getElementById('picker-panel'),tr=document.getElementById('picker-trigger');if(isMobile()){p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0'}else{const r=tr.getBoundingClientRect();p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-310)+'px';p.style.bottom='auto';p.style.right='auto'}p.classList.add('open');tr.classList.add('open');document.getElementById('picker-q').value='';renderPickerTree()}
-function closePicker(){pickerOpen=false;document.getElementById('picker-panel').classList.remove('open');document.getElementById('picker-trigger').classList.remove('open')}
-function applyPicker(){const a=getAllNV();if(pendingNV.size===0||pendingNV.size===a.length)selectedNV=null;else selectedNV=new Set(pendingNV);closePicker();updatePickerBadge();renderAll()}
-document.addEventListener('mousedown',e=>{if(pickerOpen&&!document.getElementById('picker-wrap').contains(e.target)&&!document.getElementById('picker-panel').contains(e.target))closePicker()});
-
-function togNV(id,e){if(e)e.stopPropagation();expState[id]=!expState[id];renderAll()}
-function toggleExp(){allExp=!allExp;hierarchy.forEach(h=>expState[h.ma_nvkd]=allExp);document.getElementById('btn-exp').textContent=allExp?'Thu':'Mở';renderAll()}
-
-// Mobile bottom sheet
-function openSheet(type){
-    let title='',body='';
-    if(type==='filter'){
-        title='Bộ lọc';
-        body='<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="kh-search-wrap" style="width:100%;height:40px"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="mob-kh-q" placeholder="Tìm KH..." oninput="onKHInput(this.value)" style="width:100%"/></div></div></div>'
-        +'<div class="sheet-section"><div class="sheet-section-label">Bộ phận</div><div class="sheet-row"><select class="bp-select" style="width:100%;height:40px;font-size:13px" onchange="onBPChange(this.value);document.getElementById(\'bp-select\').value=this.value" id="mob-bp-sel"></select></div></div>';
-    }else if(type==='kbc'){
-        title='Kỳ báo cáo';
-        body='<div class="sheet-section">';
-        kbcList.forEach(k=>{const act=currentKBC&&currentKBC.id===k.id;body+='<div class="sheet-btn'+(act?' green':'')+'" onclick="document.getElementById(\'sel-kbc\').value='+k.id+';onKBCChange();closeSheet()" style="margin-bottom:8px'+(act?';border-color:var(--emr);background:var(--emr-lt)':'')+'">'+esc(k.ten_kbc)+' ('+k.loai_kbc+')</div>'});
-        body+='</div>';
-    }else if(type==='actions'){
-        title='Thao tác';
-        body='<div style="display:flex;flex-direction:column;gap:8px"><div class="sheet-btn" onclick="toggleExp();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><polyline points="5,8 10,13 15,8"/></svg>'+(allExp?'Thu gọn':'Mở rộng')+'</div><div class="sheet-btn" onclick="loadAllData();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M3 10a7 7 0 1 1 1.2 4"/><polyline points="3,6 3,10 7,10"/></svg>Tải lại</div></div>';
-    }
-    document.getElementById('sheet-title').textContent=title;document.getElementById('sheet-body').innerHTML=body;
-    document.getElementById('sheet-overlay').classList.add('open');document.getElementById('bottom-sheet').classList.add('open');
-    if(type==='filter'){const ms=document.getElementById('mob-bp-sel');if(ms){ms.innerHTML=document.getElementById('bp-select').innerHTML;ms.value=selectedBP}}
+function openPicker(){
+  pickerOpen=true;pendingNV=selectedNV===null?new Set():new Set(selectedNV);
+  var p=document.getElementById('picker-panel'),tr=document.getElementById('picker-trigger');
+  if(isMobile()){
+    // On mobile, position as bottom sheet style
+    p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';
+  } else {
+    var r=tr.getBoundingClientRect();
+    p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-310)+'px';
+    p.style.bottom='auto';p.style.right='auto';
+  }
+  p.classList.add('open');tr.classList.add('open');document.getElementById('picker-q').value='';renderPickerTree();
 }
-function closeSheet(){document.getElementById('sheet-overlay').classList.remove('open');document.getElementById('bottom-sheet').classList.remove('open')}
+function closePicker(){pickerOpen=false;document.getElementById('picker-panel').classList.remove('open');document.getElementById('picker-trigger').classList.remove('open')}
+function applyPicker(){var a=getAllNV();if(pendingNV.size===0||pendingNV.size===a.length)selectedNV=null;else selectedNV=new Set(pendingNV);closePicker();updatePickerBadge();renderAll()}
+function applyKHFilter(v){khFilter=v.trim().toLowerCase();document.getElementById('kh-clear').style.display=khFilter?'':'none';renderAll()}
+function clearKHFilter(){document.getElementById('kh-q').value='';applyKHFilter('')}
+function applyBPFilter(v){selectedBP=v;columns.forEach(function(col){if(col.loaded)loadColumn(col)});renderAll()}
+document.addEventListener('mousedown',function(e){if(pickerOpen&&!document.getElementById('picker-wrap').contains(e.target)&&!document.getElementById('picker-panel').contains(e.target))closePicker()});
+
+async function exportExcel(){
+  if(!lastRenderedRows.length){toast('Chưa có dữ liệu','err');return}
+  setStatus('busy','Xuất Excel…');
+
+  var loadedCols=columns.filter(function(c){return c.loaded});
+  var colHeaders=loadedCols.map(function(col){
+    var m=COL_META[col.type];
+    if(col.type==='cn') return m.label+'\n'+fmtDateVN(col.dateA);
+    return m.label+'\nTỪ '+fmtDateVN(col.dateA)+' → '+fmtDateVN(col.dateB);
+  });
+
+  var payload=[];
+  lastRenderedRows.forEach(function(row){
+    if(row.type==='nv'){
+      var nd=row.node;
+      var vals=loadedCols.map(function(col){
+        var cv=nd._vals[col.id];return cv?cv.total:null;
+      });
+      payload.push({type:'nv', depth:row.depth, name:nd.ten_nvkd||nd.ma_nvkd, values:vals});
+    } else {
+      var vals=loadedCols.map(function(col){
+        var cv=row.parentNV._vals[col.id];
+        return(cv&&cv.kh[row.ma_kh]!=null)?cv.kh[row.ma_kh]:null;
+      });
+      payload.push({type:'kh', depth:0, name:row.ten_kh, values:vals});
+    }
+  });
+
+  var roots=hierarchy.filter(function(h){return!h.ma_ql||!nvMap[h.ma_ql]}).map(function(h){return nvMap[h.ma_nvkd]});
+  var totVals=loadedCols.map(function(col){
+    var sum=0,has=false;
+    roots.forEach(function(r){var t=r._vals[col.id]?r._vals[col.id].total:null;if(t!=null){sum+=t;has=true}});
+    return has?sum:null;
+  });
+  payload.push({type:'total', depth:0, name:'TỔNG CỘNG', values:totVals});
+
+  try{
+    var resp=await fetch(API_BASE+'/api/export_excel',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({rows:payload, col_headers:colHeaders, bp:selectedBP})
+    });
+    if(!resp.ok) throw new Error('Server error '+resp.status);
+    var blob=await resp.blob();
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;
+    var cd=resp.headers.get('Content-Disposition');
+    var fn='BaoCaoKD.xlsx';
+    if(cd){var m=cd.match(/filename=(.+)/);if(m)fn=m[1].replace(/"/g,'')}
+    a.download=fn;
+    document.body.appendChild(a);a.click();a.remove();
+    URL.revokeObjectURL(url);
+    setStatus('ok','OK');toast('Đã tải Excel');
+  }catch(e){setStatus('err','Lỗi');toast(e.message,'err')}
+}
 
 document.addEventListener('DOMContentLoaded',init);
 </script>
+{% include "_header_js.html" %}
 </body>
 </html>

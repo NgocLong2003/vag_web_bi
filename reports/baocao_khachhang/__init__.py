@@ -265,72 +265,95 @@ def api_doanhso():
 
 # ─────────────────────────────────────────
 # API: Doanh thu (thanh toán)
+# Hỗ trợ 2 luồng ngày:
+#   - Nhóm A (VA,VB,SF): dùng ngay_a → ngay_b (khoảng thu tiền, có lân kì)
+#   - Nhóm B (còn lại): dùng ngay_a2 → ngay_b2 (khoảng bán ra, thu tiền ngay)
+#   - Nếu không truyền ngay_a2/b2 → dùng ngay_a/b cho tất cả (backward compatible)
 # ─────────────────────────────────────────
 @bp.route('/api/doanhthu', methods=['POST'])
 def api_doanhthu():
     body = request.get_json(force=True)
     ngay_a = body.get('ngay_a', '')
     ngay_b = body.get('ngay_b', '')
+    ngay_a2 = body.get('ngay_a2', '')  # khoảng bán ra (cho nhóm B)
+    ngay_b2 = body.get('ngay_b2', '')
     ma_bp = body.get('ma_bp', '')
     ds_nvkd = body.get('ds_nvkd', '')
     ds_kh = body.get('ds_kh', '')
 
-    logger.info(f"[BCKH doanhthu] ngay_a={ngay_a}, ngay_b={ngay_b}, ma_bp='{ma_bp}', ds_nvkd='{ds_nvkd}'")
+    logger.info(f"[BCKH doanhthu] ngay_a={ngay_a}, ngay_b={ngay_b}, ngay_a2={ngay_a2}, ngay_b2={ngay_b2}, ma_bp='{ma_bp}'")
 
     if not ngay_a or not ngay_b:
-        logger.warning(f"[BCKH doanhthu] Missing dates, skipping")
         return jsonify({'success': False, 'error': 'Thiếu ngay_a hoặc ngay_b'}), 400
 
     bp_param = ma_bp or ""
+    # Nếu không có ngay_a2/b2, dùng ngay_a/b cho tất cả (backward compatible)
+    # Nếu ngay_a2 rỗng string → set None để SQL skip nhóm B
+    ngay_a2_param = ngay_a2 if ngay_a2 else None
+    ngay_b2_param = ngay_b2 if ngay_b2 else None
 
     sql = """
-    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?;
-    DECLARE @MaBP NVARCHAR(MAX)=?; DECLARE @DSMaNVKD NVARCHAR(MAX)=?; DECLARE @DSMaKH NVARCHAR(MAX)=?;
+    SET NOCOUNT ON;
+DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?;
+DECLARE @NgayA2 DATE=?; DECLARE @NgayB2 DATE=?;
+DECLARE @MaBP NVARCHAR(MAX)=?; DECLARE @DSMaNVKD NVARCHAR(MAX)=?; DECLARE @DSMaKH NVARCHAR(MAX)=?;
 
-    SELECT dt.ngay_ct,dt.ma_kh_ct,dt.ma_bp,dt.ps_co
-    INTO #TempDoanhThu_DT FROM PTHUBAOCO_VIEW dt
-    WHERE dt.tk_co='131' AND dt.ma_bp!='TN'
-      AND ((dt.ngay_ct>='2026-01-01' AND dt.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
-        OR (dt.ngay_ct<'2026-01-01' AND dt.ma_ct='CA1'))
-      AND (@MaBP IS NULL OR @MaBP='' OR dt.ma_bp IN (SELECT TRIM(value) FROM STRING_SPLIT(@MaBP,',')))
-      AND dt.ngay_ct>=@NgayA AND dt.ngay_ct<=@NgayB
-      AND (@DSMaKH='' OR dt.ma_kh_ct IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH,',')));
+-- Nhóm A (VA,VB,SF): khoảng thu tiền @NgayA → @NgayB
+-- Nhóm B (còn lại): khoảng bán ra @NgayA2 → @NgayB2 (nếu NULL thì skip nhóm B)
+SELECT dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, dt.ps_co
+INTO #DT
+FROM PTHUBAOCO_VIEW dt WITH (NOLOCK)
+WHERE dt.tk_co='131' AND dt.ma_bp!='TN'
+  AND ((dt.ngay_ct>='2026-01-01' AND dt.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
+    OR (dt.ngay_ct<'2026-01-01' AND dt.ma_ct='CA1'))
+  AND (@MaBP IS NULL OR @MaBP='' OR dt.ma_bp IN (SELECT TRIM(value) FROM STRING_SPLIT(@MaBP,',')))
+  AND (@DSMaKH='' OR dt.ma_kh_ct IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH,',')))
+  AND (
+    (dt.ma_bp IN ('VA','VB','SF') AND dt.ngay_ct>=@NgayA AND dt.ngay_ct<=@NgayB)
+    OR
+    (dt.ma_bp NOT IN ('VA','VB','SF') AND @NgayA2 IS NOT NULL AND dt.ngay_ct>=@NgayA2 AND dt.ngay_ct<=@NgayB2)
+  );
 
-    CREATE INDEX IX_Temp_DT_KH ON #TempDoanhThu_DT(ma_kh_ct,ngay_ct);
-    SELECT DISTINCT ma_kh_ct INTO #MaKH_CanTim_DT FROM #TempDoanhThu_DT;
+SELECT DISTINCT ma_kh_ct, ngay_ct INTO #Pairs FROM #DT;
+CREATE INDEX IX_Pairs ON #Pairs(ma_kh_ct, ngay_ct);
 
-    SELECT ds.ma_kh,ds.ma_nvkd,ds.ngay_ct INTO #TempDoanhSo_DT
-    FROM BKHDBANHANG_VIEW ds INNER JOIN #MaKH_CanTim_DT mk ON ds.ma_kh=mk.ma_kh_ct;
-    CREATE INDEX IX_Temp_DS_DT ON #TempDoanhSo_DT(ma_kh,ngay_ct DESC);
+SELECT ds.ma_kh, ds.ma_nvkd, ds.ngay_ct INTO #DS
+FROM BKHDBANHANG_VIEW ds WITH (NOLOCK)
+WHERE ds.ma_kh IN (SELECT DISTINCT ma_kh_ct FROM #Pairs)
+  AND ds.ngay_ct <= (SELECT MAX(ngay_ct) FROM #Pairs);
+CREATE INDEX IX_DS ON #DS(ma_kh, ngay_ct DESC);
 
-    SELECT dmkh.ma_kh,dmkh.ma_nvkd INTO #TempDMKH_DT
-    FROM DMKHACHHANG_VIEW dmkh INNER JOIN #MaKH_CanTim_DT mk ON dmkh.ma_kh=mk.ma_kh_ct;
-    CREATE INDEX IX_Temp_DMKH_DT ON #TempDMKH_DT(ma_kh);
+;WITH Matched AS (
+    SELECT p.ma_kh_ct, p.ngay_ct, ds.ma_nvkd,
+        ROW_NUMBER() OVER (PARTITION BY p.ma_kh_ct, p.ngay_ct ORDER BY ds.ngay_ct DESC) AS rn
+    FROM #Pairs p INNER JOIN #DS ds ON ds.ma_kh = p.ma_kh_ct AND ds.ngay_ct <= p.ngay_ct
+)
+SELECT ma_kh_ct, ngay_ct, ma_nvkd INTO #NVKD_Map FROM Matched WHERE rn = 1;
+CREATE INDEX IX_Map ON #NVKD_Map(ma_kh_ct, ngay_ct);
 
-    SELECT dt.ngay_ct,
-        CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END AS ngay_admin,
-        dt.ma_kh_ct,dt.ma_bp,COALESCE(ds.ma_nvkd,dmkh.ma_nvkd) AS ma_nvkd,SUM(dt.ps_co) AS doanhthu
-    INTO #KetQua_DT
-    FROM #TempDoanhThu_DT dt
-    OUTER APPLY (SELECT TOP 1 ma_nvkd FROM #TempDoanhSo_DT tds WHERE tds.ma_kh=dt.ma_kh_ct AND tds.ngay_ct<=dt.ngay_ct ORDER BY tds.ngay_ct DESC) ds
-    OUTER APPLY (SELECT TOP 1 ma_nvkd FROM #TempDMKH_DT tdmkh WHERE tdmkh.ma_kh=dt.ma_kh_ct) dmkh
-    WHERE @DSMaNVKD='' OR COALESCE(ds.ma_nvkd,dmkh.ma_nvkd) IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,','))
-    GROUP BY dt.ngay_ct,CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END,
-        dt.ma_kh_ct,dt.ma_bp,COALESCE(ds.ma_nvkd,dmkh.ma_nvkd);
+SELECT DISTINCT ma_kh, ma_nvkd INTO #DMKH
+FROM DMKHACHHANG_VIEW WITH (NOLOCK)
+WHERE ma_kh IN (SELECT DISTINCT ma_kh_ct FROM #Pairs);
 
-    SELECT ngay_ct,ngay_admin,ma_kh_ct AS ma_kh,ma_bp,ma_nvkd,doanhthu
-    FROM #KetQua_DT ORDER BY ngay_admin,ma_kh_ct,ma_nvkd;
+SELECT dt.ngay_ct,
+    CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END AS ngay_admin,
+    dt.ma_kh_ct AS ma_kh, dt.ma_bp,
+    COALESCE(m.ma_nvkd, dmkh.ma_nvkd) AS ma_nvkd,
+    SUM(dt.ps_co) AS doanhthu
+FROM #DT dt
+LEFT JOIN #NVKD_Map m ON m.ma_kh_ct = dt.ma_kh_ct AND m.ngay_ct = dt.ngay_ct
+LEFT JOIN #DMKH dmkh ON dmkh.ma_kh = dt.ma_kh_ct
+WHERE @DSMaNVKD='' OR COALESCE(m.ma_nvkd, dmkh.ma_nvkd) IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,','))
+GROUP BY dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, COALESCE(m.ma_nvkd, dmkh.ma_nvkd),
+    CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END
+ORDER BY ngay_admin, ma_kh, ma_nvkd;
 
-    DROP TABLE IF EXISTS #TempDoanhThu_DT;
-    DROP TABLE IF EXISTS #MaKH_CanTim_DT;
-    DROP TABLE IF EXISTS #TempDoanhSo_DT;
-    DROP TABLE IF EXISTS #TempDMKH_DT;
-    DROP TABLE IF EXISTS #KetQua_DT;
+DROP TABLE IF EXISTS #DT, #Pairs, #DS, #NVKD_Map, #DMKH;
     """
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute(sql, (ngay_a, ngay_b, bp_param, ds_nvkd, ds_kh))
+        cur.execute(sql, (ngay_a, ngay_b, ngay_a2_param, ngay_b2_param, bp_param, ds_nvkd, ds_kh))
         data = []
         while True:
             if cur.description:
@@ -339,8 +362,11 @@ def api_doanhthu():
                     for row in cur.fetchall():
                         d = dict(zip(cols, row))
                         if d.get('doanhthu') is not None: d['doanhthu'] = float(d['doanhthu'])
+                        if 'ma_kh_ct' in d: d['ma_kh'] = d.pop('ma_kh_ct')
+                        serialize_row(d)
                         data.append(d)
-            if not cur.nextset(): break
+            if not cur.nextset():
+                break
         conn.close()
         logger.info(f"[BCKH doanhthu] Returned {len(data)} rows")
         return jsonify({'success': True, 'data': data})
@@ -640,6 +666,78 @@ def api_doanhthu_chitiet():
     except Exception as e:
         logger.error(f"[BCKH dt_chitiet] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ─────────────────────────────────────────
+# API: Chi tiết thưởng (cho modal lịch sử)
+# ─────────────────────────────────────────
+@bp.route('/api/thuong_chitiet', methods=['POST'])
+def api_thuong_chitiet():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ma_kh = body.get('ma_kh', '')
+    if not ngay_a or not ngay_b or not ma_kh:
+        return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
+    sql = """
+    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?; DECLARE @MaKH NVARCHAR(50)=?;
+    SELECT ngay_ct, ma_kh_ct AS ma_kh, ma_nvkd, dien_giai, thuong
+    FROM [dbo].[THUONG_VIEW]
+    WHERE ma_kh_ct=@MaKH
+      AND ngay_ct>=@NgayA AND ngay_ct<=@NgayB
+    ORDER BY ngay_ct;
+    """
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(sql, (ngay_a, ngay_b, ma_kh))
+        data = rows_to_dict(cur)
+        for d in data:
+            if d.get('thuong') is not None: d['thuong'] = float(d['thuong'])
+            serialize_row(d)
+        conn.close()
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        logger.error(f"[BCKH thuong_chitiet] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ─────────────────────────────────────────
+# API: Chi tiết trả lại (cho modal lịch sử)
+# ─────────────────────────────────────────
+@bp.route('/api/tralai_chitiet', methods=['POST'])
+def api_tralai_chitiet():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ma_kh = body.get('ma_kh', '')
+    if not ngay_a or not ngay_b or not ma_kh:
+        return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
+    sql = """
+    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?; DECLARE @MaKH NVARCHAR(50)=?;
+    SELECT ngay_ct, ma_kh, ma_vt, ten_vt, dvt, so_luong, gia_nt2, tien_nt2, tien_ck_nt, thue_gtgt_nt,
+        tien_nt2-tien_ck_nt AS tralai
+    FROM TRALAI_VIEW
+    WHERE ma_kh=@MaKH
+      AND ngay_ct>=@NgayA AND ngay_ct<=@NgayB
+    ORDER BY ngay_ct;
+    """
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(sql, (ngay_a, ngay_b, ma_kh))
+        data = rows_to_dict(cur)
+        for d in data:
+            for fld in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'tralai'):
+                if d.get(fld) is not None: d[fld] = float(d[fld])
+            serialize_row(d)
+        conn.close()
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        logger.error(f"[BCKH tralai_chitiet] {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @bp.route('/api/export_excel', methods=['POST'])
 def api_export_excel():
     from openpyxl import Workbook
