@@ -33,6 +33,7 @@
 <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('users')">Người dùng<span class="cnt">{{ users|length }}</span></button>
     <button class="tab-btn" onclick="switchTab('dashboards')">Dashboard<span class="cnt">{{ dashboards|length }}</span></button>
+    <button class="tab-btn" onclick="switchTab('permissions')">Phân quyền<span class="cnt">{{ perm_users|length }}</span></button>
     <button class="tab-btn" onclick="switchTab('kbc')">Kỳ báo cáo<span class="cnt">{{ ky_bao_cao|length }}</span></button>
 </div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div style="max-width:1200px;margin:14px auto 0;padding:0 16px">{% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
@@ -94,6 +95,8 @@
 <button class="btn-add" onclick="document.getElementById('addDashModal').classList.add('show')">+ Thêm Dashboard</button>
 </div></div>
 
+
+
 <!-- ══ TAB: KỲ BÁO CÁO ══ -->
 <div class="tab-content" id="tab-kbc"><div class="card-list">
 {% for k in ky_bao_cao %}
@@ -120,7 +123,12 @@
 <button class="btn-add" onclick="document.getElementById('addKbcModal').classList.add('show')">+ Thêm kỳ báo cáo</button>
 </div></div>
 
+{% include "_tab_permissions.html" %}
+
 <!-- ══ MODALS ══ -->
+
+
+
 <div class="modal-bg" id="addUserModal"><div class="modal"><h3>Thêm người dùng</h3><form method="POST" action="/admin/user/add"><div class="modal-grid">
 <div class="fg"><label>Username</label><input type="text" name="username" required placeholder="nguyenvana"></div>
 <div class="fg"><label>Mật khẩu</label><input type="password" name="password" required></div>
@@ -196,8 +204,8 @@
 </div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editKbcModal')">Hủy</button><button type="submit" class="btn btn-blue">Lưu</button></div></form></div></div>
 
 <script>
-function switchTab(n){document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',['users','dashboards','kbc'][i]===n)});document.querySelectorAll('.tab-content').forEach(function(t){t.classList.toggle('active',t.id==='tab-'+n)});history.replaceState(null,'','#'+n)}
-(function(){var h=location.hash.replace('#','');if(['users','dashboards','kbc'].indexOf(h)>-1)switchTab(h)})();
+function switchTab(n){document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',['users','dashboards','permissions','kbc'][i]===n)});document.querySelectorAll('.tab-content').forEach(function(t){t.classList.toggle('active',t.id==='tab-'+n)});history.replaceState(null,'','#'+n)}
+(function(){var h=location.hash.replace('#','');if(['users','dashboards','permissions','kbc'].indexOf(h)>-1)switchTab(h)})();
 function closeModal(id){document.getElementById(id).classList.remove('show')}
 document.querySelectorAll('.modal-bg').forEach(function(bg){bg.addEventListener('click',function(e){if(e.target===bg)bg.classList.remove('show')})});
 // User-dashboard permission map from server

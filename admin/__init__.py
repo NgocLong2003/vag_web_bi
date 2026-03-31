@@ -35,9 +35,18 @@ def admin_index():
     except:
         pass
 
+    # Perm matrix data: users sorted by BP for matrix tab
+    perm_users = db.execute(
+        'SELECT id, username, display_name, ma_nvkd_list, ma_bp, role, is_active '
+        'FROM users ORDER BY ma_bp, ma_nvkd_list, display_name'
+    ).fetchall()
+    perm_map = {}
+    for uid, dids in user_dash_map.items():
+        perm_map[uid] = dids
+
     return render_template('admin.html', users=users, dashboards=dashboards,
         dash_user_counts=dash_user_counts, user_dash_map=user_dash_map, all_bp=all_bp,
-        ky_bao_cao=ky_bao_cao,
+        ky_bao_cao=ky_bao_cao, perm_users=perm_users, perm_map=perm_map,
         username=g.current_user['display_name'] or g.current_user['username'])
 
 
@@ -63,7 +72,6 @@ def user_add():
         db.execute('INSERT INTO users (username, password_hash, password_plain, display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, ma_bp, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                    (username, hash_password(password), password, display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, ma_bp, role))
         db.commit()
-        # Get new user id and assign dashboards
         row = db.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone()
         if row:
             new_uid = row['id'] if isinstance(row, dict) else row[0]
@@ -106,7 +114,6 @@ def user_edit(user_id):
         db.execute('UPDATE users SET display_name=?, khoi=?, bo_phan=?, chuc_vu=?, ma_nvkd_list=?, email=?, ma_bp=?, role=?, is_active=? WHERE id=?',
                     (display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, ma_bp, role, is_active, user_id))
     db.commit()
-    # Update dashboard permissions
     dash_ids = request.form.getlist('dash_ids')
     db.execute('DELETE FROM user_dashboards WHERE user_id=?', (user_id,))
     for did in dash_ids:
@@ -222,7 +229,6 @@ def permissions(dash_id):
 @bp.route('/user/<int:user_id>/permissions', methods=['POST'])
 @admin_required
 def user_permissions(user_id):
-    """Phân quyền dashboard cho 1 user cụ thể"""
     db = get_db()
     user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     if not user:
@@ -238,7 +244,6 @@ def user_permissions(user_id):
 @bp.route('/user/<int:user_id>/bp', methods=['POST'])
 @admin_required
 def user_bp(user_id):
-    """Cập nhật mã BP cho user (AJAX)"""
     from flask import jsonify as jf
     db = get_db()
     user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
@@ -255,18 +260,16 @@ def user_bp(user_id):
 # ==============================================================
 
 def _parse_date_vn(s):
-    """Chuyển dd/mm/yyyy → yyyy-mm-dd cho SQL"""
     s = s.strip()
     if not s:
         return None
     parts = s.split('/')
     if len(parts) == 3:
         return f'{parts[2]}-{parts[1]}-{parts[0]}'
-    return s  # nếu đã ở dạng yyyy-mm-dd
+    return s
 
 
 def _format_date_vn(d):
-    """Chuyển yyyy-mm-dd hoặc date object → dd/mm/yyyy"""
     if d is None:
         return ''
     s = str(d)[:10]
@@ -353,3 +356,107 @@ def kbc_delete(kbc_id):
     db.commit()
     flash('Đã xóa kỳ báo cáo', 'success')
     return redirect(url_for('admin.admin_index') + '#kbc')
+
+
+# ═══════════════════════════════════════════════
+# PERMISSION MATRIX AJAX APIs
+# ═══════════════════════════════════════════════
+
+
+@bp.route('/phan-quyen/toggle', methods=['POST'])
+@admin_required
+def perm_toggle():
+    import json
+    data = request.get_json(force=True)
+    user_id = data.get('user_id')
+    dash_id = data.get('dashboard_id')
+    action = data.get('action')
+    if not user_id or not dash_id:
+        return json.dumps({'ok': False}), 400
+    db = get_db()
+    if action == 'add':
+        try:
+            db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (user_id, dash_id))
+        except:
+            pass
+    else:
+        db.execute('DELETE FROM user_dashboards WHERE user_id=? AND dashboard_id=?', (user_id, dash_id))
+    db.commit()
+    return json.dumps({'ok': True})
+
+
+@bp.route('/phan-quyen/bulk', methods=['POST'])
+@admin_required
+def perm_bulk():
+    import json
+    data = request.get_json(force=True)
+    mode = data.get('mode')
+    target_id = data.get('target_id')
+    ids = data.get('ids', [])
+    db = get_db()
+    if mode == 'dash_col':
+        db.execute('DELETE FROM user_dashboards WHERE dashboard_id=?', (target_id,))
+        for uid in ids:
+            try:
+                db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (int(uid), target_id))
+            except:
+                pass
+    db.commit()
+    return json.dumps({'ok': True})
+
+
+# ═══════════════════════════════════════════════
+# BULK CREATE USERS FROM SQL SERVER
+# ═══════════════════════════════════════════════
+
+@bp.route('/bulk-create-users', methods=['POST'])
+@admin_required
+def bulk_create_users():
+    import json
+    try:
+        from config import SQLSERVER_CONFIG
+        import pyodbc
+        c = SQLSERVER_CONFIG
+        conn = pyodbc.connect(
+            f"DRIVER={{{c['driver']}}};SERVER={c['server']},{c['port']};"
+            f"DATABASE={c['database']};UID={c['username']};PWD={c['password']};"
+            "TrustServerCertificate=yes;Connect Timeout=30;")
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT ten_nvkd, ma_nvkd, ma_bp
+            FROM [dbo].[DMKHACHHANG_VIEW]
+            GROUP BY ma_nvkd, ten_nvkd, ma_bp
+            HAVING ma_nvkd != ''
+        """)
+        nv_list = []
+        for row in cur.fetchall():
+            nv_list.append({'ten_nvkd': row[0] or '', 'ma_nvkd': row[1] or '', 'ma_bp': row[2] or ''})
+        conn.close()
+    except Exception as e:
+        return json.dumps({'ok': False, 'error': f'SQL Server error: {e}'}), 500
+
+    db = get_db()
+    created = 0
+    skipped = 0
+    for nv in nv_list:
+        ma = nv['ma_nvkd'].strip()
+        ten = nv['ten_nvkd'].strip()
+        mbp = nv['ma_bp'].strip()
+        if not ma:
+            continue
+        username = ma.lower()
+        password = (mbp + '123' + ma).lower()
+        existing = db.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone()
+        if existing:
+            skipped += 1
+            continue
+        try:
+            db.execute(
+                'INSERT INTO users (username, password_hash, password_plain, display_name, ma_nvkd_list, ma_bp, role) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?)',
+                (username, hash_password(password), password, ten, ma, mbp, 'user'))
+            created += 1
+        except Exception:
+            skipped += 1
+    db.commit()
+    return json.dumps({'ok': True, 'created': created, 'skipped': skipped, 'total': len(nv_list)})
