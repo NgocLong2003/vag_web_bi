@@ -2,3 +2,5 @@ flask
 pyodbc
 openpyxl
 waitress
+duckdb
+pyarrow

@@ -1,0 +1,3 @@
+SELECT *
+FROM KY_BAO_CAO
+ORDER BY ngay_bd_xuat_ban DESC

@@ -1,13 +1,10 @@
 """
-Báo cáo Khách Hàng — Blueprint
-APIs: kỳ báo cáo, hierarchy, khách hàng, công nợ, doanh số, doanh thu
-Prefix: /reports/bao-cao-khach-hang/api/...
+Báo cáo Khách Hàng — Blueprint (DuckDB version)
+API prefix: /reports/bao-cao-khach-hang/api/...
 """
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, request, send_file, current_app
 from datetime import datetime, date
-import pyodbc
 import logging
-from config import SQLSERVER_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -15,64 +12,11 @@ bp = Blueprint('bckh', __name__,
                url_prefix='/reports/bao-cao-khach-hang',
                template_folder='templates')
 
-
-def get_connection():
-    c = SQLSERVER_CONFIG
-    return pyodbc.connect(
-        f"DRIVER={{{c['driver']}}};SERVER={c['server']},{c['port']};"
-        f"DATABASE={c['database']};UID={c['username']};PWD={c['password']};"
-        "TrustServerCertificate=yes;Connect Timeout=30;")
+from query_loader import load_sql
 
 
-def rows_to_dict(cursor):
-    columns = [col[0] for col in cursor.description]
-    return [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-
-def serialize_row(d):
-    """Đảm bảo date/decimal JSON-safe"""
-    for k, v in d.items():
-        if isinstance(v, (datetime, date)):
-            d[k] = v.isoformat()
-        elif v is not None and not isinstance(v, (str, int, float, bool)):
-            d[k] = str(v)
-    return d
-
-
-# ─────────────────────────────────────────
-# CTE Hierarchy (giống baocao_kinhdoanh)
-# ─────────────────────────────────────────
-HIERARCHY_CTE = """
-    NV_BASE AS (
-        SELECT ma_nvkd,
-               CASE
-               WHEN ma_nvkd = 'DTD01' THEN 'TVV01'
-               WHEN ma_nvkd = 'PQT01' THEN 'TVV01'
-               WHEN ma_nvkd = 'BCT02' THEN 'TVV01'
-               WHEN ma_nvkd = 'NTT02' THEN 'TVV01'
-               ELSE ma_ql END AS ma_ql,
-               ten_nvkd
-        FROM DMNHANVIENKD_VIEW
-        UNION ALL SELECT 'VB99','VB00',N'Khác'
-        UNION ALL SELECT 'VA99','TVV01',N'Khác'
-        UNION ALL SELECT 'SF99','PVT04',N'Khác'
-        UNION ALL SELECT 'DF99','NVD01',N'Khác'
-        UNION ALL SELECT 'XK99','XK00',N'Khác'
-        UNION ALL SELECT 'DA99','DA00',N'Khác'
-    ),
-    RecursiveHierarchy AS (
-        SELECT v.ma_nvkd, v.ma_ql, v.ten_nvkd,
-            CAST(v.ma_nvkd AS NVARCHAR(MAX)) AS stt_nhom, 0 AS level
-        FROM NV_BASE v
-        LEFT JOIN NV_BASE parent ON v.ma_ql = parent.ma_nvkd
-        WHERE v.ma_ql IS NULL OR v.ma_ql = '' OR parent.ma_nvkd IS NULL
-        UNION ALL
-        SELECT e.ma_nvkd, e.ma_ql, e.ten_nvkd,
-            CAST(rh.stt_nhom + '.' + e.ma_nvkd AS NVARCHAR(MAX)), rh.level + 1
-        FROM NV_BASE e
-        INNER JOIN RecursiveHierarchy rh ON e.ma_ql = rh.ma_nvkd
-    )
-"""
+def get_store():
+    return current_app.config['DUCKDB_STORE']
 
 
 # ─────────────────────────────────────────
@@ -81,11 +25,7 @@ HIERARCHY_CTE = """
 @bp.route('/api/ky-bao-cao')
 def api_ky_bao_cao():
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute('SELECT * FROM ky_bao_cao ORDER BY ngay_bd_xuat_ban DESC')
-        data = [serialize_row(r) for r in rows_to_dict(cur)]
-        conn.close()
+        data = get_store().query(load_sql('KY_BAO_CAO_DUCK'))
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f"[ky_bao_cao] {e}")
@@ -97,16 +37,8 @@ def api_ky_bao_cao():
 # ─────────────────────────────────────────
 @bp.route('/api/hierarchy')
 def api_hierarchy():
-    sql = ";WITH " + HIERARCHY_CTE + """
-    SELECT ma_nvkd, ten_nvkd, ma_ql, stt_nhom, level
-    FROM RecursiveHierarchy ORDER BY stt_nhom;
-    """
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql)
-        data = rows_to_dict(cur)
-        conn.close()
+        data = get_store().query(load_sql('HIERARCHY_CTE_DUCK'))
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f"[hierarchy] {e}")
@@ -118,17 +50,8 @@ def api_hierarchy():
 # ─────────────────────────────────────────
 @bp.route('/api/khachhang')
 def api_khachhang():
-    sql = """
-    SELECT DISTINCT ma_kh, ten_kh, ma_bp, ma_nvkd
-    FROM DMKHACHHANG_VIEW
-    WHERE ma_bp IS NOT NULL AND ma_bp != 'TN' AND ma_kh != 'TTT'
-    """
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql)
-        data = rows_to_dict(cur)
-        conn.close()
+        data = get_store().query(load_sql('KHACHHANG_DUCK'))
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f"[khachhang] {e}")
@@ -136,7 +59,7 @@ def api_khachhang():
 
 
 # ─────────────────────────────────────────
-# API: Công nợ (dư nợ đầu kì / cuối kì)
+# API: Công nợ
 # ─────────────────────────────────────────
 @bp.route('/api/congno', methods=['POST'])
 def api_congno():
@@ -146,65 +69,26 @@ def api_congno():
     ds_nvkd = body.get('ds_nvkd', '')
     ds_kh = body.get('ds_kh', '')
 
-    logger.info(f"[BCKH congno] ngay_cut={ngay_cut}, ma_bp='{ma_bp}', ds_nvkd='{ds_nvkd}', ds_kh='{ds_kh}'")
-
     if not ngay_cut:
         return jsonify({'success': False, 'error': 'Thiếu ngay_cut'}), 400
     try:
-        dt = datetime.strptime(ngay_cut, '%Y-%m-%d')
-        start_y = dt.year
+        start_y = datetime.strptime(ngay_cut, '%Y-%m-%d').year
     except ValueError:
-        logger.error(f"[BCKH congno] ngay_cut parse failed: '{ngay_cut}'")
         return jsonify({'success': False, 'error': 'ngay_cut không hợp lệ'}), 400
 
-    bp_param = ma_bp or ""
-
-    sql = """
-    DECLARE @NgayCut DATE=?; DECLARE @StartYear INT=?;
-    DECLARE @MaBP NVARCHAR(MAX)=?; DECLARE @DSMaNVKD NVARCHAR(MAX)=?; DECLARE @DSMaKH NVARCHAR(MAX)=?;
-    ;WITH
-    so_du_dau_nam AS (
-        SELECT COALESCE(d.ma_kh,m.ma_kh) AS ma_kh,
-            ISNULL(d.so_du,0)+ISNULL(m.ps_mung1,0) AS so_du_ban_dau
-        FROM (SELECT ma_kh,SUM(du_no-du_co) AS so_du FROM CONGNOKHDK_VIEW WHERE nam=@StartYear AND tk='131' GROUP BY ma_kh) d
-        FULL OUTER JOIN (SELECT ma_kh,SUM(ps_no-ps_co) AS ps_mung1 FROM BANGKECHUNGTU_VIEW WHERE tk='131' AND ngay_ct=DATEFROMPARTS(@StartYear,1,1) GROUP BY ma_kh) m ON d.ma_kh=m.ma_kh
-    ),
-    phatsinh AS (
-        SELECT ma_kh,SUM(ps_no-ps_co) AS tong_phatsinh FROM BANGKECHUNGTU_VIEW
-        WHERE tk='131' AND ngay_ct>DATEFROMPARTS(@StartYear,1,1) AND ngay_ct<=@NgayCut GROUP BY ma_kh
-    ),
-    congno_fact AS (
-        SELECT COALESCE(s.ma_kh,p.ma_kh) AS ma_kh,
-            ISNULL(s.so_du_ban_dau,0) AS so_du_ban_dau, ISNULL(p.tong_phatsinh,0) AS tong_phatsinh,
-            ISNULL(s.so_du_ban_dau,0)+ISNULL(p.tong_phatsinh,0) AS du_no_ck
-        FROM so_du_dau_nam s FULL OUTER JOIN phatsinh p ON s.ma_kh=p.ma_kh
-        WHERE ISNULL(s.so_du_ban_dau,0)+ISNULL(p.tong_phatsinh,0)!=0
-    )
-    SELECT cf.ma_kh,k.ten_kh,k.ma_bp,k.ma_nvkd,cf.so_du_ban_dau,cf.tong_phatsinh,cf.du_no_ck
-    FROM congno_fact cf
-    LEFT JOIN (SELECT DISTINCT ma_kh,ten_kh,ma_bp,ma_nvkd FROM DMKHACHHANG_VIEW WHERE ma_bp IS NOT NULL AND ma_bp!='TN' AND ma_kh!='TTT') k ON cf.ma_kh=k.ma_kh
-    WHERE k.ma_kh IS NOT NULL
-      AND (@MaBP IS NULL OR @MaBP='' OR k.ma_bp IN (SELECT TRIM(value) FROM STRING_SPLIT(@MaBP,',')))
-      AND (@DSMaNVKD='' OR k.ma_nvkd IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,',')))
-      AND (@DSMaKH='' OR cf.ma_kh IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH,',')))
-    ORDER BY cf.ma_kh;
-    """
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_cut, start_y, bp_param, ds_nvkd, ds_kh))
-        data = []
-        for row in cur.fetchall():
-            cols = [c[0] for c in cur.description]
-            d = dict(zip(cols, row))
+        data = get_store().query(
+            load_sql('CONGNO_SQL_DUCK'),
+            [ngay_cut, start_y, ma_bp or '', ds_nvkd or '', ds_kh or '']
+        )
+        for d in data:
             for k in ('so_du_ban_dau', 'tong_phatsinh', 'du_no_ck'):
-                if d.get(k) is not None: d[k] = float(d[k])
-            data.append(d)
-        conn.close()
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
         logger.info(f"[BCKH congno] Returned {len(data)} rows")
         return jsonify({'success': True, 'data': data})
     except Exception as e:
-        logger.error(f"[BCKH congno] ERROR: {e}")
+        logger.error(f"[BCKH congno] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -220,167 +104,60 @@ def api_doanhso():
     ds_nvkd = body.get('ds_nvkd', '')
     ds_kh = body.get('ds_kh', '')
 
-    logger.info(f"[BCKH doanhso] ngay_a={ngay_a}, ngay_b={ngay_b}, ma_bp='{ma_bp}', ds_nvkd='{ds_nvkd}'")
-
     if not ngay_a or not ngay_b:
         return jsonify({'success': False, 'error': 'Thiếu ngay_a hoặc ngay_b'}), 400
 
-    bp_param = ma_bp or ""
-
-    sql = """
-    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?;
-    DECLARE @MaBP NVARCHAR(MAX)=?; DECLARE @DSMaNVKD NVARCHAR(MAX)=?; DECLARE @DSMaKH NVARCHAR(MAX)=?;
-    SELECT ma_kh, ma_bp,
-        CASE WHEN ma_nvkd='NVQ02' AND ma_bp='VB' THEN 'NVQ03' ELSE ma_nvkd END AS ma_nvkd,
-        SUM(so_luong) AS tong_so_luong, SUM(tien_nt2) AS tong_tien_nt2,
-        SUM(tien_ck_nt) AS tong_tien_ck_nt, SUM(thue_gtgt_nt) AS tong_thue_gtgt_nt,
-        SUM(tien_nt2-tien_ck_nt) AS tong_doanhso
-    FROM BKHDBANHANG_VIEW
-    WHERE ngay_ct>=@NgayA AND ngay_ct<=@NgayB AND ma_bp!='TN'
-      AND (@MaBP IS NULL OR @MaBP='' OR ma_bp IN (SELECT TRIM(value) FROM STRING_SPLIT(@MaBP,',')))
-      AND (@DSMaKH='' OR ma_kh IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH,',')))
-      AND (@DSMaNVKD='' OR CASE WHEN ma_nvkd='NVQ02' AND ma_bp='VB' THEN 'NVQ03' ELSE ma_nvkd END
-           IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,',')))
-    GROUP BY ma_kh,ma_bp,CASE WHEN ma_nvkd='NVQ02' AND ma_bp='VB' THEN 'NVQ03' ELSE ma_nvkd END
-    ORDER BY ma_kh,ma_nvkd;
-    """
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_a, ngay_b, bp_param, ds_nvkd, ds_kh))
-        data = []
-        for row in cur.fetchall():
-            cols = [c[0] for c in cur.description]
-            d = dict(zip(cols, row))
+        data = get_store().query(
+            load_sql('DOANHSO_SQL_DUCK'),
+            [ngay_a, ngay_b, ma_bp or '', ds_nvkd or '', ds_kh or '']
+        )
+        for d in data:
             for k in ('tong_so_luong', 'tong_tien_nt2', 'tong_tien_ck_nt', 'tong_thue_gtgt_nt', 'tong_doanhso'):
-                if d.get(k) is not None: d[k] = float(d[k])
-            data.append(d)
-        conn.close()
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
         logger.info(f"[BCKH doanhso] Returned {len(data)} rows")
         return jsonify({'success': True, 'data': data})
     except Exception as e:
-        logger.error(f"[BCKH doanhso] ERROR: {e}")
+        logger.error(f"[BCKH doanhso] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ─────────────────────────────────────────
-# API: Doanh thu (thanh toán)
-# Hỗ trợ 2 luồng ngày:
-#   - Nhóm A (VA,VB,SF): dùng ngay_a → ngay_b (khoảng thu tiền, có lân kì)
-#   - Nhóm B (còn lại): dùng ngay_a2 → ngay_b2 (khoảng bán ra, thu tiền ngay)
-#   - Nếu không truyền ngay_a2/b2 → dùng ngay_a/b cho tất cả (backward compatible)
+# API: Doanh thu (thanh toán) — 2 luồng ngày
 # ─────────────────────────────────────────
 @bp.route('/api/doanhthu', methods=['POST'])
 def api_doanhthu():
     body = request.get_json(force=True)
     ngay_a = body.get('ngay_a', '')
     ngay_b = body.get('ngay_b', '')
-    ngay_a2 = body.get('ngay_a2', '')  # khoảng bán ra (cho nhóm B)
+    ngay_a2 = body.get('ngay_a2', '')
     ngay_b2 = body.get('ngay_b2', '')
     ma_bp = body.get('ma_bp', '')
     ds_nvkd = body.get('ds_nvkd', '')
     ds_kh = body.get('ds_kh', '')
 
-    logger.info(f"[BCKH doanhthu] ngay_a={ngay_a}, ngay_b={ngay_b}, ngay_a2={ngay_a2}, ngay_b2={ngay_b2}, ma_bp='{ma_bp}'")
-
     if not ngay_a or not ngay_b:
         return jsonify({'success': False, 'error': 'Thiếu ngay_a hoặc ngay_b'}), 400
 
-    bp_param = ma_bp or ""
-    # Nếu không có ngay_a2/b2, dùng ngay_a/b cho tất cả (backward compatible)
-    # Nếu ngay_a2 rỗng string → set None để SQL skip nhóm B
-    ngay_a2_param = ngay_a2 if ngay_a2 else None
-    ngay_b2_param = ngay_b2 if ngay_b2 else None
-
-    sql = """
-    SET NOCOUNT ON;
-DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?;
-DECLARE @NgayA2 DATE=?; DECLARE @NgayB2 DATE=?;
-DECLARE @MaBP NVARCHAR(MAX)=?; DECLARE @DSMaNVKD NVARCHAR(MAX)=?; DECLARE @DSMaKH NVARCHAR(MAX)=?;
-
--- Nhóm A (VA,VB,SF): khoảng thu tiền @NgayA → @NgayB
--- Nhóm B (còn lại): khoảng bán ra @NgayA2 → @NgayB2 (nếu NULL thì skip nhóm B)
-SELECT dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, dt.ps_co
-INTO #DT
-FROM PTHUBAOCO_VIEW dt WITH (NOLOCK)
-WHERE dt.tk_co='131' AND dt.ma_bp!='TN'
-  AND ((dt.ngay_ct>='2026-01-01' AND dt.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
-    OR (dt.ngay_ct<'2026-01-01' AND dt.ma_ct='CA1'))
-  AND (@MaBP IS NULL OR @MaBP='' OR dt.ma_bp IN (SELECT TRIM(value) FROM STRING_SPLIT(@MaBP,',')))
-  AND (@DSMaKH='' OR dt.ma_kh_ct IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH,',')))
-  AND (
-    (dt.ma_bp IN ('VA','VB','SF') AND dt.ngay_ct>=@NgayA AND dt.ngay_ct<=@NgayB)
-    OR
-    (dt.ma_bp NOT IN ('VA','VB','SF') AND @NgayA2 IS NOT NULL AND dt.ngay_ct>=@NgayA2 AND dt.ngay_ct<=@NgayB2)
-  );
-
-SELECT DISTINCT ma_kh_ct, ngay_ct INTO #Pairs FROM #DT;
-CREATE INDEX IX_Pairs ON #Pairs(ma_kh_ct, ngay_ct);
-
-SELECT ds.ma_kh, ds.ma_nvkd, ds.ngay_ct INTO #DS
-FROM BKHDBANHANG_VIEW ds WITH (NOLOCK)
-WHERE ds.ma_kh IN (SELECT DISTINCT ma_kh_ct FROM #Pairs)
-  AND ds.ngay_ct <= (SELECT MAX(ngay_ct) FROM #Pairs);
-CREATE INDEX IX_DS ON #DS(ma_kh, ngay_ct DESC);
-
-;WITH Matched AS (
-    SELECT p.ma_kh_ct, p.ngay_ct, ds.ma_nvkd,
-        ROW_NUMBER() OVER (PARTITION BY p.ma_kh_ct, p.ngay_ct ORDER BY ds.ngay_ct DESC) AS rn
-    FROM #Pairs p INNER JOIN #DS ds ON ds.ma_kh = p.ma_kh_ct AND ds.ngay_ct <= p.ngay_ct
-)
-SELECT ma_kh_ct, ngay_ct, ma_nvkd INTO #NVKD_Map FROM Matched WHERE rn = 1;
-CREATE INDEX IX_Map ON #NVKD_Map(ma_kh_ct, ngay_ct);
-
-SELECT DISTINCT ma_kh, ma_nvkd INTO #DMKH
-FROM DMKHACHHANG_VIEW WITH (NOLOCK)
-WHERE ma_kh IN (SELECT DISTINCT ma_kh_ct FROM #Pairs);
-
-SELECT dt.ngay_ct,
-    CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END AS ngay_admin,
-    dt.ma_kh_ct AS ma_kh, dt.ma_bp,
-    COALESCE(m.ma_nvkd, dmkh.ma_nvkd) AS ma_nvkd,
-    SUM(dt.ps_co) AS doanhthu
-FROM #DT dt
-LEFT JOIN #NVKD_Map m ON m.ma_kh_ct = dt.ma_kh_ct AND m.ngay_ct = dt.ngay_ct
-LEFT JOIN #DMKH dmkh ON dmkh.ma_kh = dt.ma_kh_ct
-WHERE @DSMaNVKD='' OR COALESCE(m.ma_nvkd, dmkh.ma_nvkd) IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,','))
-GROUP BY dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, COALESCE(m.ma_nvkd, dmkh.ma_nvkd),
-    CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END
-ORDER BY ngay_admin, ma_kh, ma_nvkd;
-
-DROP TABLE IF EXISTS #DT, #Pairs, #DS, #NVKD_Map, #DMKH;
-    """
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_a, ngay_b, ngay_a2_param, ngay_b2_param, bp_param, ds_nvkd, ds_kh))
-        data = []
-        while True:
-            if cur.description:
-                cols = [c[0] for c in cur.description]
-                if 'doanhthu' in cols:
-                    for row in cur.fetchall():
-                        d = dict(zip(cols, row))
-                        if d.get('doanhthu') is not None: d['doanhthu'] = float(d['doanhthu'])
-                        if 'ma_kh_ct' in d: d['ma_kh'] = d.pop('ma_kh_ct')
-                        serialize_row(d)
-                        data.append(d)
-            if not cur.nextset():
-                break
-        conn.close()
+        data = get_store().query(
+            load_sql('DOANHTHU_BCKH_DUCK'),
+            [ngay_a, ngay_b, ngay_a2 or None, ngay_b2 or None,
+             ma_bp or '', ds_nvkd or '', ds_kh or '']
+        )
+        for d in data:
+            if d.get('doanhthu') is not None:
+                d['doanhthu'] = float(d['doanhthu'])
         logger.info(f"[BCKH doanhthu] Returned {len(data)} rows")
         return jsonify({'success': True, 'data': data})
     except Exception as e:
-        logger.error(f"[BCKH doanhthu] ERROR: {e}")
+        logger.error(f"[BCKH doanhthu] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ─────────────────────────────────────────
 # API: Dư nợ trong kỳ
-# Logic: bán ra - trả về - doanh thu - thưởng
-# 2 khoảng ngày khác nhau:
-#   - Bán ra & trả về: ngay_a_hang → ngay_b_hang (khoảng xuất bán)
-#   - Doanh thu & thưởng: ngay_a_tien → ngay_b_tien (khoảng thu tiền)
 # ─────────────────────────────────────────
 @bp.route('/api/dunotrongky', methods=['POST'])
 def api_dunotrongky():
@@ -393,106 +170,28 @@ def api_dunotrongky():
     ds_nvkd = body.get('ds_nvkd', '')
     ds_kh = body.get('ds_kh', '')
 
-    logger.info(f"[BCKH dunotrongky] hang={ngay_a_hang}→{ngay_b_hang}, tien={ngay_a_tien}→{ngay_b_tien}, bp='{ma_bp}', nvkd='{ds_nvkd}'")
-
     if not ngay_a_hang or not ngay_b_hang or not ngay_a_tien or not ngay_b_tien:
         return jsonify({'success': False, 'error': 'Thiếu ngày'}), 400
 
-    bp_param = ma_bp or ''
-
-    sql = """
-    DECLARE @NgayAHang DATE=?;
-    DECLARE @NgayBHang DATE=?;
-    DECLARE @NgayATien DATE=?;
-    DECLARE @NgayBTien DATE=?;
-    DECLARE @MaBP NVARCHAR(MAX)=?;
-    DECLARE @DSMaNVKD NVARCHAR(MAX)=?;
-    DECLARE @DSMaKH NVARCHAR(MAX)=?;
-
-    -- Bán ra (SO3): ps_no - ps_co trong khoảng xuất bán
-    ;WITH ban_ra AS (
-        SELECT ma_kh,
-               SUM(ps_no - ps_co) AS ban_ra
-        FROM BANGKECHUNGTU_VIEW
-        WHERE tk = '131' AND ma_ct = 'SO3'
-          AND ngay_ct >= @NgayAHang AND ngay_ct <= @NgayBHang
-        GROUP BY ma_kh
-    ),
-    -- Trả về (SO4): ps_co - ps_no trong khoảng xuất bán
-    tra_ve AS (
-        SELECT ma_kh,
-               SUM(ps_co - ps_no) AS tra_ve
-        FROM BANGKECHUNGTU_VIEW
-        WHERE tk = '131' AND ma_ct = 'SO4'
-          AND ngay_ct >= @NgayAHang AND ngay_ct <= @NgayBHang
-        GROUP BY ma_kh
-    ),
-    -- Doanh thu + thưởng (không phải SO3, SO4): ps_co - ps_no trong khoảng thu tiền
-    thu_tien AS (
-        SELECT ma_kh,
-               SUM(ps_co - ps_no) AS dt_thuong
-        FROM BANGKECHUNGTU_VIEW
-        WHERE tk = '131' AND ma_ct NOT IN ('SO3', 'SO4')
-          AND ngay_ct >= @NgayATien AND ngay_ct <= @NgayBTien
-        GROUP BY ma_kh
-    ),
-    -- Tổng hợp: bán ra - trả về - (doanh thu + thưởng)
-    tong_hop AS (
-        SELECT
-            COALESCE(b.ma_kh, t.ma_kh, tt.ma_kh) AS ma_kh,
-            ISNULL(b.ban_ra, 0) AS ban_ra,
-            ISNULL(t.tra_ve, 0) AS tra_ve,
-            ISNULL(tt.dt_thuong, 0) AS dt_thuong,
-            ISNULL(b.ban_ra, 0) - ISNULL(t.tra_ve, 0) - ISNULL(tt.dt_thuong, 0) AS du_no_trong_ky
-        FROM ban_ra b
-        FULL OUTER JOIN tra_ve t ON b.ma_kh = t.ma_kh
-        FULL OUTER JOIN thu_tien tt ON COALESCE(b.ma_kh, t.ma_kh) = tt.ma_kh
-        WHERE ISNULL(b.ban_ra, 0) - ISNULL(t.tra_ve, 0) - ISNULL(tt.dt_thuong, 0) != 0
-    )
-    SELECT
-        th.ma_kh,
-        k.ten_kh,
-        k.ma_bp,
-        k.ma_nvkd,
-        th.ban_ra,
-        th.tra_ve,
-        th.dt_thuong,
-        th.du_no_trong_ky
-    FROM tong_hop th
-    LEFT JOIN (
-        SELECT DISTINCT ma_kh, ten_kh, ma_bp, ma_nvkd
-        FROM [dbo].[DMKHACHHANG_VIEW]
-        WHERE ma_bp IS NOT NULL AND ma_bp != 'TN' AND ma_kh != 'TTT'
-    ) k ON th.ma_kh = k.ma_kh
-    WHERE k.ma_kh IS NOT NULL
-      AND (@MaBP IS NULL OR @MaBP = '' OR k.ma_bp IN (SELECT TRIM(value) FROM STRING_SPLIT(@MaBP, ',')))
-      AND (@DSMaNVKD = '' OR k.ma_nvkd IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD, ',')))
-      AND (@DSMaKH = '' OR th.ma_kh IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH, ',')))
-    ORDER BY th.ma_kh;
-    """
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_a_hang, ngay_b_hang, ngay_a_tien, ngay_b_tien, bp_param, ds_nvkd, ds_kh))
-        data = []
-        for row in cur.fetchall():
-            cols = [c[0] for c in cur.description]
-            d = dict(zip(cols, row))
+        data = get_store().query(
+            load_sql('DUNOTRONGKY_DUCK'),
+            [ngay_a_hang, ngay_b_hang, ngay_a_tien, ngay_b_tien,
+             ma_bp or '', ds_nvkd or '', ds_kh or '']
+        )
+        for d in data:
             for k in ('ban_ra', 'tra_ve', 'dt_thuong', 'du_no_trong_ky'):
-                if d.get(k) is not None: d[k] = float(d[k])
-            data.append(d)
-        conn.close()
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
         logger.info(f"[BCKH dunotrongky] Returned {len(data)} rows")
         return jsonify({'success': True, 'data': data})
     except Exception as e:
-        logger.error(f"[BCKH dunotrongky] ERROR: {e}")
+        logger.error(f"[BCKH dunotrongky] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ─────────────────────────────────────────
 # API: Dư nợ cuối kỳ
-# = Công nợ tới ngay_kt_thu_tien
-#   - (Bán ra lân kì - Trả lại lân kì)
 # ─────────────────────────────────────────
 @bp.route('/api/dunocuoiky', methods=['POST'])
 def api_dunocuoiky():
@@ -504,89 +203,34 @@ def api_dunocuoiky():
     ds_nvkd = body.get('ds_nvkd', '')
     ds_kh = body.get('ds_kh', '')
 
-    logger.info(f"[BCKH dunocuoiky] cut={ngay_cut}, lk={ngay_a_lk}→{ngay_b_lk}, bp='{ma_bp}'")
-
     if not ngay_cut:
         return jsonify({'success': False, 'error': 'Thiếu ngay_cut'}), 400
     try:
-        dt = datetime.strptime(ngay_cut, '%Y-%m-%d')
-        start_y = dt.year
+        start_y = datetime.strptime(ngay_cut, '%Y-%m-%d').year
     except ValueError:
         return jsonify({'success': False, 'error': 'ngay_cut không hợp lệ'}), 400
 
-    bp_param = ma_bp or ''
     has_lk = 1 if (ngay_a_lk and ngay_b_lk) else 0
 
-    sql = """
-    DECLARE @NgayCut DATE=?; DECLARE @StartYear INT=?;
-    DECLARE @NgayALK DATE=?; DECLARE @NgayBLK DATE=?; DECLARE @HasLK BIT=?;
-    DECLARE @MaBP NVARCHAR(MAX)=?; DECLARE @DSMaNVKD NVARCHAR(MAX)=?; DECLARE @DSMaKH NVARCHAR(MAX)=?;
-
-    ;WITH
-    so_du_dau_nam AS (
-        SELECT COALESCE(d.ma_kh,m.ma_kh) AS ma_kh,
-            ISNULL(d.so_du,0)+ISNULL(m.ps_mung1,0) AS so_du_ban_dau
-        FROM (SELECT ma_kh,SUM(du_no-du_co) AS so_du FROM CONGNOKHDK_VIEW WHERE nam=@StartYear AND tk='131' GROUP BY ma_kh) d
-        FULL OUTER JOIN (SELECT ma_kh,SUM(ps_no-ps_co) AS ps_mung1 FROM BANGKECHUNGTU_VIEW WHERE tk='131' AND ngay_ct=DATEFROMPARTS(@StartYear,1,1) GROUP BY ma_kh) m ON d.ma_kh=m.ma_kh
-    ),
-    phatsinh AS (
-        SELECT ma_kh,SUM(ps_no-ps_co) AS tong_phatsinh FROM BANGKECHUNGTU_VIEW
-        WHERE tk='131' AND ngay_ct>DATEFROMPARTS(@StartYear,1,1) AND ngay_ct<=@NgayCut GROUP BY ma_kh
-    ),
-    congno AS (
-        SELECT COALESCE(s.ma_kh,p.ma_kh) AS ma_kh,
-            ISNULL(s.so_du_ban_dau,0)+ISNULL(p.tong_phatsinh,0) AS du_no
-        FROM so_du_dau_nam s FULL OUTER JOIN phatsinh p ON s.ma_kh=p.ma_kh
-    ),
-    ds_lan_ki AS (
-        SELECT ma_kh,
-            SUM(CASE WHEN ma_ct='SO3' THEN ps_no-ps_co ELSE 0 END) AS ban_ra_lk,
-            SUM(CASE WHEN ma_ct='SO4' THEN ps_co-ps_no ELSE 0 END) AS tra_ve_lk
-        FROM BANGKECHUNGTU_VIEW
-        WHERE tk='131' AND ma_ct IN ('SO3','SO4')
-          AND @HasLK=1 AND ngay_ct>=@NgayALK AND ngay_ct<=@NgayBLK
-        GROUP BY ma_kh
-    ),
-    ketqua AS (
-        SELECT COALESCE(c.ma_kh,d.ma_kh) AS ma_kh,
-            ISNULL(c.du_no,0) AS du_no,
-            ISNULL(d.ban_ra_lk,0) AS ban_ra_lk,
-            ISNULL(d.tra_ve_lk,0) AS tra_ve_lk,
-            ISNULL(c.du_no,0) - (ISNULL(d.ban_ra_lk,0) - ISNULL(d.tra_ve_lk,0)) AS du_no_cuoi_ky
-        FROM congno c FULL OUTER JOIN ds_lan_ki d ON c.ma_kh=d.ma_kh
-        WHERE ISNULL(c.du_no,0) - (ISNULL(d.ban_ra_lk,0) - ISNULL(d.tra_ve_lk,0)) != 0
-    )
-    SELECT kq.ma_kh,k.ten_kh,k.ma_bp,k.ma_nvkd,kq.du_no,kq.ban_ra_lk,kq.tra_ve_lk,kq.du_no_cuoi_ky
-    FROM ketqua kq
-    LEFT JOIN (SELECT DISTINCT ma_kh,ten_kh,ma_bp,ma_nvkd FROM DMKHACHHANG_VIEW WHERE ma_bp IS NOT NULL AND ma_bp!='TN' AND ma_kh!='TTT') k ON kq.ma_kh=k.ma_kh
-    WHERE k.ma_kh IS NOT NULL
-      AND (@MaBP IS NULL OR @MaBP='' OR k.ma_bp IN (SELECT TRIM(value) FROM STRING_SPLIT(@MaBP,',')))
-      AND (@DSMaNVKD='' OR k.ma_nvkd IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,',')))
-      AND (@DSMaKH='' OR kq.ma_kh IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH,',')))
-    ORDER BY kq.ma_kh;
-    """
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_cut, start_y, ngay_a_lk or None, ngay_b_lk or None,
-                          has_lk, bp_param, ds_nvkd, ds_kh))
-        data = []
-        for row in cur.fetchall():
-            cols = [c[0] for c in cur.description]
-            d = dict(zip(cols, row))
-            for fld in ('du_no', 'ban_ra_lk', 'tra_ve_lk', 'du_no_cuoi_ky'):
-                if d.get(fld) is not None: d[fld] = float(d[fld])
-            data.append(d)
-        conn.close()
+        data = get_store().query(
+            load_sql('DUNOCUOIKY_DUCK'),
+            [ngay_cut, start_y, ngay_a_lk or None, ngay_b_lk or None,
+             has_lk, ma_bp or '', ds_nvkd or '', ds_kh or '']
+        )
+        for d in data:
+            for k in ('du_no', 'ban_ra_lk', 'tra_ve_lk', 'du_no_cuoi_ky'):
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
         logger.info(f"[BCKH dunocuoiky] Returned {len(data)} rows")
         return jsonify({'success': True, 'data': data})
     except Exception as e:
-        logger.error(f"[BCKH dunocuoiky] ERROR: {e}")
+        logger.error(f"[BCKH dunocuoiky] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # ─────────────────────────────────────────
-# API: Chi tiết doanh số (cho modal lịch sử)
+# API: Chi tiết doanh số (modal lịch sử)
 # ─────────────────────────────────────────
 @bp.route('/api/doanhso_chitiet', methods=['POST'])
 def api_doanhso_chitiet():
@@ -596,31 +240,16 @@ def api_doanhso_chitiet():
     ma_kh = body.get('ma_kh', '')
     if not ngay_a or not ngay_b or not ma_kh:
         return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
-    sql = """
-    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?; DECLARE @MaKH NVARCHAR(50)=?;
-    SELECT ngay_ct,
-        CASE WHEN ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,ngay_ct) ELSE ngay_ct END AS ngay_admin,
-        ma_kh, ma_vt, ten_vt, dvt, so_luong, gia_nt2, tien_nt2, tien_ck_nt, thue_gtgt_nt,
-        tien_nt2-tien_ck_nt AS doanhso
-    FROM BKHDBANHANG_VIEW
-    WHERE ma_kh=@MaKH AND ma_bp!='TN'
-      AND CASE WHEN ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,ngay_ct) ELSE ngay_ct END>=@NgayA
-      AND CASE WHEN ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,ngay_ct) ELSE ngay_ct END<=@NgayB
-    ORDER BY ngay_ct;
-    """
+
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_a, ngay_b, ma_kh))
-        data = []
-        for row in cur.fetchall():
-            cols = [c[0] for c in cur.description]
-            d = dict(zip(cols, row))
-            for fld in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'doanhso'):
-                if d.get(fld) is not None: d[fld] = float(d[fld])
-            d = serialize_row(d)
-            data.append(d)
-        conn.close()
+        data = get_store().query(
+            load_sql('DOANHSO_CHITIET_BCKH_DUCK'),
+            [ngay_a, ngay_b, ma_kh]
+        )
+        for d in data:
+            for k in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'doanhso'):
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f"[BCKH ds_chitiet] {e}")
@@ -628,7 +257,7 @@ def api_doanhso_chitiet():
 
 
 # ─────────────────────────────────────────
-# API: Chi tiết doanh thu (cho modal lịch sử)
+# API: Chi tiết doanh thu (modal lịch sử)
 # ─────────────────────────────────────────
 @bp.route('/api/doanhthu_chitiet', methods=['POST'])
 def api_doanhthu_chitiet():
@@ -638,30 +267,15 @@ def api_doanhthu_chitiet():
     ma_kh = body.get('ma_kh', '')
     if not ngay_a or not ngay_b or not ma_kh:
         return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
-    sql = """
-    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?; DECLARE @MaKH NVARCHAR(50)=?;
-    SELECT dt.ngay_ct,
-        CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END AS ngay_admin,
-        dt.ma_kh_ct AS ma_kh, dt.ten_kh, dt.dien_giai, dt.ma_bp, dt.ps_co AS doanhthu
-    FROM PTHUBAOCO_VIEW dt
-    WHERE dt.tk_co='131' AND dt.ma_bp!='TN' AND dt.ma_kh_ct=@MaKH
-      AND ((dt.ngay_ct>='2026-01-01' AND dt.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
-        OR (dt.ngay_ct<'2026-01-01' AND dt.ma_ct='CA1'))
-      AND dt.ngay_ct>=@NgayA AND dt.ngay_ct<=@NgayB
-    ORDER BY dt.ngay_ct;
-    """
+
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_a, ngay_b, ma_kh))
-        data = []
-        for row in cur.fetchall():
-            cols = [c[0] for c in cur.description]
-            d = dict(zip(cols, row))
-            if d.get('doanhthu') is not None: d['doanhthu'] = float(d['doanhthu'])
-            d = serialize_row(d)
-            data.append(d)
-        conn.close()
+        data = get_store().query(
+            load_sql('DOANHTHU_CHITIET_BCKH_DUCK'),
+            [ngay_a, ngay_b, ma_kh]
+        )
+        for d in data:
+            if d.get('doanhthu') is not None:
+                d['doanhthu'] = float(d['doanhthu'])
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f"[BCKH dt_chitiet] {e}")
@@ -669,7 +283,7 @@ def api_doanhthu_chitiet():
 
 
 # ─────────────────────────────────────────
-# API: Chi tiết thưởng (cho modal lịch sử)
+# API: Chi tiết thưởng (modal lịch sử)
 # ─────────────────────────────────────────
 @bp.route('/api/thuong_chitiet', methods=['POST'])
 def api_thuong_chitiet():
@@ -679,23 +293,15 @@ def api_thuong_chitiet():
     ma_kh = body.get('ma_kh', '')
     if not ngay_a or not ngay_b or not ma_kh:
         return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
-    sql = """
-    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?; DECLARE @MaKH NVARCHAR(50)=?;
-    SELECT ngay_ct, ma_kh_ct AS ma_kh, ma_nvkd, dien_giai, thuong
-    FROM [dbo].[THUONG_VIEW]
-    WHERE ma_kh_ct=@MaKH
-      AND ngay_ct>=@NgayA AND ngay_ct<=@NgayB
-    ORDER BY ngay_ct;
-    """
+
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_a, ngay_b, ma_kh))
-        data = rows_to_dict(cur)
+        data = get_store().query(
+            load_sql('THUONG_CHITIET_DUCK'),
+            [ngay_a, ngay_b, ma_kh]
+        )
         for d in data:
-            if d.get('thuong') is not None: d['thuong'] = float(d['thuong'])
-            serialize_row(d)
-        conn.close()
+            if d.get('thuong') is not None:
+                d['thuong'] = float(d['thuong'])
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f"[BCKH thuong_chitiet] {e}")
@@ -703,7 +309,7 @@ def api_thuong_chitiet():
 
 
 # ─────────────────────────────────────────
-# API: Chi tiết trả lại (cho modal lịch sử)
+# API: Chi tiết trả lại (modal lịch sử)
 # ─────────────────────────────────────────
 @bp.route('/api/tralai_chitiet', methods=['POST'])
 def api_tralai_chitiet():
@@ -713,31 +319,25 @@ def api_tralai_chitiet():
     ma_kh = body.get('ma_kh', '')
     if not ngay_a or not ngay_b or not ma_kh:
         return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
-    sql = """
-    DECLARE @NgayA DATE=?; DECLARE @NgayB DATE=?; DECLARE @MaKH NVARCHAR(50)=?;
-    SELECT ngay_ct, ma_kh, ma_vt, ten_vt, dvt, so_luong, gia_nt2, tien_nt2, tien_ck_nt, thue_gtgt_nt,
-        tien_nt2-tien_ck_nt AS tralai
-    FROM TRALAI_VIEW
-    WHERE ma_kh=@MaKH
-      AND ngay_ct>=@NgayA AND ngay_ct<=@NgayB
-    ORDER BY ngay_ct;
-    """
+
     try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(sql, (ngay_a, ngay_b, ma_kh))
-        data = rows_to_dict(cur)
+        data = get_store().query(
+            load_sql('TRALAI_CHITIET_DUCK'),
+            [ngay_a, ngay_b, ma_kh]
+        )
         for d in data:
-            for fld in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'tralai'):
-                if d.get(fld) is not None: d[fld] = float(d[fld])
-            serialize_row(d)
-        conn.close()
+            for k in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'tralai'):
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f"[BCKH tralai_chitiet] {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ─────────────────────────────────────────
+# API: Export Excel (giữ nguyên logic)
+# ─────────────────────────────────────────
 @bp.route('/api/export_excel', methods=['POST'])
 def api_export_excel():
     from openpyxl import Workbook
@@ -753,10 +353,7 @@ def api_export_excel():
     if not rows:
         return jsonify({'success': False, 'error': 'Không có dữ liệu'}), 400
 
-    max_nv_depth = 0
-    for r in rows:
-        if r.get('type') == 'nv':
-            max_nv_depth = max(max_nv_depth, r.get('depth', 0))
+    max_nv_depth = max((r.get('depth', 0) for r in rows if r.get('type') == 'nv'), default=0)
     nv_cols = max_nv_depth + 1
     kh_col = nv_cols + 1
     data_start = nv_cols + 2
@@ -764,95 +361,87 @@ def api_export_excel():
     wb = Workbook()
     ws = wb.active
     ws.title = 'Báo cáo KH'
-    FONT_NAME = 'Arial'
-    BLACK = '000000'
-    thin_border = Border(bottom=Side(style='thin', color='D5D9E4'), right=Side(style='thin', color='ECEEF3'))
-    header_border = Border(bottom=Side(style='medium', color='A0AAC0'))
-    total_border = Border(top=Side(style='medium', color='8090B0'), bottom=Side(style='medium', color='8090B0'))
-    nv_bg_colors = ['B8C6F0', 'CADAF6', 'DAEAFC', 'E8F0FD', 'F0F5FE', 'F7FAFE']
-    def nv_bg(depth): return nv_bg_colors[min(depth, len(nv_bg_colors) - 1)]
-    def nv_font_sz(depth): return 11 if depth == 0 else 10.5 if depth == 1 else 10
+    FN = 'Arial'
+    BK = '000000'
+    thin = Border(bottom=Side(style='thin', color='D5D9E4'), right=Side(style='thin', color='ECEEF3'))
+    hdr = Border(bottom=Side(style='medium', color='A0AAC0'))
+    tot = Border(top=Side(style='medium', color='8090B0'), bottom=Side(style='medium', color='8090B0'))
+    bgs = ['B8C6F0', 'CADAF6', 'DAEAFC', 'E8F0FD', 'F0F5FE', 'F7FAFE']
+
+    def nbg(d): return bgs[min(d, len(bgs) - 1)]
+    def nsz(d): return 11 if d == 0 else 10.5 if d == 1 else 10
 
     cur_row = 1
-    ws.cell(row=1, column=1, value='NHÂN VIÊN KINH DOANH')
-    ws.cell(row=1, column=1).font = Font(name=FONT_NAME, bold=True, size=11, color=BLACK)
-    ws.cell(row=1, column=1).fill = PatternFill('solid', fgColor='D0D8ED')
-    ws.cell(row=1, column=1).alignment = Alignment(vertical='center')
-    ws.cell(row=1, column=1).border = header_border
-    for c in range(2, nv_cols + 1):
-        cell = ws.cell(row=1, column=c, value='')
+    for c in range(1, nv_cols + 1):
+        cell = ws.cell(row=1, column=c, value='NHÂN VIÊN KINH DOANH' if c == 1 else '')
+        cell.font = Font(name=FN, bold=True, size=11, color=BK)
         cell.fill = PatternFill('solid', fgColor='D0D8ED')
-        cell.border = header_border
-    kh_cell = ws.cell(row=1, column=kh_col, value='KHÁCH HÀNG')
-    kh_cell.font = Font(name=FONT_NAME, bold=True, size=11, color=BLACK)
-    kh_cell.fill = PatternFill('solid', fgColor='D0D8ED')
-    kh_cell.alignment = Alignment(vertical='center')
-    kh_cell.border = header_border
+        cell.alignment = Alignment(vertical='center')
+        cell.border = hdr
+    kh = ws.cell(row=1, column=kh_col, value='KHÁCH HÀNG')
+    kh.font = Font(name=FN, bold=True, size=11, color=BK)
+    kh.fill = PatternFill('solid', fgColor='D0D8ED')
+    kh.alignment = Alignment(vertical='center')
+    kh.border = hdr
     for ci, ch in enumerate(col_headers):
         cell = ws.cell(row=1, column=data_start + ci, value=ch)
-        cell.font = Font(name=FONT_NAME, bold=True, size=11, color=BLACK)
+        cell.font = Font(name=FN, bold=True, size=11, color=BK)
         cell.fill = PatternFill('solid', fgColor='D0D8ED')
         cell.alignment = Alignment(wrap_text=True, vertical='center', horizontal='center')
-        cell.border = header_border
+        cell.border = hdr
     ws.row_dimensions[1].height = 42
 
-    for row_data in rows:
+    for rd in rows:
         cur_row += 1
-        rtype = row_data.get('type', '')
-        depth = row_data.get('depth', 0)
-        name = row_data.get('name', '')
-        values = row_data.get('values', [])
-        total_cols = data_start + len(col_headers) - 1
+        rt = rd.get('type', '')
+        dp = rd.get('depth', 0)
+        nm = rd.get('name', '')
+        vs = rd.get('values', [])
+        tc = data_start + len(col_headers) - 1
 
-        if rtype == 'nv':
-            nv_col_idx = min(depth, nv_cols - 1) + 1
-            ws.cell(row=cur_row, column=nv_col_idx, value=name)
-            bg = nv_bg(depth); sz = nv_font_sz(depth)
-            for c in range(1, total_cols + 1):
+        if rt == 'nv':
+            ws.cell(row=cur_row, column=min(dp, nv_cols - 1) + 1, value=nm)
+            bg = nbg(dp)
+            sz = nsz(dp)
+            for c in range(1, tc + 1):
                 cell = ws.cell(row=cur_row, column=c)
                 cell.fill = PatternFill('solid', fgColor=bg)
-                cell.border = thin_border
+                cell.border = thin
+                cell.font = Font(name=FN, bold=True, size=sz, color=BK)
+                cell.alignment = Alignment(vertical='center', horizontal='right' if c >= data_start else 'left')
                 if c >= data_start:
-                    cell.font = Font(name=FONT_NAME, bold=True, size=sz, color=BLACK)
-                    cell.alignment = Alignment(vertical='center', horizontal='right')
                     cell.number_format = '#,##0'
-                else:
-                    cell.font = Font(name=FONT_NAME, bold=True, size=sz, color=BLACK)
-                    cell.alignment = Alignment(vertical='center')
-            for vi, v in enumerate(values):
-                if v is not None and v != '': ws.cell(row=cur_row, column=data_start + vi, value=v)
+            for vi, v in enumerate(vs):
+                if v is not None and v != '':
+                    ws.cell(row=cur_row, column=data_start + vi, value=v)
 
-        elif rtype == 'kh':
-            ws.cell(row=cur_row, column=kh_col, value=name)
-            for c in range(1, total_cols + 1):
+        elif rt == 'kh':
+            ws.cell(row=cur_row, column=kh_col, value=nm)
+            for c in range(1, tc + 1):
                 cell = ws.cell(row=cur_row, column=c)
                 cell.fill = PatternFill('solid', fgColor='FFFFFF')
-                cell.border = thin_border
+                cell.border = thin
+                cell.font = Font(name=FN, size=10, color=BK)
+                cell.alignment = Alignment(vertical='center', horizontal='right' if c >= data_start else 'left')
                 if c >= data_start:
-                    cell.font = Font(name=FONT_NAME, size=10, color=BLACK)
-                    cell.alignment = Alignment(vertical='center', horizontal='right')
                     cell.number_format = '#,##0'
-                else:
-                    cell.font = Font(name=FONT_NAME, size=10, color=BLACK)
-                    cell.alignment = Alignment(vertical='center')
-            for vi, v in enumerate(values):
-                if v is not None and v != '': ws.cell(row=cur_row, column=data_start + vi, value=v)
+            for vi, v in enumerate(vs):
+                if v is not None and v != '':
+                    ws.cell(row=cur_row, column=data_start + vi, value=v)
 
-        elif rtype == 'total':
+        elif rt == 'total':
             ws.cell(row=cur_row, column=1, value='TỔNG CỘNG')
-            for c in range(1, total_cols + 1):
+            for c in range(1, tc + 1):
                 cell = ws.cell(row=cur_row, column=c)
                 cell.fill = PatternFill('solid', fgColor='B8C6F0')
-                cell.border = total_border
+                cell.border = tot
+                cell.font = Font(name=FN, bold=True, size=11, color=BK)
+                cell.alignment = Alignment(vertical='center', horizontal='right' if c >= data_start else 'left')
                 if c >= data_start:
-                    cell.font = Font(name=FONT_NAME, bold=True, size=11, color=BLACK)
-                    cell.alignment = Alignment(vertical='center', horizontal='right')
                     cell.number_format = '#,##0'
-                else:
-                    cell.font = Font(name=FONT_NAME, bold=True, size=11, color=BLACK)
-                    cell.alignment = Alignment(vertical='center')
-            for vi, v in enumerate(values):
-                if v is not None and v != '': ws.cell(row=cur_row, column=data_start + vi, value=v)
+            for vi, v in enumerate(vs):
+                if v is not None and v != '':
+                    ws.cell(row=cur_row, column=data_start + vi, value=v)
 
         ws.row_dimensions[cur_row].height = 20
 

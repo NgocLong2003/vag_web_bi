@@ -1,8 +1,18 @@
 from waitress import serve
 from datetime import timedelta
-from flask import Flask
-from config import SECRET_KEY, SESSION_TIMEOUT_MINUTES
+from flask import Flask, jsonify
+from config import SECRET_KEY, SESSION_TIMEOUT_MINUTES, SQLSERVER_CONFIG
 from database import init_db, close_db
+
+# ─── Pre-compute: DataSync + DuckDB ───
+from data_sync import DataSync
+from duckdb_store import DuckDBStore
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(name)s] %(levelname)s %(message)s'
+)
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -13,8 +23,29 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 app.teardown_appcontext(close_db)
 
+# ─── Khởi tạo DuckDB Store + DataSync ───
+store = DuckDBStore(data_dir='data/current')
 
-# Jinja filter: format date → dd/mm/yyyy
+sync = DataSync(
+    sqlserver_config=SQLSERVER_CONFIG,
+    data_dir='data',
+    interval=1800,              # 30 phút
+    on_success=store.reload,    # tự reload DuckDB sau mỗi sync
+)
+
+# Sync lần đầu (blocking), load DuckDB, rồi start background
+print('  Đang sync dữ liệu từ SQL Server...')
+sync.run_once()     # pull data → Parquet (lần đầu)
+store.load()        # load Parquet → DuckDB
+sync.start_background()  # background scheduler mỗi 30 phút
+
+# Truyền store vào app để blueprints truy cập:
+#   from flask import current_app
+#   store = current_app.config['DUCKDB_STORE']
+app.config['DUCKDB_STORE'] = store
+
+
+# ─── Jinja filters ───
 @app.template_filter('fmtd')
 def fmtd_filter(d):
     if d is None: return ''
@@ -24,7 +55,6 @@ def fmtd_filter(d):
         return f'{p[2]}/{p[1]}/{p[0]}'
     return s
 
-# Also make it available as a function in templates
 app.jinja_env.globals['fmtd'] = fmtd_filter
 
 @app.template_filter('fmtiso')
@@ -44,16 +74,25 @@ def no_cache(response):
     return response
 
 
-# Blueprints
+# ─── Blueprints ───
 from auth.routes import bp as auth_bp;       app.register_blueprint(auth_bp)
 from dashboard import bp as dash_bp;         app.register_blueprint(dash_bp)
 from admin import bp as admin_bp;            app.register_blueprint(admin_bp)
 from analytics import bp as analytics_bp;    app.register_blueprint(analytics_bp)
 
-# Report blueprints (mỗi báo cáo tự viết = 1 blueprint)
 from reports import get_all_blueprints
 for slug, report_bp in get_all_blueprints():
     app.register_blueprint(report_bp)
+
+
+# ─── API: monitoring sync + store ───
+@app.route('/api/data-status')
+def api_data_status():
+    return jsonify({
+        'sync': sync.status(),
+        'store': store.status(),
+    })
+
 
 init_db()
 
@@ -62,4 +101,8 @@ if __name__ == '__main__':
     print('  VietAnh BI Dashboard')
     print('  http://localhost:5000')
     print('=' * 50)
-    serve(app, host='0.0.0.0', port=5000, threads=8)  # ← thêm app vào đây
+    try:
+        serve(app, host='0.0.0.0', port=5000, threads=8)
+    finally:
+        sync.stop()
+        store.close()
