@@ -100,6 +100,7 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:34px;padding:0 var(--pad
 </head>
 <body>
 {% include "_header.html" %}
+{% include "_loading_overlay.html" %}
 <div class="app">
 <div class="topbar">
   <div class="brand"><div class="brand-mark"><svg viewBox="0 0 16 16"><path d="M3 13V5l5-3 5 3v8l-5 3z"/><line x1="8" y1="2" x2="8" y2="16"/></svg></div><div><div class="brand-name">Chi Tiết Bán Hàng & Thu Tiền</div><div class="brand-sub">Lịch sử giao dịch</div></div></div>
@@ -175,6 +176,7 @@ function computeAllowedNV(){
 // Init
 async function init(){
     setS('busy','Tải...');
+    showLoading('Đang tải dữ liệu…');
     try{
         const [rH,rK]=await Promise.all([fetch(API_BASE+'/api/hierarchy').then(r=>r.json()),fetch(API_BASE+'/api/khachhang').then(r=>r.json())]);
         if(!rH.success)throw new Error(rH.error);
@@ -205,10 +207,11 @@ async function init(){
         }
         document.getElementById('dateA').value=startDate;
         document.getElementById('dateB').value=endDate;
+        hideLoading();
         setS('ok',allowedNV.size+' NV');toast(allowedNV.size+' NV');
         // Auto-load data
         loadData();
-    }catch(e){setS('err','Lỗi');toast(e.message,'err')}
+    }catch(e){hideLoading();setS('err','Lỗi');toast(e.message,'err')}
 }
 
 function setMode(m){mode=m;document.querySelectorAll('.mode-pill').forEach(b=>b.classList.toggle('active',b.dataset.m===m));renderAll()}
@@ -223,7 +226,7 @@ document.addEventListener('click',e=>{if(!document.getElementById('kh-wrap').con
 async function loadData(){
     const dateA=document.getElementById('dateA').value,dateB=document.getElementById('dateB').value;
     if(!dateA||!dateB){toast('Chọn khoảng ngày','err');return}
-    setS('busy','Tải...');dsData=[];dtData=[];
+    setS('busy','Tải...');showLoading('Đang tải dữ liệu…');dsData=[];dtData=[];
     document.getElementById('tbl').style.display='';document.getElementById('empty').style.display='none';
     const bp=selectedBP||(userBpList.length?userBpList.join(','):'');
     const nv=allowedNV.size>0&&userNvkdList.length?[...allowedNV].join(','):'';
@@ -235,10 +238,11 @@ async function loadData(){
         ]);
         if(rDS.success)dsData=rDS.data;
         if(rDT.success)dtData=rDT.data;
+        hideLoading();
         setS('ok','DS:'+dsData.length+' DT:'+dtData.length);
         toast('DS: '+dsData.length+', DT: '+dtData.length+' dòng');
         renderAll();
-    }catch(e){setS('err','Lỗi');toast(e.message,'err')}
+    }catch(e){hideLoading();setS('err','Lỗi');toast(e.message,'err')}
 }
 
 // Build tree: NV → KH → detail rows
@@ -326,6 +330,15 @@ function renderAll(){
 
     function walkNV(nd,depth){
         if(!hasAny(nd))return;
+        // === COLLAPSE: NV không có KH riêng + chỉ 1 child có data → skip ===
+        const ownKHKeys=tree[nd.ma_nvkd]?Object.keys(tree[nd.ma_nvkd]):[];
+        const visChildren=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)&&hasAny(c));
+        // Chỉ collapse khi không có KH riêng trong data + đúng 1 nhánh con
+        if(ownKHKeys.length===0 && visChildren.length===1){
+            walkNV(visChildren[0], depth + (visChildren[0].level - nd.level));
+            return;
+        }
+        // === END COLLAPSE ===
         const rd=depth-baseLevel;
         const exp=expState[nd.ma_nvkd]!==false;
         const[nvDS,nvDT]=nvTotal(nd);
@@ -341,7 +354,6 @@ function renderAll(){
         html+='<td style="text-align:right">'+numH(nvVal,'sub')+'</td></tr>';
         lastPayload.push({type:'nv',depth:rd,name:nd.ten_nvkd||nd.ma_nvkd,values:Array(emptyCols).fill(null).concat([nvVal])});
         if(exp){
-            // Only show KH detail if this NV is selected (or no filter active)
             if(!isFiltered||selectedNV.has(nd.ma_nvkd)){
                 renderKHRows(nd,khKeys,rd);
             }
@@ -373,8 +385,79 @@ function pickerToggle(id){const s=getCheckState(id),d=getAllDescendants(id).filt
 function pickerSelectAll(){getAllNV().forEach(i=>pendingNV.add(i));renderPickerTree()}
 function pickerClearAll(){pendingNV=new Set();renderPickerTree()}
 function updatePickerBadge(){const b=document.getElementById('picker-badge'),l=document.getElementById('picker-label');if(selectedNV===null){b.textContent='Tất cả';b.style.background='var(--g3)';l.textContent='Tất cả NV'}else{const c=selectedNV.size;b.textContent=c;b.style.background=c?'var(--blue)':'var(--g3)';l.textContent=c?c+' NV':'Chưa chọn'}}
-function renderPickerTree(){const q=(document.getElementById('picker-q')?document.getElementById('picker-q').value:'').toLowerCase().trim();const roots=hierarchy.filter(h=>(!h.ma_ql||!nvMap[h.ma_ql])&&allowedNV.has(h.ma_nvkd)).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));let html='';function match(nd){if(!allowedNV.has(nd.ma_nvkd))return false;if(!q)return true;if((nd.ten_nvkd+' '+nd.ma_nvkd).toLowerCase().includes(q))return true;return nd.children.some(c=>match(c))}function hl(t){if(!q)return esc(t);const i=t.toLowerCase().indexOf(q);if(i<0)return esc(t);return esc(t.slice(0,i))+'<em>'+esc(t.slice(i,i+q.length))+'</em>'+esc(t.slice(i+q.length))}function wp(nd,d){if(!match(nd))return;const s=getCheckState(nd.ma_nvkd),hk=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)).length>0,ind=d*16,isE=pickerExp[nd.ma_nvkd]!==false;const tog=hk?'<span class="pi-tog" onclick="pickerToggleExp(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="pi-tog-sp"></span>';html+='<div class="pi '+s+'" onclick="pickerToggle(\''+nd.ma_nvkd+'\')" style="padding-left:'+(8+ind)+'px"><span class="pi-cb"></span>'+tog+'<span class="pi-name lv'+Math.min(d,1)+'">'+hl(nd.ten_nvkd||nd.ma_nvkd)+'</span></div>';if(hk&&(isE||q))nd.children.filter(c=>allowedNV.has(c.ma_nvkd)).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).forEach(c=>wp(c,d+1))}roots.forEach(r=>wp(r,0));document.getElementById('picker-tree').innerHTML=html||'<div style="padding:16px;text-align:center;color:var(--g4);font-size:11px">Không tìm thấy</div>'}
-function pickerToggleExp(id,e){e.stopPropagation();pickerExp[id]=!(pickerExp[id]!==false);renderPickerTree()}
+function renderPickerTree(){
+    const q=(document.getElementById('picker-q')?document.getElementById('picker-q').value:'').toLowerCase().trim();
+    let roots;
+    if(userNvkdList.length){
+        roots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id])
+            .sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+    } else {
+        roots=hierarchy.filter(h=>(!h.ma_ql||!nvMap[h.ma_ql]))
+            .map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+    }
+    let html='';
+ 
+    // Check xem NV có KH nào trong tree (data đã load)
+    function nvHasKH(nd){
+        return tree[nd.ma_nvkd]&&Object.keys(tree[nd.ma_nvkd]).length>0;
+    }
+    // hasAny cho picker (dùng cùng logic)
+    function pickerHasData(nd){
+        if(!allowedNV.has(nd.ma_nvkd))return false;
+        if(tree[nd.ma_nvkd]&&Object.keys(tree[nd.ma_nvkd]).length>0)return true;
+        return nd.children.some(c=>pickerHasData(c));
+    }
+    // Collapse: skip NV không có KH riêng + chỉ 1 child có data
+    function resolveNode(nd){
+        if(!dsData.length&&!dtData.length)return nd; // chưa load data
+        const kids=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)&&pickerHasData(c));
+        if(!nvHasKH(nd)&&kids.length===1&&!q){
+            return resolveNode(kids[0]);
+        }
+        return nd;
+    }
+ 
+    function match(nd){
+        if(!allowedNV.has(nd.ma_nvkd))return false;
+        if(!q)return true;
+        if((nd.ten_nvkd+' '+nd.ma_nvkd).toLowerCase().includes(q))return true;
+        return nd.children.some(c=>match(c));
+    }
+    function hl(t){
+        if(!q)return esc(t);
+        const i=t.toLowerCase().indexOf(q);
+        if(i<0)return esc(t);
+        return esc(t.slice(0,i))+'<em>'+esc(t.slice(i,i+q.length))+'</em>'+esc(t.slice(i+q.length));
+    }
+    function wp(nd,d){
+        if(!match(nd))return;
+        const s=getCheckState(nd.ma_nvkd);
+        const hk=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)).length>0;
+        const ind=d*16,isE=pickerExp[nd.ma_nvkd]!==false;
+        const tog=hk?'<span class="pi-tog" onclick="pickerToggleExp(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="pi-tog-sp"></span>';
+        html+='<div class="pi '+s+'" onclick="pickerToggle(\''+nd.ma_nvkd+'\')" style="padding-left:'+(8+ind)+'px"><span class="pi-cb"></span>'+tog+'<span class="pi-name lv'+Math.min(d,1)+'">'+hl(nd.ten_nvkd||nd.ma_nvkd)+'</span></div>';
+        if(hk&&(isE||q)){
+            nd.children.filter(c=>allowedNV.has(c.ma_nvkd))
+                .sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom))
+                .forEach(c=>{
+                    if(!q && (dsData.length||dtData.length)){
+                        const resolved=resolveNode(c);
+                        if(resolved.ma_nvkd!==c.ma_nvkd){wp(resolved,d+1);return}
+                    }
+                    wp(c,d+1);
+                });
+        }
+    }
+    roots.forEach(r=>{
+        if(!q && (dsData.length||dtData.length)){
+            const resolved=resolveNode(r);
+            wp(resolved,0);
+        } else {
+            wp(r,0);
+        }
+    });
+    document.getElementById('picker-tree').innerHTML=html||'<div style="padding:16px;text-align:center;color:var(--g4);font-size:11px">Không tìm thấy</div>';
+}function pickerToggleExp(id,e){e.stopPropagation();pickerExp[id]=!(pickerExp[id]!==false);renderPickerTree()}
 function togglePicker(){pickerOpen?closePicker():openPicker()}
 function openPicker(){pickerOpen=true;pendingNV=selectedNV===null?new Set():new Set(selectedNV);const p=document.getElementById('picker-panel');const tr=document.getElementById('picker-trigger');if(isMobile()){p.style.position='fixed';p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';p.style.width='100%';p.style.borderRadius='16px 16px 0 0';p.style.maxHeight='80vh'}else{p.style.position='fixed';const r=tr.getBoundingClientRect();p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-310)+'px';p.style.bottom='auto';p.style.right='auto';p.style.width='300px';p.style.borderRadius='10px';p.style.maxHeight=''}p.classList.add('open');document.getElementById('picker-q').value='';renderPickerTree()}
 function closePicker(){pickerOpen=false;document.getElementById('picker-panel').classList.remove('open')}
@@ -385,17 +468,19 @@ document.addEventListener('mousedown',e=>{if(pickerOpen&&!document.getElementByI
 async function exportExcel(){
     if(!lastPayload.length){toast('Chưa có dữ liệu','err');return}
     setS('busy','Xuất Excel…');
+    showLoading('Đang xuất Excel…');
     let colH;
     if(mode==='ds') colH=['Sản phẩm','ĐVT','SL','Đơn giá','Thành tiền','CK','Thuế','Doanh số'];
     else if(mode==='dt') colH=['Diễn giải','','','','','','','Doanh thu'];
     else colH=['Nội dung','ĐVT','SL','Đơn giá','Thành tiền','CK','Thuế','Giá trị'];
+    
     try{
         const resp=await fetch(API_BASE+'/api/export_excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows:lastPayload,col_headers:colH})});
         if(!resp.ok)throw new Error('Server error '+resp.status);
         const blob=await resp.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;
         const cd=resp.headers.get('Content-Disposition');let fn='BaoCaoChiTiet.xlsx';if(cd){const m=cd.match(/filename=(.+)/);if(m)fn=m[1].replace(/"/g,'')}
-        a.download=fn;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);setS('ok','OK');toast('Đã tải Excel');
-    }catch(e){setS('err','Lỗi');toast(e.message,'err')}
+        a.download=fn;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);hideLoading();setS('ok','OK');toast('Đã tải Excel');
+    }catch(e){hideLoading();setS('err','Lỗi');toast(e.message,'err')}
 }
 
 // Mobile sheets

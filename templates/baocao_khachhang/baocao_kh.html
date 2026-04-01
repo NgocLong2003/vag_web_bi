@@ -138,9 +138,9 @@ tfoot tr{border-top:2px solid var(--g2)}tfoot td{height:38px;padding:0 var(--pad
   tr.row-kh td:first-child{background:var(--white)}tr.row-kh:hover td:first-child{background:var(--g0)}
 
   /* FIX #3: Hide code column on mobile portrait */
-  thead th:nth-child(2),
-  tbody td:nth-child(2),
-  tfoot td:nth-child(2){display:none}
+#tbl thead th:nth-child(2),
+#tbl tbody td:nth-child(2),
+#tbl tfoot td:nth-child(2){display:none}
 
   .tree-seg{width:12px}tr.row-nv .nametxt{font-size:11.5px}tr.row-kh .nametxt{font-size:11px}.n{font-size:10.5px}.n.sub{font-size:11px}.n.grand{font-size:11.5px}
   thead th{font-size:9px}.th-main{font-size:9px;padding:4px var(--pad)}.th-date{font-size:8px}
@@ -337,6 +337,9 @@ async function init(){
         khMap={};khNames={};
         if(rK.success)rK.data.forEach(k=>{if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
         computeAllowedNV();
+        console.log('[PERM] USER_NVKD =', JSON.stringify(USER_NVKD));
+        console.log('[PERM] userNvkdList =', userNvkdList);
+        console.log('[PERM] allowedNV =', [...allowedNV]);
         const bps=getAllowedBP();
         const bpSel=document.getElementById('bp-select');
         bpSel.innerHTML=(bps.length>1?'<option value="">Tất cả BP</option>':'')+bps.map(b=>'<option value="'+esc(b)+'">'+esc(b)+'</option>').join('');
@@ -480,20 +483,33 @@ function buildRows(){
     } else {
         function walk(nd,anc,isL,depthOffset){
             if(!hasData(nd))return;
-            const relDepth=nd.level-depthOffset;
-            const exp=expState[nd.ma_nvkd]!==false;
             const fk=fKH(getKH(nd));
             const vc=[...nd.children].sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).filter(c=>hasData(c));
-            rows.push({type:'nv',node:nd,expanded:exp,hasKids:vc.length>0||fk.length>0,depth:relDepth,ancestors:[...anc],isLast:isL});
+            // Collapse: NV không có KH riêng + chỉ 1 child có data → skip
+            if(fk.length===0 && vc.length===1){
+                walk(vc[0], anc, isL, depthOffset + (vc[0].level - nd.level));
+                return;
+            }
+            const relDepth = nd.level - depthOffset;
+            const exp = expState[nd.ma_nvkd] !== false;
+            rows.push({type:'nv', node:nd, expanded:exp, hasKids:vc.length>0||fk.length>0, depth:relDepth, ancestors:[...anc], isLast:isL});
             if(exp){
-                const tot=fk.length+vc.length;let si=0;
-                fk.forEach(k=>{const il=si===tot-1;rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:relDepth+1,ancestors:[...anc,{cont:!il}],isLast:il});si++});
-                vc.forEach(child=>{const il=si===tot-1;walk(child,[...anc,{cont:!il}],il,depthOffset);si++});
+                const tot = fk.length + vc.length; let si = 0;
+                fk.forEach(k => {
+                    const il = si === tot-1;
+                    rows.push({type:'kh', ma_kh:k, ten_kh:getKHName(k), parentNV:nd, depth:relDepth+1, ancestors:[...anc,{cont:!il}], isLast:il});
+                    si++;
+                });
+                vc.forEach(child => {
+                    const il = si === tot-1;
+                    walk(child, [...anc,{cont:!il}], il, depthOffset);
+                    si++;
+                });
             }
         }
-        const visRoots=treeRoots.filter(r=>hasData(r));
-        const baseLevel=visRoots.length?visRoots[0].level:0;
-        visRoots.forEach((r,ri,arr)=>walk(r,[],ri===arr.length-1,baseLevel));
+        const visRoots = treeRoots.filter(r => hasData(r));
+        const baseLevel = visRoots.length ? visRoots[0].level : 0;
+        visRoots.forEach((r, ri, arr) => walk(r, [], ri===arr.length-1, baseLevel));
     }
     return rows;
 }
@@ -589,19 +605,91 @@ function pickerToggle(id){const s=getCheckState(id),d=getAllDescendants(id).filt
 function pickerSelectAll(){getAllNV().forEach(i=>pendingNV.add(i));renderPickerTree();updatePickerBadge()}
 function pickerClearAll(){pendingNV=new Set();renderPickerTree();updatePickerBadge()}
 function updatePickerBadge(){const b=document.getElementById('picker-badge'),l=document.getElementById('picker-label');if(selectedNV===null){b.textContent='Tất cả';b.className='picker-badge all';l.textContent='Tất cả NV'}else{const c=selectedNV.size;b.textContent=c;b.className='picker-badge'+(c===0?' all':'');l.textContent=c===0?'Chưa chọn':c+' NV'}}
+// ═══════════════════════════════════════════════════════════════
+// FIX renderPickerTree(): Collapse NV trung gian trong picker
+//
+// Tìm hàm renderPickerTree() trong file HTML
+// Thay thế TOÀN BỘ hàm bằng bản mới dưới đây
+// ═══════════════════════════════════════════════════════════════
+
 function renderPickerTree(){
     const q=(document.getElementById('picker-q')?document.getElementById('picker-q').value:'').toLowerCase().trim();
-    const roots=hierarchy.filter(h=>(!h.ma_ql||!nvMap[h.ma_ql])&&allowedNV.has(h.ma_nvkd)).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+    let roots;
+    if(userNvkdList.length){
+        roots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id])
+            .sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+    } else {
+        roots=hierarchy.filter(h=>(!h.ma_ql||!nvMap[h.ma_ql]))
+            .map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+    }
     let html='';
+
+    // Kiểm tra NV có KH nào trong colData không (giống logic buildRows)
+    function nvHasKH(nd){
+        for(const c of COLS){
+            if(!colLoaded[c])continue;
+            if(nd._vals[c]&&Object.keys(nd._vals[c].kh).length>0)return true;
+        }
+        return false;
+    }
+
+    // hasData giống buildRows
+    function pickerHasData(nd){
+        if(!allowedNV.has(nd.ma_nvkd))return false;
+        for(const c of COLS){if(!colLoaded[c])continue;const cv=nd._vals[c];if(cv&&cv.total!=null&&cv.total!==0)return true}
+        return nd.children.some(c=>pickerHasData(c));
+    }
+
     function match(nd){if(!allowedNV.has(nd.ma_nvkd))return false;if(!q)return true;if((nd.ten_nvkd+' '+nd.ma_nvkd).toLowerCase().includes(q))return true;return nd.children.some(c=>match(c))}
     function hl(t){if(!q)return esc(t);const i=t.toLowerCase().indexOf(q);if(i<0)return esc(t);return esc(t.slice(0,i))+'<em>'+esc(t.slice(i,i+q.length))+'</em>'+esc(t.slice(i+q.length))}
+
+    // Tìm node hiển thị thực (skip chain trung gian)
+    // Trả về node nên hiển thị — collapse nếu: không có KH riêng + chỉ 1 child có data
+    function resolveNode(nd){
+        if(!colLoaded[COLS[0]])return nd; // chưa load data → không collapse
+        const kids=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)&&pickerHasData(c));
+        if(!nvHasKH(nd)&&kids.length===1&&!q){
+            return resolveNode(kids[0]);
+        }
+        return nd;
+    }
+
     function wp(nd,d){
-        if(!match(nd))return;const s=getCheckState(nd.ma_nvkd),hk=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)).length>0,ind=d*18,isE=pickerExp[nd.ma_nvkd]!==false;
+        if(!match(nd))return;
+        const s=getCheckState(nd.ma_nvkd);
+        const hk=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)).length>0;
+        const ind=d*18;
+        const isE=pickerExp[nd.ma_nvkd]!==false;
         const tog=hk?'<span class="pi-tog" onclick="pickerToggleExp(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="pi-tog-sp"></span>';
         html+='<div class="pi '+s+'" onclick="pickerToggle(\''+nd.ma_nvkd+'\')" style="padding-left:'+(8+ind)+'px"><span class="pi-cb"></span>'+tog+'<span class="pi-name lv'+Math.min(d,1)+'">'+hl(nd.ten_nvkd||nd.ma_nvkd)+'</span><span style="margin-left:5px;font-family:var(--mono);font-size:10px;color:var(--g3)">'+nd.ma_nvkd+'</span></div>';
-        if(hk&&(isE||q))nd.children.filter(c=>allowedNV.has(c.ma_nvkd)).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).forEach(c=>wp(c,d+1));
+        if(hk&&(isE||q)){
+            // Khi có search query → không collapse (hiện tất cả match)
+            // Khi không search → collapse chain trung gian
+            nd.children.filter(c=>allowedNV.has(c.ma_nvkd))
+                .sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom))
+                .forEach(c=>{
+                    if(!q && colLoaded[COLS[0]]){
+                        const resolved=resolveNode(c);
+                        if(resolved.ma_nvkd!==c.ma_nvkd){
+                            wp(resolved,d+1);
+                            return;
+                        }
+                    }
+                    wp(c,d+1);
+                });
+        }
     }
-    roots.forEach(r=>wp(r,0));
+
+    // Collapse cả roots
+    roots.forEach(r=>{
+        if(!q && colLoaded[COLS[0]]){
+            const resolved=resolveNode(r);
+            wp(resolved,0);
+        } else {
+            wp(r,0);
+        }
+    });
+
     document.getElementById('picker-tree').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">Không tìm thấy</div>';
 }
 function pickerToggleExp(id,e){e.stopPropagation();pickerExp[id]=!(pickerExp[id]!==false);renderPickerTree()}
