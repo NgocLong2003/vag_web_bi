@@ -1,0 +1,195 @@
+<!-- _nv_picker.html — Shared NV Picker component
+     
+     TRƯỚC KHI INCLUDE, trang cần define:
+       - hierarchy, nvMap, allowedNV, userNvkdList   (data)
+       - esc, isMobile, isLandscapePhone             (từ _report_utils.js)
+     
+     TRANG CẦN DEFINE 2 callbacks cho collapse logic:
+       function pickerHasKH(nd)    → true nếu NV có KH riêng trong data hiện tại
+       function pickerDataLoaded() → true nếu data đã load (để biết có collapse không)
+     
+     Nếu không define → picker hiện đầy đủ cây, không collapse.
+     
+     SAU KHI INCLUDE, trang có thể gọi:
+       togglePicker(), openPicker(), closePicker(), applyPicker()
+       renderPickerTree(), updatePickerBadge()
+     
+     State variables (global):
+       selectedNV, pendingNV, pickerExp, pickerOpen
+-->
+
+<!-- PICKER CSS -->
+<style>
+.picker-wrap{position:relative}
+.picker-trigger{height:32px;padding:0 10px 0 30px;min-width:140px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:13px;color:var(--g7);outline:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;position:relative}
+.picker-trigger:hover,.picker-trigger.open{border-color:var(--blue-md);background:var(--white)}
+.picker-trigger svg.ico-search{position:absolute;left:9px;width:13px;height:13px;stroke:var(--g4);fill:none;pointer-events:none}
+.picker-badge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 5px;background:var(--blue);color:#fff;border-radius:9px;font-size:10px;font-weight:700;margin-left:auto}
+.picker-badge.all{background:var(--g3)}
+.picker-panel{position:fixed;z-index:9990;background:var(--white);border:1px solid var(--g2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.14);width:300px;display:none;flex-direction:column;overflow:hidden}
+.picker-panel.open{display:flex}
+.picker-head{padding:10px 12px 8px;border-bottom:1px solid var(--g1);display:flex;flex-direction:column;gap:7px}
+.picker-search-row{position:relative;display:flex;align-items:center}
+.picker-search-row svg{position:absolute;left:8px;width:12px;height:12px;stroke:var(--g4);fill:none;pointer-events:none}
+#picker-q{width:100%;height:30px;padding:0 8px 0 27px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;outline:none}
+#picker-q:focus{border-color:var(--blue-md)}
+.picker-actions{display:flex;gap:6px}
+.picker-act-btn{flex:1;height:26px;border-radius:5px;border:1px solid var(--g2);background:var(--g0);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--g5);cursor:pointer}
+.picker-act-btn:hover{background:var(--blue-lt);color:var(--blue)}
+.picker-tree{overflow-y:auto;max-height:360px;padding:4px 0}
+.pi{display:flex;align-items:center;height:32px;padding:0 12px;cursor:pointer;transition:background .08s;user-select:none}
+.pi:hover{background:var(--g0)}
+.pi-cb{width:15px;height:15px;flex-shrink:0;margin-right:8px;border:1.5px solid var(--g3);border-radius:3px;background:var(--white);position:relative;display:flex;align-items:center;justify-content:center}
+.pi.checked .pi-cb{background:var(--blue);border-color:var(--blue)}
+.pi.indeterm .pi-cb{background:var(--blue-lt);border-color:var(--blue-md)}
+.pi.checked .pi-cb::after{content:'';position:absolute;width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.pi.indeterm .pi-cb::after{content:'';position:absolute;width:7px;height:2px;background:var(--blue);border-radius:1px}
+.pi-tog{width:16px;height:16px;margin-right:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:3px;color:var(--g3);cursor:pointer}
+.pi-tog:hover{background:var(--g1);color:var(--g5)}
+.pi-tog svg{width:8px;height:8px;stroke:currentColor;fill:none;stroke-linecap:round}
+.pi-tog-sp{width:20px;flex-shrink:0}
+.pi-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;white-space:nowrap}
+.pi-name.lv0{font-weight:700}.pi-name.lv1{font-weight:600}
+.pi-name em{background:#fef9c3;font-style:normal;border-radius:2px}
+.picker-foot{border-top:1px solid var(--g1);padding:8px 12px;display:flex;justify-content:flex-end;gap:6px}
+.picker-apply{height:28px;padding:0 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+.picker-close{height:28px;padding:0 12px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-size:12px;font-weight:600;color:var(--g5);cursor:pointer}
+@media(max-width:768px){
+  .picker-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:80vh}
+  .picker-tree{max-height:55vh}.pi{height:40px}
+}
+@media(orientation:landscape) and (max-height:500px) and (hover:none){
+  .picker-panel{width:300px!important;left:0!important;right:auto!important;top:0!important;bottom:0!important;border-radius:0 10px 10px 0;max-height:100vh!important;box-shadow:4px 0 24px rgba(0,0,0,.18)}
+  .picker-tree{max-height:calc(100vh - 120px)}.pi{height:34px}
+}
+</style>
+
+<!-- PICKER HTML (body-level panel) -->
+<div class="picker-panel" id="picker-panel">
+  <div class="picker-head">
+    <div class="picker-search-row">
+      <svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+      <input type="text" id="picker-q" placeholder="Tìm NV..." oninput="renderPickerTree()"/>
+    </div>
+    <div class="picker-actions">
+      <button class="picker-act-btn" onclick="pickerSelectAll()">Chọn tất cả</button>
+      <button class="picker-act-btn" onclick="pickerClearAll()">Bỏ chọn</button>
+    </div>
+  </div>
+  <div class="picker-tree" id="picker-tree"></div>
+  <div class="picker-foot">
+    <button class="picker-close" onclick="closePicker()">Đóng</button>
+    <button class="picker-apply" onclick="applyPicker()">Áp dụng</button>
+  </div>
+</div>
+
+<!-- PICKER JS -->
+<script>
+var selectedNV=null, pendingNV=new Set(), pickerExp={}, pickerOpen=false;
+
+function getAllDescendants(id){var r=[];function d(i){r.push(i);(nvMap[i]?nvMap[i].children:[]).forEach(function(c){d(c.ma_nvkd)})}d(id);return r}
+function getAllNV(){return[...allowedNV]}
+function getCheckState(id){var a=getAllDescendants(id).filter(function(i){return allowedNV.has(i)}),c=a.filter(function(i){return pendingNV.has(i)}).length;return c===0?'none':c===a.length?'checked':'indeterm'}
+function pickerToggle(id){var s=getCheckState(id),d=getAllDescendants(id).filter(function(i){return allowedNV.has(i)});if(s==='none')d.forEach(function(i){pendingNV.add(i)});else d.forEach(function(i){pendingNV.delete(i)});renderPickerTree();updatePickerBadge()}
+function pickerSelectAll(){getAllNV().forEach(function(i){pendingNV.add(i)});renderPickerTree();updatePickerBadge()}
+function pickerClearAll(){pendingNV=new Set();renderPickerTree();updatePickerBadge()}
+
+function updatePickerBadge(){
+    var b=document.getElementById('picker-badge'),l=document.getElementById('picker-label');
+    if(selectedNV===null){b.textContent='Tất cả';b.className='picker-badge all';l.textContent='Tất cả NV'}
+    else{var c=selectedNV.size;b.textContent=c;b.className='picker-badge'+(c===0?' all':'');l.textContent=c===0?'Chưa chọn':c+' NV'}
+}
+
+function renderPickerTree(){
+    var q=(document.getElementById('picker-q')?document.getElementById('picker-q').value:'').toLowerCase().trim();
+    var roots;
+    if(userNvkdList.length){
+        roots=userNvkdList.filter(function(id){return nvMap[id]}).map(function(id){return nvMap[id]})
+            .sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
+    } else {
+        roots=hierarchy.filter(function(h){return!h.ma_ql||!nvMap[h.ma_ql]})
+            .map(function(h){return nvMap[h.ma_nvkd]}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
+    }
+    var html='';
+
+    /* Collapse helpers — dùng callbacks từ trang gọi */
+    var _hasKH=typeof pickerHasKH==='function'?pickerHasKH:function(){return false};
+    var _loaded=typeof pickerDataLoaded==='function'?pickerDataLoaded:function(){return false};
+
+    function _pickerHasData(nd){
+        if(!allowedNV.has(nd.ma_nvkd))return false;
+        if(_hasKH(nd))return true;
+        return nd.children.some(function(c){return _pickerHasData(c)});
+    }
+    function resolveNode(nd){
+        if(!_loaded())return nd;
+        var kids=nd.children.filter(function(c){return allowedNV.has(c.ma_nvkd)&&_pickerHasData(c)});
+        if(!_hasKH(nd)&&kids.length===1&&!q)return resolveNode(kids[0]);
+        return nd;
+    }
+    function match(nd){
+        if(!allowedNV.has(nd.ma_nvkd))return false;
+        if(!q)return true;
+        if((nd.ten_nvkd+' '+nd.ma_nvkd).toLowerCase().includes(q))return true;
+        return nd.children.some(function(c){return match(c)});
+    }
+    function hl(t){
+        if(!q)return esc(t);var i=t.toLowerCase().indexOf(q);if(i<0)return esc(t);
+        return esc(t.slice(0,i))+'<em>'+esc(t.slice(i,i+q.length))+'</em>'+esc(t.slice(i+q.length));
+    }
+    function wp(nd,d){
+        if(!match(nd))return;
+        var s=getCheckState(nd.ma_nvkd);
+        var hk=nd.children.filter(function(c){return allowedNV.has(c.ma_nvkd)}).length>0;
+        var ind=d*18,isE=pickerExp[nd.ma_nvkd]!==false;
+        var tog=hk?'<span class="pi-tog" onclick="pickerToggleExp(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="pi-tog-sp"></span>';
+        html+='<div class="pi '+s+'" onclick="pickerToggle(\''+nd.ma_nvkd+'\')" style="padding-left:'+(8+ind)+'px"><span class="pi-cb"></span>'+tog+'<span class="pi-name lv'+Math.min(d,1)+'">'+hl(nd.ten_nvkd||nd.ma_nvkd)+'</span><span style="margin-left:5px;font-family:var(--mono);font-size:10px;color:var(--g3)">'+nd.ma_nvkd+'</span></div>';
+        if(hk&&(isE||q)){
+            nd.children.filter(function(c){return allowedNV.has(c.ma_nvkd)})
+                .sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)})
+                .forEach(function(c){
+                    if(!q&&_loaded()){var resolved=resolveNode(c);if(resolved.ma_nvkd!==c.ma_nvkd){wp(resolved,d+1);return}}
+                    wp(c,d+1);
+                });
+        }
+    }
+    roots.forEach(function(r){
+        if(!q&&_loaded()){var resolved=resolveNode(r);wp(resolved,0)}
+        else{wp(r,0)}
+    });
+    document.getElementById('picker-tree').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">Không tìm thấy</div>';
+}
+
+function pickerToggleExp(id,e){e.stopPropagation();pickerExp[id]=!(pickerExp[id]!==false);renderPickerTree()}
+function togglePicker(){pickerOpen?closePicker():openPicker()}
+
+function openPicker(){
+    pickerOpen=true;pendingNV=selectedNV===null?new Set():new Set(selectedNV);
+    var p=document.getElementById('picker-panel');
+    var tr=document.getElementById('picker-trigger');
+    if(isLandscapePhone()){
+        p.style.position='fixed';p.style.top='0';p.style.left='0';p.style.right='auto';p.style.bottom='0';
+        p.style.width='300px';p.style.borderRadius='0 10px 10px 0';p.style.maxHeight='100vh';
+    } else if(isMobile()){
+        p.style.position='fixed';p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';
+        p.style.width='100%';p.style.borderRadius='16px 16px 0 0';p.style.maxHeight='80vh';
+    } else {
+        p.style.position='fixed';var r=tr.getBoundingClientRect();
+        p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-310)+'px';
+        p.style.bottom='auto';p.style.right='auto';p.style.width='300px';p.style.borderRadius='10px';p.style.maxHeight='';
+    }
+    p.classList.add('open');tr.classList.add('open');document.getElementById('picker-q').value='';renderPickerTree();
+}
+function closePicker(){pickerOpen=false;document.getElementById('picker-panel').classList.remove('open');document.getElementById('picker-trigger').classList.remove('open')}
+function applyPicker(){
+    var a=getAllNV();
+    if(pendingNV.size===0||pendingNV.size===a.length)selectedNV=null;else selectedNV=new Set(pendingNV);
+    closePicker();updatePickerBadge();
+    /* Trang tự define onPickerApply() nếu cần reload/render */
+    if(typeof onPickerApply==='function')onPickerApply();
+}
+
+document.addEventListener('mousedown',function(e){
+    if(pickerOpen&&!document.getElementById('picker-wrap').contains(e.target)&&!document.getElementById('picker-panel').contains(e.target))closePicker();
+});
+</script>

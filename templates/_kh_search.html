@@ -1,0 +1,85 @@
+<!-- _kh_search.html — Shared KH Search component
+     
+     TRƯỚC KHI INCLUDE, trang cần define:
+       - khMap, userBpList, selectedBP   (data/state)
+       - esc, isMobile                   (từ _report_utils.js)
+     
+     TRANG CẦN DEFINE callbacks:
+       function onKHSelected(ma_kh, ten_kh)  → gọi khi user chọn KH
+       function onKHCleared()                → gọi khi user xóa KH
+     
+     SAU KHI INCLUDE, trang có:
+       selectedKH    — {ma_kh, ten_kh} hoặc null
+       onKHInput(v), selectKH(mk, name), clearKH()
+     
+     HTML cần có sẵn trong topbar (trang tự viết):
+       #kh-wrap, #kh-q, #kh-clear, #kh-suggest, #kh-chip-area
+-->
+
+<!-- KH SEARCH CSS -->
+<style>
+.kh-search-wrap{position:relative;display:flex;align-items:center;background:var(--g0);border:1px solid var(--g2);border-radius:6px;height:32px;padding:0 8px 0 28px}
+.kh-search-wrap:focus-within{border-color:var(--emr-md);background:var(--white)}
+.kh-search-wrap svg{position:absolute;left:9px;width:13px;height:13px;stroke:var(--g4);fill:none;pointer-events:none}
+#kh-q{width:140px;border:none;background:transparent;font-family:var(--sans);font-size:13px;outline:none}
+.kh-clear{border:none;background:none;color:var(--g3);cursor:pointer;font-size:12px;padding:0 0 0 4px}.kh-clear:hover{color:var(--red)}
+.kh-suggest{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--white);border:1px solid var(--g2);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:80;max-height:200px;overflow-y:auto;display:none}
+.kh-suggest.show{display:block}
+.kh-suggest-item{padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--g1);display:flex;justify-content:space-between;align-items:center}
+.kh-suggest-item:last-child{border:none}.kh-suggest-item:hover{background:var(--g0)}
+.kh-suggest-item .kh-name{font-weight:600;color:var(--g6)}
+.kh-suggest-item .kh-code{font-family:var(--mono);font-size:10px;color:var(--g4)}
+.kh-selected-chip,.kh-chip{display:flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 10px;background:var(--emr-lt);border:1px solid var(--emr-md);border-radius:13px;font-size:11px;font-weight:600;color:var(--emr);white-space:nowrap}
+.kh-selected-chip .kh-chip-x,.kh-chip .kh-x{cursor:pointer;font-size:14px;opacity:.6}
+.kh-selected-chip .kh-chip-x:hover,.kh-chip .kh-x:hover{opacity:1}
+.kh-suggest-fixed{position:fixed!important;top:auto!important;bottom:60px;left:8px;right:8px;max-height:40vh;border-radius:12px;box-shadow:0 -4px 24px rgba(0,0,0,.15)}
+</style>
+
+<!-- KH SEARCH JS -->
+<script>
+var selectedKH=null;
+
+function onKHInput(v){
+    v=v.trim();
+    if(v.length<2){document.getElementById('kh-suggest').classList.remove('show');return}
+    var q=v.toLowerCase();
+    var matches=Object.entries(khMap).filter(function(e){
+        var mk=e[0],info=e[1];
+        if(selectedBP&&info.ma_bp!==selectedBP)return false;
+        if(userBpList.length&&!userBpList.includes(info.ma_bp))return false;
+        return(info.ten_kh||'').toLowerCase().includes(q)||mk.toLowerCase().includes(q);
+    }).slice(0,8);
+    var sg=document.getElementById('kh-suggest');
+    if(!matches.length){sg.classList.remove('show');return}
+    sg.innerHTML=matches.map(function(e){
+        var mk=e[0],info=e[1];
+        return'<div class="kh-suggest-item" onclick="selectKH(\''+esc(mk)+'\',\''+esc(info.ten_kh||mk)+'\')">'
+            +'<span class="kh-name">'+esc(info.ten_kh||mk)+'</span>'
+            +'<span class="kh-code">'+esc(mk)+'</span></div>';
+    }).join('');
+    if(typeof isMobile==='function'&&isMobile()){sg.classList.add('kh-suggest-fixed')}else{sg.classList.remove('kh-suggest-fixed')}
+    sg.classList.add('show');
+}
+
+function selectKH(mk,name){
+    selectedKH={ma_kh:mk,ten_kh:name};
+    document.getElementById('kh-q').value='';
+    document.getElementById('kh-suggest').classList.remove('show');
+    var clearBtn=document.getElementById('kh-clear');if(clearBtn)clearBtn.style.display='none';
+    document.getElementById('kh-chip-area').innerHTML=
+        '<span class="kh-selected-chip">'+esc(name)+' <span class="kh-chip-x" onclick="clearKH()">✕</span></span>';
+    if(typeof onKHSelected==='function')onKHSelected(mk,name);
+}
+
+function clearKH(){
+    selectedKH=null;
+    document.getElementById('kh-chip-area').innerHTML='';
+    document.getElementById('kh-q').value='';
+    if(typeof onKHCleared==='function')onKHCleared();
+}
+
+document.addEventListener('click',function(e){
+    var wrap=document.getElementById('kh-wrap');
+    if(wrap&&!wrap.contains(e.target))document.getElementById('kh-suggest').classList.remove('show');
+});
+</script>
