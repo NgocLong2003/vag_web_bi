@@ -154,8 +154,9 @@ function activateHybridScroll(){
         if(_spacerEl){_spacerEl.remove();_spacerEl=null}window.scrollTo(0,0);
     }
 }
-window.addEventListener('resize',activateHybridScroll);
-window.addEventListener('orientationchange',function(){setTimeout(activateHybridScroll,200)});
+var _resizeTimer=null;
+window.addEventListener('resize',function(){clearTimeout(_resizeTimer);_resizeTimer=setTimeout(activateHybridScroll,300)});
+window.addEventListener('orientationchange',function(){setTimeout(activateHybridScroll,300)});
 
 /* ═══════════════════════════════════════
    EXPORT EXCEL HELPER

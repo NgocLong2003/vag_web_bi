@@ -17,7 +17,7 @@
   --tree-line:rgba(168,176,197,.35)
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:14px;overflow:hidden}
+html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:14px;overflow:hidden;overscroll-behavior:none}
 
 /* ═══════════════════════════════════════
    APP LAYOUT
@@ -63,7 +63,7 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 /* ═══════════════════════════════════════
    TABLE
    ═══════════════════════════════════════ */
-.table-wrap{flex:1;overflow:auto;position:relative}
+.table-wrap{flex:1;overflow:auto;position:relative;touch-action:pan-x pan-y pinch-zoom;overscroll-behavior:contain}
 .empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--g4)}
 table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}
 thead th{position:sticky;top:0;z-index:30;background:var(--white);border-bottom:2px solid var(--g2);padding:0;text-align:center;vertical-align:middle;font-size:12px;font-weight:800;color:var(--g5);white-space:nowrap;letter-spacing:.03em}
