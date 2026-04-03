@@ -5,11 +5,59 @@ from auth import admin_required
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 
+def _admin_bp_list():
+    """Trả về list BP mà admin hiện tại được quản lý.
+    Rỗng = quản lý tất cả (super admin)."""
+    u = g.current_user
+    try:
+        raw = u['ma_bp']
+    except (KeyError, TypeError):
+        raw = None
+    if not raw or not str(raw).strip():
+        return []
+    return [b.strip() for b in str(raw).split(',') if b.strip()]
+
+
+def _filter_users_by_bp(users, admin_bps):
+    """Lọc danh sách users: chỉ giữ users có ít nhất 1 BP trùng với admin.
+    Nếu admin_bps rỗng → trả về tất cả."""
+    if not admin_bps:
+        return list(users)
+    admin_set = set(admin_bps)
+    result = []
+    for u in users:
+        try:
+            raw = u['ma_bp'] or ''
+        except:
+            raw = getattr(u, 'ma_bp', '') or ''
+        user_bps = set(b.strip() for b in str(raw).split(',') if b.strip())
+        if user_bps & admin_set:
+            result.append(u)
+    return result
+
+
+def _can_manage_user(admin_bps, user_row):
+    """Admin có quyền quản lý user này không?"""
+    if not admin_bps:
+        return True
+    try:
+        raw = user_row['ma_bp'] or ''
+    except:
+        raw = getattr(user_row, 'ma_bp', '') or ''
+    user_bps = set(b.strip() for b in str(raw).split(',') if b.strip())
+    return bool(user_bps & set(admin_bps))
+
+
 @bp.route('/')
 @admin_required
 def admin_index():
     db = get_db()
-    users = db.execute('SELECT * FROM users ORDER BY role DESC, username').fetchall()
+    admin_bps = _admin_bp_list()
+
+    all_users = db.execute('SELECT * FROM users ORDER BY role DESC, username').fetchall()
+    users = _filter_users_by_bp(all_users, admin_bps)
+    user_ids = set(u['id'] for u in users)
+
     dashboards = db.execute('SELECT * FROM dashboards ORDER BY sort_order, name').fetchall()
     dash_user_counts = {}
     for d in dashboards:
@@ -20,13 +68,17 @@ def admin_index():
         rows = db.execute('SELECT dashboard_id FROM user_dashboards WHERE user_id = ?', (u['id'],)).fetchall()
         user_dash_map[u['id']] = [r['dashboard_id'] for r in rows]
 
-    # Lấy danh sách mã BP từ DMKHACHHANG_VIEW (nếu SQL Server)
+    # Lấy danh sách mã BP
     all_bp = []
     try:
         bp_rows = db.execute("SELECT DISTINCT ma_bp FROM DMKHACHHANG_VIEW WHERE ma_bp IS NOT NULL AND ma_bp != '' AND ma_bp != 'TN' ORDER BY ma_bp").fetchall()
         all_bp = [r['ma_bp'] for r in bp_rows]
     except:
         pass
+
+    # Nếu admin bị giới hạn BP, chỉ hiện BP mà admin quản lý
+    if admin_bps:
+        all_bp = [b for b in all_bp if b in admin_bps]
 
     # Lấy danh sách kỳ báo cáo
     ky_bao_cao = []
@@ -35,11 +87,14 @@ def admin_index():
     except:
         pass
 
-    # Perm matrix data: users sorted by BP for matrix tab
-    perm_users = db.execute(
-        'SELECT id, username, display_name, ma_nvkd_list, ma_bp, role, is_active '
-        'FROM users ORDER BY ma_bp, ma_nvkd_list, display_name'
-    ).fetchall()
+    # Perm matrix data: chỉ users thuộc BP
+    perm_users = _filter_users_by_bp(
+        db.execute(
+            'SELECT id, username, display_name, ma_nvkd_list, ma_bp, role, is_active '
+            'FROM users ORDER BY ma_bp, ma_nvkd_list, display_name'
+        ).fetchall(),
+        admin_bps
+    )
     perm_map = {}
     for uid, dids in user_dash_map.items():
         perm_map[uid] = dids
@@ -47,6 +102,7 @@ def admin_index():
     return render_template('admin.html', users=users, dashboards=dashboards,
         dash_user_counts=dash_user_counts, user_dash_map=user_dash_map, all_bp=all_bp,
         ky_bao_cao=ky_bao_cao, perm_users=perm_users, perm_map=perm_map,
+        admin_bps=admin_bps,
         username=g.current_user['display_name'] or g.current_user['username'])
 
 
@@ -66,6 +122,18 @@ def user_add():
     if not username or not password:
         flash('Tên đăng nhập và mật khẩu không được để trống', 'error')
         return redirect(url_for('admin.admin_index') + '#users')
+    if not ma_nvkd_list:
+        flash('Mã NVKD không được để trống', 'error')
+        return redirect(url_for('admin.admin_index') + '#users')
+
+    # Kiểm tra admin BP-limited chỉ được tạo user cùng BP
+    admin_bps = _admin_bp_list()
+    if admin_bps and ma_bp:
+        new_bps = set(b.strip() for b in ma_bp.split(',') if b.strip())
+        if not new_bps.issubset(set(admin_bps)):
+            flash('Bạn không có quyền gán BP ngoài phạm vi quản lý', 'error')
+            return redirect(url_for('admin.admin_index') + '#users')
+
     if role not in ('admin', 'user'): role = 'user'
     db = get_db()
     try:
@@ -95,6 +163,17 @@ def user_add():
 @bp.route('/user/<int:user_id>/edit', methods=['POST'])
 @admin_required
 def user_edit(user_id):
+    db = get_db()
+    user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        abort(404)
+
+    # Kiểm tra quyền quản lý
+    admin_bps = _admin_bp_list()
+    if not _can_manage_user(admin_bps, user):
+        flash('Bạn không có quyền chỉnh sửa user này', 'error')
+        return redirect(url_for('admin.admin_index') + '#users')
+
     display_name = request.form.get('display_name', '').strip()
     khoi = request.form.get('khoi', '').strip()
     bo_phan = request.form.get('bo_phan', '').strip()
@@ -105,8 +184,19 @@ def user_edit(user_id):
     role = request.form.get('role', 'user')
     is_active = 1 if request.form.get('is_active') else 0
     new_password = request.form.get('new_password', '').strip()
+
+    if not ma_nvkd_list:
+        flash('Mã NVKD không được để trống', 'error')
+        return redirect(url_for('admin.admin_index') + '#users')
+
+    # Kiểm tra BP gán nằm trong phạm vi
+    if admin_bps and ma_bp:
+        new_bps = set(b.strip() for b in ma_bp.split(',') if b.strip())
+        if not new_bps.issubset(set(admin_bps)):
+            flash('Bạn không có quyền gán BP ngoài phạm vi quản lý', 'error')
+            return redirect(url_for('admin.admin_index') + '#users')
+
     if role not in ('admin', 'user'): role = 'user'
-    db = get_db()
     if new_password:
         db.execute('UPDATE users SET display_name=?, khoi=?, bo_phan=?, chuc_vu=?, ma_nvkd_list=?, email=?, ma_bp=?, role=?, is_active=?, password_hash=?, password_plain=? WHERE id=?',
                     (display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, ma_bp, role, is_active, hash_password(new_password), new_password, user_id))
@@ -133,6 +223,15 @@ def user_delete(user_id):
         flash('Không thể xóa tài khoản đang đăng nhập', 'error')
         return redirect(url_for('admin.admin_index') + '#users')
     db = get_db()
+    user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        abort(404)
+
+    admin_bps = _admin_bp_list()
+    if not _can_manage_user(admin_bps, user):
+        flash('Bạn không có quyền xóa user này', 'error')
+        return redirect(url_for('admin.admin_index') + '#users')
+
     db.execute('DELETE FROM user_dashboards WHERE user_id = ?', (user_id,))
     db.execute('DELETE FROM users WHERE id = ?', (user_id,))
     db.commit()
@@ -214,13 +313,27 @@ def permissions(dash_id):
     dashboard = db.execute('SELECT * FROM dashboards WHERE id = ?', (dash_id,)).fetchone()
     if not dashboard: abort(404)
     if request.method == 'POST':
-        db.execute('DELETE FROM user_dashboards WHERE dashboard_id = ?', (dash_id,))
+        # Chỉ xóa + gán lại cho users mà admin quản lý
+        admin_bps = _admin_bp_list()
+        all_users = db.execute("SELECT * FROM users WHERE role != 'admin' AND is_active = 1 ORDER BY username").fetchall()
+        managed = _filter_users_by_bp(all_users, admin_bps)
+        managed_ids = set(u['id'] for u in managed)
+
+        # Xóa quyền cũ chỉ cho users mà admin quản lý
+        for uid in managed_ids:
+            db.execute('DELETE FROM user_dashboards WHERE dashboard_id = ? AND user_id = ?', (dash_id, uid))
+        # Gán lại
         for uid in request.form.getlist('user_ids'):
-            db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (int(uid), dash_id))
+            uid = int(uid)
+            if uid in managed_ids:
+                db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (uid, dash_id))
         db.commit()
         flash(f'Đã cập nhật quyền cho "{dashboard["name"]}"', 'success')
         return redirect(url_for('admin.admin_index') + '#dashboards')
-    users = db.execute("SELECT * FROM users WHERE role != 'admin' AND is_active = 1 ORDER BY username").fetchall()
+
+    admin_bps = _admin_bp_list()
+    all_users = db.execute("SELECT * FROM users WHERE role != 'admin' AND is_active = 1 ORDER BY username").fetchall()
+    users = _filter_users_by_bp(all_users, admin_bps)
     assigned = [r['user_id'] for r in db.execute('SELECT user_id FROM user_dashboards WHERE dashboard_id = ?', (dash_id,)).fetchall()]
     return render_template('admin_permissions.html', dashboard=dashboard, users=users, assigned=assigned,
         username=g.current_user['display_name'] or g.current_user['username'])
@@ -233,6 +346,12 @@ def user_permissions(user_id):
     user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     if not user:
         abort(404)
+
+    admin_bps = _admin_bp_list()
+    if not _can_manage_user(admin_bps, user):
+        flash('Bạn không có quyền chỉnh sửa user này', 'error')
+        return redirect(url_for('admin.admin_index') + '#users')
+
     db.execute('DELETE FROM user_dashboards WHERE user_id = ?', (user_id,))
     for did in request.form.getlist('dash_ids'):
         db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (user_id, int(did)))
@@ -249,7 +368,19 @@ def user_bp(user_id):
     user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     if not user:
         return jf({'ok': False}), 404
+
+    admin_bps = _admin_bp_list()
+    if not _can_manage_user(admin_bps, user):
+        return jf({'ok': False, 'error': 'Không có quyền'}), 403
+
     ma_bp = request.json.get('ma_bp', '') if request.is_json else ''
+
+    # Kiểm tra BP gán nằm trong phạm vi
+    if admin_bps and ma_bp:
+        new_bps = set(b.strip() for b in ma_bp.split(',') if b.strip())
+        if not new_bps.issubset(set(admin_bps)):
+            return jf({'ok': False, 'error': 'BP ngoài phạm vi'}), 403
+
     db.execute('UPDATE users SET ma_bp = ? WHERE id = ?', (ma_bp, user_id))
     db.commit()
     return jf({'ok': True})
@@ -373,7 +504,14 @@ def perm_toggle():
     action = data.get('action')
     if not user_id or not dash_id:
         return json.dumps({'ok': False}), 400
+
+    # Kiểm tra quyền
     db = get_db()
+    user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    admin_bps = _admin_bp_list()
+    if user and not _can_manage_user(admin_bps, user):
+        return json.dumps({'ok': False, 'error': 'Không có quyền'}), 403
+
     if action == 'add':
         try:
             db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (user_id, dash_id))
@@ -394,13 +532,22 @@ def perm_bulk():
     target_id = data.get('target_id')
     ids = data.get('ids', [])
     db = get_db()
+    admin_bps = _admin_bp_list()
+
     if mode == 'dash_col':
-        db.execute('DELETE FROM user_dashboards WHERE dashboard_id=?', (target_id,))
+        # Chỉ xóa/gán cho users mà admin quản lý
+        all_users = db.execute('SELECT * FROM users').fetchall()
+        managed_ids = set(u['id'] for u in _filter_users_by_bp(all_users, admin_bps))
+
+        for uid in managed_ids:
+            db.execute('DELETE FROM user_dashboards WHERE dashboard_id=? AND user_id=?', (target_id, uid))
         for uid in ids:
-            try:
-                db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (int(uid), target_id))
-            except:
-                pass
+            uid = int(uid)
+            if uid in managed_ids:
+                try:
+                    db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (uid, target_id))
+                except:
+                    pass
     db.commit()
     return json.dumps({'ok': True})
 
