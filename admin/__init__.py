@@ -1,8 +1,54 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, abort, flash, g
+import json as _json
 from database import get_db, hash_password, sql_now
 from auth import admin_required
 
+try:
+    from config import DB_TYPE
+except ImportError:
+    DB_TYPE = 'sqlite'
+
 bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+
+# ═══════════════════════════════════════════════
+# AUDIT LOG HELPERS
+# ═══════════════════════════════════════════════
+
+# Các field cần track thay đổi
+_AUDIT_FIELDS = ['display_name', 'khoi', 'bo_phan', 'chuc_vu', 'ma_nvkd_list',
+                 'email', 'ma_bp', 'role', 'is_active']
+
+
+def _log_audit(action, target_user_id, target_username='', changes=None):
+    """Ghi 1 dòng vào user_audit_log."""
+    try:
+        db = get_db()
+        admin = g.current_user
+        admin_id = admin['id']
+        admin_name = admin['username']
+        db.execute(
+            'INSERT INTO user_audit_log (target_user_id, target_username, changed_by_id, changed_by_username, action, changes) '
+            'VALUES (?, ?, ?, ?, ?, ?)',
+            (target_user_id, target_username, admin_id, admin_name, action,
+             _json.dumps(changes or {}, ensure_ascii=False)))
+        db.commit()
+    except Exception as e:
+        print(f'[AUDIT] Error: {e}')
+
+
+def _diff_user(old_row, new_data):
+    """So sánh old row với new form data, trả về dict {field: {old, new}} cho những field thay đổi."""
+    changes = {}
+    for f in _AUDIT_FIELDS:
+        try:
+            old_val = str(old_row[f] or '')
+        except:
+            old_val = ''
+        new_val = str(new_data.get(f, '') or '')
+        if old_val != new_val:
+            changes[f] = {'old': old_val, 'new': new_val}
+    return changes
 
 
 def _admin_bp_list():
@@ -151,6 +197,12 @@ def user_add():
                     pass
             db.commit()
         flash(f'Đã tạo tài khoản "{username}"', 'success')
+        if row:
+            _log_audit('create', new_uid, username, {
+                'display_name': display_name, 'ma_nvkd_list': ma_nvkd_list,
+                'ma_bp': ma_bp, 'role': role, 'khoi': khoi, 'bo_phan': bo_phan,
+                'dash_ids': request.form.getlist('dash_ids')
+            })
     except Exception as e:
         err = str(e).lower()
         if 'unique' in err or 'duplicate' in err:
@@ -197,6 +249,15 @@ def user_edit(user_id):
             return redirect(url_for('admin.admin_index') + '#users')
 
     if role not in ('admin', 'user'): role = 'user'
+
+    # Tính diff TRƯỚC khi update
+    new_data = {'display_name': display_name, 'khoi': khoi, 'bo_phan': bo_phan,
+                'chuc_vu': chuc_vu, 'ma_nvkd_list': ma_nvkd_list, 'email': email,
+                'ma_bp': ma_bp, 'role': role, 'is_active': str(is_active)}
+    changes = _diff_user(user, new_data)
+    if new_password:
+        changes['password'] = {'old': '***', 'new': '(đã đổi)'}
+
     if new_password:
         db.execute('UPDATE users SET display_name=?, khoi=?, bo_phan=?, chuc_vu=?, ma_nvkd_list=?, email=?, ma_bp=?, role=?, is_active=?, password_hash=?, password_plain=? WHERE id=?',
                     (display_name, khoi, bo_phan, chuc_vu, ma_nvkd_list, email, ma_bp, role, is_active, hash_password(new_password), new_password, user_id))
@@ -212,6 +273,8 @@ def user_edit(user_id):
         except Exception:
             pass
     db.commit()
+    if changes:
+        _log_audit('edit', user_id, user['username'], changes)
     flash('Đã cập nhật user', 'success')
     return redirect(url_for('admin.admin_index') + '#users')
 
@@ -232,6 +295,10 @@ def user_delete(user_id):
         flash('Bạn không có quyền xóa user này', 'error')
         return redirect(url_for('admin.admin_index') + '#users')
 
+    _log_audit('delete', user_id, user['username'], {
+        'display_name': user['display_name'] or '', 'ma_nvkd_list': user['ma_nvkd_list'] or '',
+        'ma_bp': user['ma_bp'] or '', 'role': user['role'] or ''
+    })
     db.execute('DELETE FROM user_dashboards WHERE user_id = ?', (user_id,))
     db.execute('DELETE FROM users WHERE id = ?', (user_id,))
     db.commit()
@@ -353,9 +420,11 @@ def user_permissions(user_id):
         return redirect(url_for('admin.admin_index') + '#users')
 
     db.execute('DELETE FROM user_dashboards WHERE user_id = ?', (user_id,))
-    for did in request.form.getlist('dash_ids'):
+    new_dids = request.form.getlist('dash_ids')
+    for did in new_dids:
         db.execute('INSERT INTO user_dashboards (user_id, dashboard_id) VALUES (?, ?)', (user_id, int(did)))
     db.commit()
+    _log_audit('perm_change', user_id, user['username'], {'dash_ids': new_dids})
     flash(f'Đã cập nhật quyền cho "{user["display_name"] or user["username"]}"', 'success')
     return redirect(url_for('admin.admin_index') + '#users')
 
@@ -381,8 +450,11 @@ def user_bp(user_id):
         if not new_bps.issubset(set(admin_bps)):
             return jf({'ok': False, 'error': 'BP ngoài phạm vi'}), 403
 
+    old_bp = user['ma_bp'] or ''
     db.execute('UPDATE users SET ma_bp = ? WHERE id = ?', (ma_bp, user_id))
     db.commit()
+    if old_bp != ma_bp:
+        _log_audit('bp_change', user_id, user['username'], {'ma_bp': {'old': old_bp, 'new': ma_bp}})
     return jf({'ok': True})
 
 
@@ -550,6 +622,76 @@ def perm_bulk():
                     pass
     db.commit()
     return json.dumps({'ok': True})
+
+
+# ═══════════════════════════════════════════════
+# AUDIT LOG API
+# ═══════════════════════════════════════════════
+
+@bp.route('/audit-log')
+@admin_required
+def audit_log_api():
+    import json
+    db = get_db()
+    days = request.args.get('days', '30')
+    q = request.args.get('q', '').strip().lower()
+    action = request.args.get('action', '').strip()
+    user_id = request.args.get('user_id', '').strip()
+
+    admin_bps = _admin_bp_list()
+
+    conditions = []
+    params = []
+
+    if user_id:
+        conditions.append('target_user_id = ?')
+        params.append(int(user_id))
+
+    if action:
+        conditions.append('action = ?')
+        params.append(action)
+
+    if days and days != '0':
+        if DB_TYPE == 'sqlserver':
+            conditions.append('created_at >= DATEADD(DAY, -CAST(? AS INT), GETDATE())')
+        else:
+            conditions.append("created_at >= datetime('now','localtime',?)")
+        params.append(int(days) if DB_TYPE == 'sqlserver' else f'-{days} days')
+
+    if q:
+        conditions.append('(LOWER(target_username) LIKE ? OR LOWER(changed_by_username) LIKE ?)')
+        params.extend([f'%{q}%', f'%{q}%'])
+
+    where = (' WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
+    try:
+        rows = db.execute(
+            f'SELECT * FROM user_audit_log{where} ORDER BY created_at DESC',
+            params
+        ).fetchall()
+    except Exception as e:
+        return json.dumps({'ok': False, 'error': f'Query error: {e}'}), 500
+
+    data = []
+    for r in rows:
+        if admin_bps:
+            target_uid = r['target_user_id']
+            target_user = db.execute('SELECT ma_bp FROM users WHERE id = ?', (target_uid,)).fetchone()
+            if target_user and not _can_manage_user(admin_bps, target_user):
+                continue
+
+        data.append({
+            'id': r['id'],
+            'target_user_id': r['target_user_id'],
+            'target_username': r['target_username'] or '',
+            'changed_by_id': r['changed_by_id'],
+            'changed_by_username': r['changed_by_username'] or '',
+            'action': r['action'] or '',
+            'changes': r['changes'] or '',
+            'created_at': str(r['created_at'] or '')[:19]
+        })
+
+    return json.dumps({'ok': True, 'data': data[:500]})
 
 
 # ═══════════════════════════════════════════════

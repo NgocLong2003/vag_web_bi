@@ -82,6 +82,7 @@ table.utbl{width:100%;border-collapse:collapse;font-size:12px}
     {% if not admin_bps %}<button class="tab-btn" data-tab="dashboards" onclick="switchTab('dashboards')">Dashboard<span class="cnt">{{ dashboards|length }}</span></button>{% endif %}
     <button class="tab-btn" data-tab="permissions" onclick="switchTab('permissions')">Phân quyền<span class="cnt">{{ perm_users|length }}</span></button>
     {% if not admin_bps %}<button class="tab-btn" data-tab="kbc" onclick="switchTab('kbc')">Kỳ báo cáo<span class="cnt">{{ ky_bao_cao|length }}</span></button>{% endif %}
+    <button class="tab-btn" data-tab="log" onclick="switchTab('log');loadAuditLog()">Log</button>
 </div>
 {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div style="max-width:1400px;margin:14px auto 0;padding:0 16px">{% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
 
@@ -93,6 +94,7 @@ table.utbl{width:100%;border-collapse:collapse;font-size:12px}
     <div class="user-search"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="userSearch" placeholder="Tìm tên, username, mã NVKD…" oninput="filterUsers()"/></div>
     <span class="user-count" id="userCount">{{ users|length }} người dùng</span>
     <button class="btn btn-blue" onclick="document.getElementById('addUserModal').classList.add('show')">+ Thêm</button>
+    {% if not admin_bps %}<button class="btn" style="background:var(--amber);color:#fff;font-size:11px;padding:6px 12px" onclick="pmBulkCreate()">Tạo TK hàng loạt</button>{% endif %}
   </div>
   <div class="utbl-wrap">
   <table class="utbl" id="userTable">
@@ -132,6 +134,7 @@ table.utbl{width:100%;border-collapse:collapse;font-size:12px}
       </td>
       <td>
         <div class="col-actions">
+          <button class="btn btn-sm" style="background:var(--amber-lt);color:var(--amber);border:1px solid #fbbf24" onclick="showUserLog({{ u.id }},'{{ u.display_name or u.username }}')">Lịch sử</button>
           <button class="btn btn-outline btn-sm btn-edit-user" data-id="{{ u.id }}" data-name="{{ u.display_name }}" data-email="{{ u.email or '' }}" data-khoi="{{ u.khoi }}" data-bp="{{ u.bo_phan }}" data-cv="{{ u.chuc_vu }}" data-nvkd="{{ u.ma_nvkd_list or '' }}" data-mabp="{{ u.ma_bp or '' }}" data-role="{{ u.role }}" data-active="{{ u.is_active }}" data-pw="{{ u.password_plain or '' }}">Sửa</button>
           <form method="POST" action="/admin/user/{{ u.id }}/delete" style="display:inline" onsubmit="return confirm('Xóa user {{ u.username }}?')"><button type="submit" class="btn btn-red btn-sm">Xóa</button></form>
         </div>
@@ -197,6 +200,40 @@ table.utbl{width:100%;border-collapse:collapse;font-size:12px}
 {% endif %}
 
 {% include "_tab_permissions.html" %}
+
+<!-- ══ TAB: LOG ══ -->
+<div class="tab-content" id="tab-log">
+<style>
+.log-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.log-toolbar input,.log-toolbar select{height:34px;padding:0 10px;border:1.5px solid var(--g2);border-radius:6px;font-size:12px;outline:none;background:var(--white);font-family:var(--sans)}
+.log-toolbar input:focus,.log-toolbar select:focus{border-color:var(--blue)}
+.log-wrap{overflow-x:auto;background:var(--white);border:1px solid var(--g2);border-radius:8px}
+table.log-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.log-tbl thead th{position:sticky;top:0;background:var(--g1);padding:8px 10px;text-align:left;font-size:10px;font-weight:800;color:var(--g4);text-transform:uppercase;border-bottom:2px solid var(--g2);white-space:nowrap}
+.log-tbl tbody tr{border-bottom:1px solid var(--g2)}.log-tbl tbody tr:hover{background:var(--blue-lt)}
+.log-tbl td{padding:6px 10px;vertical-align:top;white-space:nowrap}
+.log-tbl td.changes-cell{white-space:normal;max-width:400px;font-size:11px}
+.log-action{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.log-action.create{background:var(--green-lt);color:var(--green)}
+.log-action.edit{background:var(--blue-lt);color:var(--blue)}
+.log-action.delete{background:var(--red-lt);color:var(--red)}
+.log-action.perm_change{background:var(--purple-lt);color:var(--purple)}
+.log-action.bp_change{background:var(--amber-lt);color:var(--amber)}
+.chg-field{font-weight:700;color:var(--g5)}.chg-old{color:var(--red);text-decoration:line-through}.chg-new{color:var(--green)}
+.log-empty{padding:40px;text-align:center;color:var(--g4);font-size:13px}
+.log-more{display:block;width:100%;padding:10px;background:var(--g1);border:none;border-top:1px solid var(--g2);font-size:12px;font-weight:700;color:var(--blue);cursor:pointer;font-family:var(--sans)}.log-more:hover{background:var(--blue-lt)}
+</style>
+<div class="log-toolbar">
+  <input type="text" id="logSearch" placeholder="Tìm user, admin..." style="width:240px" oninput="loadAuditLog()">
+  <select id="logAction" onchange="loadAuditLog()"><option value="">Tất cả hành động</option><option value="create">Tạo mới</option><option value="edit">Chỉnh sửa</option><option value="delete">Xóa</option><option value="perm_change">Phân quyền</option><option value="bp_change">Đổi BP</option></select>
+  <select id="logDays" onchange="loadAuditLog()"><option value="7">7 ngày</option><option value="30" selected>30 ngày</option><option value="90">90 ngày</option><option value="0">Tất cả</option></select>
+  <span style="font-size:11px;color:var(--g4);margin-left:auto" id="logCount">—</span>
+</div>
+<div class="log-wrap"><table class="log-tbl"><thead><tr><th>Thời gian</th><th>Admin</th><th>Hành động</th><th>User bị sửa</th><th>Chi tiết thay đổi</th></tr></thead><tbody id="logBody"><tr><td colspan="5" class="log-empty">Nhấn tab Log để tải</td></tr></tbody></table></div>
+</div>
+
+<!-- ══ MODAL: Lịch sử user ══ -->
+<div class="modal-bg" id="userLogModal"><div class="modal" style="max-width:700px"><h3 id="userLogTitle">Lịch sử</h3><div id="userLogBody" style="max-height:60vh;overflow-y:auto"><p style="color:var(--g4);text-align:center;padding:20px">Đang tải...</p></div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('userLogModal')">Đóng</button></div></div></div>
 
 <!-- ══ MODALS ══ -->
 <div class="modal-bg" id="addUserModal"><div class="modal"><h3>Thêm người dùng</h3><form method="POST" action="/admin/user/add"><div class="modal-grid">
@@ -371,6 +408,72 @@ function togglePanel(t,uid){
 function toggleAll(t,uid){var id=(t==='bp'?'bpPanel':'pmPanel')+uid;var p=document.getElementById(id);var bx=p.querySelectorAll('input[type="checkbox"]');var al=Array.from(bx).every(function(c){return c.checked});bx.forEach(function(c){c.checked=!al});p.querySelector('.dd-toggle').textContent=al?'Chọn tất cả':'Bỏ chọn tất cả'}
 function saveBp(uid){var p=document.getElementById('bpPanel'+uid);var vs=Array.from(p.querySelectorAll('input:checked')).map(function(c){return c.value});fetch('/admin/user/'+uid+'/bp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_bp:vs.join(',')})}).then(function(){var b=p.parentElement.querySelector('.dd-badge');if(b){b.textContent=vs.length>0?vs.length:'∞';b.className='dd-badge'+(vs.length===0?' zero':'')};p.classList.remove('show');_op=null})}
 document.addEventListener('click',function(e){if(_op&&!e.target.closest('.dd-wrap')){var p=document.getElementById(_op);if(p)p.classList.remove('show');_op=null}});
+
+/* ═══ Audit Log ═══ */
+var _logLoaded=false;
+function formatChanges(changesStr){
+  try{var c=JSON.parse(changesStr);if(!c||typeof c!=='object')return changesStr}catch(e){return changesStr||'—'}
+  var parts=[];
+  Object.keys(c).forEach(function(k){
+    var v=c[k];
+    if(v&&typeof v==='object'&&('old' in v||'new' in v)){
+      parts.push('<span class="chg-field">'+k+'</span>: <span class="chg-old">'+(v.old||'(trống)')+'</span> → <span class="chg-new">'+(v['new']||'(trống)')+'</span>');
+    }else if(Array.isArray(v)){
+      parts.push('<span class="chg-field">'+k+'</span>: '+v.join(', '));
+    }else{
+      parts.push('<span class="chg-field">'+k+'</span>: '+String(v));
+    }
+  });
+  return parts.join('<br>')||'—';
+}
+function fmtTime(s){if(!s)return'';var d=s.replace('T',' ').substring(0,19);return d}
+var ACTION_LABELS={create:'Tạo mới',edit:'Chỉnh sửa','delete':'Xóa',perm_change:'Phân quyền',bp_change:'Đổi BP'};
+
+function renderLogRows(logs){
+  if(!logs.length)return'<tr><td colspan="5" class="log-empty">Không có dữ liệu</td></tr>';
+  return logs.map(function(r){
+    return'<tr><td style="font-family:var(--mono);font-size:10px;color:var(--g4)">'+fmtTime(r.created_at)+'</td>'
+      +'<td><strong>'+esc(r.changed_by_username)+'</strong></td>'
+      +'<td><span class="log-action '+(r.action||'')+'">'+(ACTION_LABELS[r.action]||r.action)+'</span></td>'
+      +'<td>'+esc(r.target_username)+' <span style="font-size:10px;color:var(--g4)">#'+r.target_user_id+'</span></td>'
+      +'<td class="changes-cell">'+formatChanges(r.changes)+'</td></tr>';
+  }).join('');
+}
+
+function loadAuditLog(){
+  var q=(document.getElementById('logSearch').value||'').trim();
+  var action=document.getElementById('logAction').value;
+  var days=document.getElementById('logDays').value;
+  var params='?days='+days;
+  if(q)params+='&q='+encodeURIComponent(q);
+  if(action)params+='&action='+action;
+  document.getElementById('logBody').innerHTML='<tr><td colspan="5" class="log-empty">Đang tải...</td></tr>';
+  fetch('/admin/audit-log'+params).then(function(r){return r.json()}).then(function(d){
+    if(!d.ok){document.getElementById('logBody').innerHTML='<tr><td colspan="5" class="log-empty">Lỗi: '+(d.error||'')+'</td></tr>';return}
+    document.getElementById('logBody').innerHTML=renderLogRows(d.data);
+    document.getElementById('logCount').textContent=d.data.length+' bản ghi';
+    _logLoaded=true;
+  }).catch(function(e){document.getElementById('logBody').innerHTML='<tr><td colspan="5" class="log-empty">Lỗi: '+e.message+'</td></tr>'});
+}
+
+function showUserLog(uid,name){
+  document.getElementById('userLogTitle').textContent='Lịch sử: '+name;
+  document.getElementById('userLogBody').innerHTML='<p style="color:var(--g4);text-align:center;padding:20px">Đang tải...</p>';
+  document.getElementById('userLogModal').classList.add('show');
+  fetch('/admin/audit-log?user_id='+uid+'&days=0').then(function(r){return r.json()}).then(function(d){
+    if(!d.ok||!d.data.length){document.getElementById('userLogBody').innerHTML='<p style="color:var(--g4);text-align:center;padding:20px">Chưa có lịch sử</p>';return}
+    var h='<table class="log-tbl" style="font-size:11px"><thead><tr><th>Thời gian</th><th>Admin</th><th>Hành động</th><th>Chi tiết</th></tr></thead><tbody>';
+    h+=d.data.map(function(r){
+      return'<tr><td style="font-family:var(--mono);font-size:10px;color:var(--g4)">'+fmtTime(r.created_at)+'</td>'
+        +'<td>'+esc(r.changed_by_username)+'</td>'
+        +'<td><span class="log-action '+(r.action||'')+'">'+(ACTION_LABELS[r.action]||r.action)+'</span></td>'
+        +'<td class="changes-cell">'+formatChanges(r.changes)+'</td></tr>';
+    }).join('');
+    h+='</tbody></table>';
+    document.getElementById('userLogBody').innerHTML=h;
+  }).catch(function(e){document.getElementById('userLogBody').innerHTML='<p style="color:var(--red);text-align:center;padding:20px">Lỗi: '+e.message+'</p>'});
+}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
 </script>
 </body>
 </html>

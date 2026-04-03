@@ -111,3 +111,28 @@ GO
 
 PRINT N'Database VietAnhBI OK';
 GO
+
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'user_audit_log')
+CREATE TABLE user_audit_log (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    target_user_id INT NOT NULL,          -- user bị sửa
+    target_username NVARCHAR(100) DEFAULT '',
+    changed_by_id INT NOT NULL,           -- admin đã sửa
+    changed_by_username NVARCHAR(100) DEFAULT '',
+    action NVARCHAR(20) NOT NULL,         -- 'create', 'edit', 'delete', 'perm_change', 'bp_change'
+    changes NVARCHAR(MAX) DEFAULT '',     -- JSON mô tả thay đổi: {"field": {"old": "x", "new": "y"}, ...}
+    created_at DATETIME DEFAULT GETDATE()
+);
+GO
+ 
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_audit_target')
+    CREATE INDEX idx_audit_target ON user_audit_log(target_user_id);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_audit_changed_by')
+    CREATE INDEX idx_audit_changed_by ON user_audit_log(changed_by_id);
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_audit_created')
+    CREATE INDEX idx_audit_created ON user_audit_log(created_at);
+GO
+ 
+PRINT N'user_audit_log OK';
+GO
