@@ -1,6 +1,6 @@
 -- $1=ngay_a, $2=ngay_b, $3=ma_bp, $4=ds_nvkd, $5=ds_kh
 WITH dt_raw AS (
-    SELECT ngay_ct, ma_kh_ct, ma_bp, ps_co, ten_kh, dien_giai
+    SELECT ngay_ct, ma_kh_ct, ma_bp, ps_co, ten_kh, dien_giai, ma_nvkd AS ma_nvkd_pt
     FROM PTHUBAOCO
     WHERE tk_co = '131' AND ma_bp != 'TN'
       AND (
@@ -13,6 +13,7 @@ WITH dt_raw AS (
 ),
 all_kh AS (
     SELECT DISTINCT ma_kh_ct FROM dt_raw
+    WHERE ma_nvkd_pt IS NULL OR ma_nvkd_pt = ''
 ),
 ds_hist AS (
     SELECT ds.ma_kh, ds.ma_nvkd, ds.ngay_ct
@@ -28,7 +29,7 @@ dt_with_nvkd AS (
     SELECT dt.ngay_ct,
         CASE WHEN dt.ngay_ct < '2026-02-01' THEN dt.ngay_ct - INTERVAL 1 DAY ELSE dt.ngay_ct END AS ngay_admin,
         dt.ma_kh_ct AS ma_kh, dt.ten_kh, dt.dien_giai, dt.ma_bp,
-        COALESCE(ds.ma_nvkd, dmkh.ma_nvkd) AS ma_nvkd,
+        COALESCE(NULLIF(dt.ma_nvkd_pt, ''), ds.ma_nvkd, dmkh.ma_nvkd) AS ma_nvkd,
         dt.ps_co AS doanhthu
     FROM dt_raw dt
     LEFT JOIN LATERAL (

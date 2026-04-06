@@ -4,8 +4,8 @@ DECLARE @MaBP NVARCHAR(MAX)='VB';
 DECLARE @DSMaNVKD NVARCHAR(MAX)=''; 
 DECLARE @DSMaKH NVARCHAR(MAX)='';
 
--- Lấy toàn bộ các dòng chi tiết từ PTHUBAOCO_VIEW (không GROUP BY, giữ đủ cột)
-SELECT dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, dt.ps_co, dt.ten_kh, dt.dien_giai
+-- Thêm dt.ma_nvkd vào SELECT
+SELECT dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, dt.ps_co, dt.ten_kh, dt.dien_giai, dt.ma_nvkd
 INTO #TempDoanhThu_DT FROM PTHUBAOCO_VIEW dt
 WHERE dt.tk_co='131' AND dt.ma_bp!='TN'
   AND ((dt.ngay_ct>='2026-01-01' AND dt.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
@@ -16,7 +16,10 @@ WHERE dt.tk_co='131' AND dt.ma_bp!='TN'
 
 CREATE INDEX IX_Temp_DT_KH ON #TempDoanhThu_DT(ma_kh_ct, ngay_ct);
 
-SELECT DISTINCT ma_kh_ct INTO #MaKH_CanTim_DT FROM #TempDoanhThu_DT;
+-- Chỉ tra doanh số / DMKH cho những dòng mà PTHUBAOCO chưa có ma_nvkd
+SELECT DISTINCT ma_kh_ct INTO #MaKH_CanTim_DT 
+FROM #TempDoanhThu_DT 
+WHERE ma_nvkd IS NULL OR ma_nvkd='';
 
 SELECT ds.ma_kh, ds.ma_nvkd, ds.ngay_ct INTO #TempDoanhSo_DT
 FROM BKHDBANHANG_VIEW ds INNER JOIN #MaKH_CanTim_DT mk ON ds.ma_kh=mk.ma_kh_ct;
@@ -28,7 +31,7 @@ FROM DMKHACHHANG_VIEW dmkh INNER JOIN #MaKH_CanTim_DT mk ON dmkh.ma_kh=mk.ma_kh_
 
 CREATE INDEX IX_Temp_DMKH_DT ON #TempDMKH_DT(ma_kh);
 
--- Không GROUP BY, giữ nguyên từng dòng chi tiết, chỉ bổ sung ma_nvkd
+-- COALESCE 3 tầng: PTHUBAOCO → Doanh số → DMKH
 SELECT
     dt.ngay_ct,
     CASE WHEN dt.ngay_ct<'2026-02-01' THEN DATEADD(DAY,-1,dt.ngay_ct) ELSE dt.ngay_ct END AS ngay_admin,
@@ -36,7 +39,7 @@ SELECT
     dt.ten_kh,
     dt.dien_giai,
     dt.ma_bp,
-    COALESCE(ds.ma_nvkd, dmkh.ma_nvkd) AS ma_nvkd,
+    COALESCE(NULLIF(dt.ma_nvkd,''), ds.ma_nvkd, dmkh.ma_nvkd) AS ma_nvkd,
     dt.ps_co AS doanhthu
 INTO #KetQua_DT
 FROM #TempDoanhThu_DT dt
@@ -51,7 +54,7 @@ OUTER APPLY (
     FROM #TempDMKH_DT tdmkh
     WHERE tdmkh.ma_kh=dt.ma_kh_ct
 ) dmkh
-WHERE @DSMaNVKD='' OR COALESCE(ds.ma_nvkd, dmkh.ma_nvkd) IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,','));
+WHERE @DSMaNVKD='' OR COALESCE(NULLIF(dt.ma_nvkd,''), ds.ma_nvkd, dmkh.ma_nvkd) IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD,','));
 
 SELECT ngay_ct, ngay_admin, ma_kh, ten_kh, dien_giai, ma_bp, ma_nvkd, doanhthu
 FROM #KetQua_DT

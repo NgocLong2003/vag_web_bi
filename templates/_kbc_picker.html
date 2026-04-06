@@ -1,0 +1,260 @@
+<!-- _kbc_picker.html — Shared KBC Picker (multi-select checkbox tree)
+     
+     TRƯỚC KHI INCLUDE, trang cần có:
+       - kbcList      (array từ API /api/ky-bao-cao)
+       - esc, iso     (từ _report_utils.js)
+       - isMobile, isLandscapePhone (từ _report_utils.js)
+     
+     SAU KHI INCLUDE, trang có:
+       - populateKBC()       → build tree từ kbcList
+       - currentKBC          → merged kỳ đang chọn (object hoặc null)
+     
+     TRANG CẦN DEFINE callback:
+       function onKBCSelected()  → gọi sau khi áp dụng chọn kỳ
+-->
+
+<style>
+.kbc-wrap{position:relative}
+.kbc-trigger{height:32px;padding:0 10px;min-width:130px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;color:var(--g7);outline:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap}
+.kbc-trigger:hover,.kbc-trigger.open{border-color:var(--blue-md,#4a78df);background:var(--white)}
+.kbc-trigger svg{width:13px;height:13px;stroke:var(--g4);fill:none;flex-shrink:0}
+.kbc-trigger .kbc-lbl{flex:1;overflow:hidden;text-overflow:ellipsis}
+.kbc-panel{position:fixed;z-index:9990;background:var(--white);border:1px solid var(--g2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.14);width:320px;display:none;flex-direction:column;overflow:hidden}
+.kbc-panel.open{display:flex}
+.kbc-panel-head{padding:8px 12px;border-bottom:1px solid var(--g1,#eef0f4);display:flex;align-items:center;gap:6px}
+.kbc-panel-head .kbc-apply{padding:4px 14px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);flex-shrink:0}
+.kbc-panel-head .kbc-apply:hover{opacity:.9}
+.kbc-panel-head input{flex:1;height:28px;padding:0 8px;border:1px solid var(--g2);border-radius:5px;font-size:11px;font-family:var(--sans);outline:none}.kbc-panel-head input:focus{border-color:var(--blue)}
+.kbc-tree{overflow-y:auto;max-height:360px;padding:4px 0}
+.ki{display:flex;align-items:center;height:34px;padding:0 12px;cursor:pointer;transition:background .08s;user-select:none;gap:4px}
+.ki:hover{background:var(--g0,#f7f8fa)}
+.ki input[type="checkbox"]{width:14px;height:14px;cursor:pointer;accent-color:var(--blue);flex-shrink:0}
+.ki-tog{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:3px;color:var(--g3);cursor:pointer}
+.ki-tog:hover{background:var(--g1);color:var(--g5)}
+.ki-tog svg{width:8px;height:8px;stroke:currentColor;fill:none;stroke-linecap:round}
+.ki-tog-sp{width:16px;flex-shrink:0}
+.ki-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-right:4px}
+.ki-dot.nam{background:var(--purple,#7c3aed)}.ki-dot.quy{background:var(--blue,#1a46c4)}.ki-dot.thang{background:var(--emr,#056944)}
+.ki-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12px;white-space:nowrap}
+.ki-name.lv0{font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.02em;color:var(--g5)}
+.ki-name.lv1{font-weight:700;font-size:12px;color:var(--g5)}
+.ki-name em{background:#fef9c3;font-style:normal;border-radius:2px}
+.ki-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;flex-shrink:0}
+.ki-badge.nam{background:#f3e8ff;color:var(--purple,#7c3aed)}.ki-badge.quy{background:var(--blue-lt,#eef2ff);color:var(--blue)}.ki-badge.thang{background:var(--emr-lt,#eafaf4);color:var(--emr)}
+@media(max-width:768px){
+  .kbc-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:75vh}
+  .kbc-tree{max-height:55vh}.ki{height:40px}
+}
+@media(orientation:landscape) and (max-height:500px) and (hover:none){
+  .kbc-panel{width:320px!important;left:0!important;right:auto!important;top:0!important;bottom:0!important;border-radius:0 10px 10px 0;max-height:100vh!important}
+  .kbc-tree{max-height:calc(100vh - 60px)}
+}
+</style>
+
+<div class="kbc-panel" id="kbc-panel">
+  <div class="kbc-panel-head">
+    <button class="kbc-apply" onclick="kbcApply()">Áp dụng</button>
+    <input type="text" id="kbc-q" placeholder="Tìm kỳ báo cáo..." oninput="renderKbcTree()"/>
+  </div>
+  <div class="kbc-tree" id="kbc-tree"></div>
+</div>
+
+<script>
+var currentKBC=null, kbcExp={}, kbcOpen=false;
+var _kbcByParent={}, _kbcMap={}, _kbcRK='__R__';
+var _kbcChecked=new Set();
+
+function populateKBC(){
+    _kbcByParent={};_kbcMap={};
+    var allIds={};
+    kbcList.forEach(function(k){allIds[k.id]=true;_kbcMap[k.id]=k});
+    kbcList.forEach(function(k){
+        var pid=(k.parent_id&&allIds[k.parent_id])?k.parent_id:_kbcRK;
+        if(!_kbcByParent[pid])_kbcByParent[pid]=[];
+        _kbcByParent[pid].push(k);
+    });
+    for(var pid in _kbcByParent){
+        _kbcByParent[pid].sort(function(a,b){return(a.sort_order||0)-(b.sort_order||0)});
+    }
+    if(!currentKBC){
+        var today=new Date().toISOString().substring(0,10);
+        var found=null;
+        kbcList.forEach(function(k){
+            if(k.loai_kbc==='Tháng'&&!found){
+                var bd=k.ngay_bd_thu_tien?String(k.ngay_bd_thu_tien).substring(0,10):'';
+                var kt=k.ngay_kt_thu_tien?String(k.ngay_kt_thu_tien).substring(0,10):'';
+                if(bd&&kt&&today>=bd&&today<=kt)found=k;
+            }
+        });
+        if(!found){var m=kbcList.filter(function(k){return k.loai_kbc==='Tháng'});if(m.length)found=m[0]}
+        if(found){_kbcChecked=new Set([found.id]);currentKBC=found}
+    }
+    _kbcChecked.forEach(function(id){
+        var k=_kbcMap[id];
+        if(k){var pid=k.parent_id;while(pid&&_kbcMap[pid]){kbcExp[pid]=true;pid=_kbcMap[pid].parent_id}}
+    });
+    updateKbcLabel();
+}
+
+function updateKbcLabel(){
+    var lbl=document.getElementById('kbc-lbl');if(!lbl)return;
+    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
+    if(months.length===0)lbl.textContent='Chọn kỳ...';
+    else if(months.length===1)lbl.textContent=months[0].ten_kbc;
+    else lbl.textContent=months.length+' kỳ';
+}
+
+function _kbcDescendants(id){
+    var ids=[];
+    function w(pid){var kids=_kbcByParent[pid];if(!kids)return;kids.forEach(function(k){ids.push(k.id);w(k.id)})}
+    w(id);return ids;
+}
+
+function _kbcAllChecked(id){
+    var k=_kbcMap[id];if(!k)return false;
+    if(k.loai_kbc==='Tháng')return _kbcChecked.has(id);
+    var kids=_kbcByParent[id];if(!kids||!kids.length)return false;
+    return kids.every(function(c){return _kbcAllChecked(c.id)});
+}
+
+function _kbcSomeChecked(id){
+    var k=_kbcMap[id];if(!k)return false;
+    if(k.loai_kbc==='Tháng')return _kbcChecked.has(id);
+    var kids=_kbcByParent[id];if(!kids)return false;
+    return kids.some(function(c){return _kbcSomeChecked(c.id)});
+}
+
+function renderKbcTree(){
+    var q=(document.getElementById('kbc-q')?document.getElementById('kbc-q').value:'').toLowerCase().trim();
+    var html='';
+    function match(k){
+        if(!q)return true;
+        if((k.ten_kbc+' '+k.ma_kbc).toLowerCase().indexOf(q)>=0)return true;
+        var kids=_kbcByParent[k.id]||[];
+        for(var i=0;i<kids.length;i++){if(match(kids[i]))return true}
+        return false;
+    }
+    function hl(t){
+        if(!q)return esc(t);var i=t.toLowerCase().indexOf(q);if(i<0)return esc(t);
+        return esc(t.substring(0,i))+'<em>'+esc(t.substring(i,i+q.length))+'</em>'+esc(t.substring(i+q.length));
+    }
+    function walk(pid,depth){
+        var kids=_kbcByParent[pid];if(!kids)return;
+        for(var ci=0;ci<kids.length;ci++){
+            var k=kids[ci];
+            if(!match(k))continue;
+            var isMonth=k.loai_kbc==='Tháng';
+            var hasKids=!!_kbcByParent[k.id];
+            var isE=kbcExp[k.id]===true;
+            if(q)isE=true;
+            var ind=depth*18;
+            var loaiLow=k.loai_kbc==='Năm'?'nam':k.loai_kbc==='Quý'?'quy':'thang';
+            var lvClass=depth===0?'lv0':depth===1?'lv1':'';
+            var tog=hasKids?'<span class="ki-tog" data-togid="'+k.id+'"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="ki-tog-sp"></span>';
+            var checked=isMonth?_kbcChecked.has(k.id):_kbcAllChecked(k.id);
+            var indet=!checked&&!isMonth&&_kbcSomeChecked(k.id);
+            html+='<div class="ki" data-kid="'+k.id+'" style="padding-left:'+(8+ind)+'px">'
+                +tog
+                +'<input type="checkbox" data-kid="'+k.id+'"'+(checked?' checked':'')+(indet?' data-indet="1"':'')+'>'
+                +'<span class="ki-dot '+loaiLow+'"></span>'
+                +'<span class="ki-name '+lvClass+'">'+hl(k.ten_kbc)+'</span>'
+                +'<span class="ki-badge '+loaiLow+'">'+k.loai_kbc+'</span>'
+                +'</div>';
+            if(hasKids&&isE){walk(k.id,depth+1)}
+        }
+    }
+    walk(_kbcRK,0);
+    var container=document.getElementById('kbc-tree');
+    container.innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">Không tìm thấy</div>';
+    // Set indeterminate state
+    container.querySelectorAll('input[data-indet="1"]').forEach(function(cb){cb.indeterminate=true});
+    // Bind events
+    container.querySelectorAll('.ki').forEach(function(el){
+        el.addEventListener('click',function(e){
+            var togEl=e.target.closest('.ki-tog');
+            if(togEl){e.preventDefault();e.stopPropagation();var tid=parseInt(togEl.dataset.togid);kbcExp[tid]=!kbcExp[tid];renderKbcTree();return}
+            e.preventDefault();e.stopPropagation();
+            var id=parseInt(this.dataset.kid);
+            kbcToggleCheck(id);
+        });
+    });
+}
+
+function kbcToggleCheck(id){
+    var k=_kbcMap[id];if(!k)return;
+    if(k.loai_kbc==='Tháng'){
+        if(_kbcChecked.has(id))_kbcChecked.delete(id);else _kbcChecked.add(id);
+    }else{
+        var allOn=_kbcAllChecked(id);
+        var desc=_kbcDescendants(id);
+        desc.forEach(function(did){
+            var dk=_kbcMap[did];
+            if(dk&&dk.loai_kbc==='Tháng'){
+                if(allOn)_kbcChecked.delete(did);else _kbcChecked.add(did);
+            }
+        });
+        // Auto-expand when checking
+        if(!allOn)kbcExp[id]=true;
+    }
+    renderKbcTree();
+}
+
+function kbcApply(){
+    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
+    if(months.length===0){currentKBC=null;updateKbcLabel();closeKbcPicker();return}
+    if(months.length===1){currentKBC=months[0]}
+    else{currentKBC=mergeKBCs(months)}
+    updateKbcLabel();
+    closeKbcPicker();
+    if(typeof onKBCSelected==='function')onKBCSelected();
+}
+
+function mergeKBCs(months){
+    function minD(arr){var v=arr.filter(Boolean);v.sort();return v[0]||null}
+    function maxD(arr){var v=arr.filter(Boolean);v.sort();return v[v.length-1]||null}
+    return{
+        id:months[0].id,ten_kbc:months.length+' kỳ',loai_kbc:'merged',
+        ngay_du_no_dau_ki:minD(months.map(function(k){return iso(k.ngay_du_no_dau_ki)})),
+        ngay_bd_xuat_ban:minD(months.map(function(k){return iso(k.ngay_bd_xuat_ban)})),
+        ngay_kt_xuat_ban:maxD(months.map(function(k){return iso(k.ngay_kt_xuat_ban)})),
+        ngay_bd_thu_tien:minD(months.map(function(k){return iso(k.ngay_bd_thu_tien)})),
+        ngay_kt_thu_tien:maxD(months.map(function(k){return iso(k.ngay_kt_thu_tien)})),
+        ngay_bd_lan_ki:minD(months.map(function(k){return iso(k.ngay_bd_lan_ki)})),
+        ngay_kt_lan_ki:maxD(months.map(function(k){return iso(k.ngay_kt_lan_ki)})),
+        ngay_du_no_cuoi_ki:maxD(months.map(function(k){return iso(k.ngay_du_no_cuoi_ki)}))
+    };
+}
+
+function openKbcPicker(){
+    kbcOpen=true;
+    var p=document.getElementById('kbc-panel');
+    var tr=document.getElementById('kbc-trigger');
+    if(isLandscapePhone()){
+        p.style.position='fixed';p.style.top='0';p.style.left='0';p.style.right='auto';p.style.bottom='0';
+        p.style.width='320px';p.style.borderRadius='0 10px 10px 0';p.style.maxHeight='100vh';
+    }else if(isMobile()){
+        p.style.position='fixed';p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';
+        p.style.width='100%';p.style.borderRadius='16px 16px 0 0';p.style.maxHeight='75vh';
+    }else{
+        p.style.position='fixed';
+        var r=tr.getBoundingClientRect();
+        p.style.top=(r.bottom+6)+'px';
+        p.style.left=Math.min(r.left,window.innerWidth-330)+'px';
+        p.style.bottom='auto';p.style.right='auto';
+        p.style.width='320px';p.style.borderRadius='10px';p.style.maxHeight='';
+    }
+    p.classList.add('open');tr.classList.add('open');
+    var qi=document.getElementById('kbc-q');if(qi)qi.value='';
+    renderKbcTree();
+}
+function closeKbcPicker(){
+    kbcOpen=false;
+    document.getElementById('kbc-panel').classList.remove('open');
+    var tr=document.getElementById('kbc-trigger');if(tr)tr.classList.remove('open');
+}
+function toggleKbcPicker(){kbcOpen?closeKbcPicker():openKbcPicker()}
+
+document.addEventListener('mousedown',function(e){
+    if(kbcOpen&&!document.getElementById('kbc-trigger').contains(e.target)&&!document.getElementById('kbc-panel').contains(e.target))closeKbcPicker();
+});
+</script>

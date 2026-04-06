@@ -1,6 +1,6 @@
 -- $1=ngay_a, $2=ngay_b, $3=ngay_a2 (NULL=skip nhóm B), $4=ngay_b2, $5=ma_bp, $6=ds_nvkd, $7=ds_kh
 WITH dt_raw AS (
-    SELECT ngay_ct, ma_kh_ct, ma_bp, ps_co
+    SELECT ngay_ct, ma_kh_ct, ma_bp, ps_co, ma_nvkd AS ma_nvkd_pt
     FROM PTHUBAOCO
     WHERE tk_co = '131' AND ma_bp != 'TN'
       AND (
@@ -15,8 +15,10 @@ WITH dt_raw AS (
         (ma_bp NOT IN ('VA','VB','SF') AND $3 IS NOT NULL AND ngay_ct >= CAST($3 AS DATE) AND ngay_ct <= CAST($4 AS DATE))
       )
 ),
+-- Chỉ tra doanh số cho những dòng PTHUBAOCO chưa có ma_nvkd
 pairs AS (
     SELECT DISTINCT ma_kh_ct, ngay_ct FROM dt_raw
+    WHERE ma_nvkd_pt IS NULL OR ma_nvkd_pt = ''
 ),
 ds_hist AS (
     SELECT ds.ma_kh, ds.ma_nvkd, ds.ngay_ct
@@ -35,18 +37,18 @@ nvkd_best AS (
 ),
 dmkh AS (
     SELECT DISTINCT ma_kh, ma_nvkd FROM DMKHACHHANG
-    WHERE ma_kh IN (SELECT DISTINCT ma_kh_ct FROM pairs)
+    WHERE ma_kh IN (SELECT DISTINCT ma_kh_ct FROM dt_raw WHERE ma_nvkd_pt IS NULL OR ma_nvkd_pt = '')
 )
 SELECT dt.ngay_ct,
     CASE WHEN dt.ngay_ct < '2026-02-01' THEN dt.ngay_ct - INTERVAL 1 DAY ELSE dt.ngay_ct END AS ngay_admin,
     dt.ma_kh_ct AS ma_kh,
     dt.ma_bp,
-    COALESCE(m.ma_nvkd, dmkh.ma_nvkd) AS ma_nvkd,
+    COALESCE(NULLIF(dt.ma_nvkd_pt, ''), m.ma_nvkd, dmkh.ma_nvkd) AS ma_nvkd,
     SUM(dt.ps_co) AS doanhthu
 FROM dt_raw dt
 LEFT JOIN nvkd_best m ON m.ma_kh_ct = dt.ma_kh_ct AND m.ngay_ct = dt.ngay_ct
 LEFT JOIN dmkh ON dmkh.ma_kh = dt.ma_kh_ct
-WHERE $6 = '' OR COALESCE(m.ma_nvkd, dmkh.ma_nvkd) IN (SELECT TRIM(unnest(string_split($6, ','))))
-GROUP BY dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, COALESCE(m.ma_nvkd, dmkh.ma_nvkd),
+WHERE $6 = '' OR COALESCE(NULLIF(dt.ma_nvkd_pt, ''), m.ma_nvkd, dmkh.ma_nvkd) IN (SELECT TRIM(unnest(string_split($6, ','))))
+GROUP BY dt.ngay_ct, dt.ma_kh_ct, dt.ma_bp, COALESCE(NULLIF(dt.ma_nvkd_pt, ''), m.ma_nvkd, dmkh.ma_nvkd),
     CASE WHEN dt.ngay_ct < '2026-02-01' THEN dt.ngay_ct - INTERVAL 1 DAY ELSE dt.ngay_ct END
 ORDER BY ngay_admin, ma_kh, ma_nvkd

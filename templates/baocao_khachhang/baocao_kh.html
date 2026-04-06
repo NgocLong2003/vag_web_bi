@@ -24,7 +24,9 @@ thead th:nth-child(2){text-align:left}
     <span id="kh-chip-area"></span>
     <span class="bp-label">BP:</span><select class="bp-select" id="bp-select" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select>
     <div class="v-div"></div>
-    <select class="bp-select" id="sel-kbc" onchange="onKBCChange()" style="min-width:120px"><option>Đang tải...</option></select>
+    <div class="kbc-wrap">
+      <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()"><svg viewBox="0 0 16 16" stroke-width="1.8"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="10" x2="9" y2="10"/></svg><span class="kbc-lbl" id="kbc-lbl">Đang tải...</span></div>
+    </div>
     <div class="v-div"></div>
     <button class="tbtn" id="btn-exp" onclick="toggleExp()"><svg viewBox="0 0 16 16" stroke-width="2"><polyline points="4,10 8,6 12,10"/></svg>Thu</button>
     <button class="tbtn" onclick="loadAllData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải lại</button>
@@ -69,7 +71,7 @@ const USER_BP='{{ user_ma_bp }}';
 <script>
 let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=true;
 let selectedBP='';
-let kbcList=[],currentKBC=null;
+let kbcList=[];
 let lastRenderedRows=[],lastDispCols=[];
 let ttSplit=false;
 let colData={du_no_dk:{},ban_ra:{},tt1:{},tt2:{},du_no_tk:{},du_no_ct:{},du_no_ck:{}};
@@ -90,6 +92,7 @@ function onKHCleared(){if(currentKBC)loadAllData()}
 </script>
 
 {% include "_nv_picker.html" %}
+{% include "_kbc_picker.html" %}
 
 <!-- ═══ PAGE-SPECIFIC JS: data loading, rendering, export ═══ -->
 <script>
@@ -123,14 +126,7 @@ async function init(){
     }catch(e){hideLoading();setS('err','Lỗi');document.getElementById('emptyMsg').textContent='⚠ '+e.message;toast(e.message,'err')}
 }
 
-function populateKBC(){
-    const sel=document.getElementById('sel-kbc');const today=new Date().toISOString().substring(0,10);let defId=null;
-    kbcList.forEach(k=>{if(k.loai_kbc==='Tháng'){const bd=iso(k.ngay_bd_thu_tien),kt=iso(k.ngay_kt_thu_tien);if(bd&&kt&&today>=bd&&today<=kt&&!defId)defId=k.id}});
-    if(!defId&&kbcList.length)defId=kbcList[0].id;
-    sel.innerHTML=kbcList.map(k=>'<option value="'+k.id+'"'+(k.id===defId?' selected':'')+'>'+esc(k.ten_kbc)+' ('+k.loai_kbc+')</option>').join('');
-    currentKBC=defId?kbcList.find(k=>k.id===defId):null;
-}
-function onKBCChange(){currentKBC=kbcList.find(k=>k.id===parseInt(document.getElementById('sel-kbc').value))||null;if(currentKBC)loadAllData()}
+function onKBCSelected(){if(currentKBC)loadAllData()}
 function onBPChange(v){selectedBP=v;if(currentKBC)loadAllData()}
 
 /* ─── Fetch & Parse ─── */
@@ -297,9 +293,7 @@ function openSheet(type){
         body='<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="kh-search-wrap" style="width:100%;height:40px"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" placeholder="Tìm KH..." oninput="onKHInput(this.value)" style="width:100%"/></div></div></div>'
         +'<div class="sheet-section"><div class="sheet-section-label">Bộ phận</div><div class="sheet-row"><select class="bp-select" style="width:100%;height:40px;font-size:13px" onchange="onBPChange(this.value);document.getElementById(\'bp-select\').value=this.value" id="mob-bp-sel"></select></div></div>';
     }else if(type==='kbc'){
-        title='Kỳ báo cáo';body='<div class="sheet-section">';
-        kbcList.forEach(k=>{const act=currentKBC&&currentKBC.id===k.id;body+='<div class="sheet-btn'+(act?' green':'')+'" onclick="document.getElementById(\'sel-kbc\').value='+k.id+';onKBCChange();closeSheet()" style="margin-bottom:8px'+(act?';border-color:var(--emr);background:var(--emr-lt)':'')+'">'+esc(k.ten_kbc)+' ('+k.loai_kbc+')</div>'});
-        body+='</div>';
+        closeSheet();openKbcPicker();return;
     }else if(type==='actions'){
         title='Thao tác';
         body='<div style="display:flex;flex-direction:column;gap:8px"><div class="sheet-btn" onclick="toggleExp();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><polyline points="5,8 10,13 15,8"/></svg>'+(allExp?'Thu gọn':'Mở rộng')+'</div><div class="sheet-btn" onclick="loadAllData();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M3 10a7 7 0 1 1 1.2 4"/><polyline points="3,6 3,10 7,10"/></svg>Tải lại</div><div class="sheet-btn green" onclick="exportExcel();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M10 3v10m0 0l-4-4m4 4l4-4"/><path d="M3 14v2a1.5 1.5 0 001.5 1.5h11A1.5 1.5 0 0017 16v-2"/></svg>Xuất file Excel</div></div>';
