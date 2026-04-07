@@ -1,0 +1,99 @@
+<!-- ══ TAB: KỲ BÁO CÁO ══ -->
+<div class="tab-content" id="tab-kbc">
+<style>
+.kbc-tree{display:flex;flex-direction:column;gap:0}
+.kbc-node{border:1px solid var(--g2);border-radius:8px;background:var(--white);margin-bottom:6px;overflow:hidden}
+.kbc-node.lv0{border-left:3px solid var(--purple)}
+.kbc-node.lv1{border-left:3px solid var(--blue);margin-left:24px}
+.kbc-node.lv2{border-left:3px solid var(--green);margin-left:48px}
+.kbc-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;gap:8px;flex-wrap:wrap;cursor:pointer}
+.kbc-header:hover{background:var(--g1)}
+.kbc-info{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.kbc-dates{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px 14px;padding:0 14px 10px}
+.kbc-dates .card-field{gap:0}.kbc-dates .card-field .lbl{font-size:9px}.kbc-dates .card-field .val{font-size:12px}
+.kbc-dates.hidden{display:none}
+</style>
+<div class="kbc-tree">
+{% set kbc_map = {} %}
+{% for k in ky_bao_cao %}{% if kbc_map.update({k.id: k}) %}{% endif %}{% endfor %}
+{% set children_map = {} %}
+{% for k in ky_bao_cao %}{% if k.parent_id %}{% if children_map.update({k.parent_id: (children_map.get(k.parent_id, []) + [k])}) %}{% endif %}{% endif %}{% endfor %}
+
+{% macro render_kbc(k, level) %}
+<div class="kbc-node lv{{ level }}">
+    <div class="kbc-header" onclick="var d=this.nextElementSibling;if(d)d.classList.toggle('hidden')">
+        <div class="kbc-info">
+            <code style="font-family:var(--mono);font-size:11px;background:var(--g1);padding:2px 6px;border-radius:4px;color:var(--g4)">{{ k.ma_kbc }}</code>
+            <span style="font-weight:700;font-size:13px">{{ k.ten_kbc }}</span>
+            <span class="badge {{ k.loai_kbc }}">{{ k.loai_kbc }}</span>
+        </div>
+        <div class="card-actions">
+            <button class="btn btn-outline btn-edit-kbc" onclick="event.stopPropagation()" data-id="{{ k.id }}" data-ma="{{ k.ma_kbc }}" data-ten="{{ k.ten_kbc }}" data-loai="{{ k.loai_kbc }}" data-parent="{{ k.parent_id or '' }}" data-sort="{{ k.sort_order or 0 }}" data-d1="{{ fmtiso(k.ngay_bd_xuat_ban) }}" data-d2="{{ fmtiso(k.ngay_kt_xuat_ban) }}" data-d3="{{ fmtiso(k.ngay_bd_thu_tien) }}" data-d4="{{ fmtiso(k.ngay_kt_thu_tien) }}" data-d5="{{ fmtiso(k.ngay_bd_lan_ki) }}" data-d6="{{ fmtiso(k.ngay_kt_lan_ki) }}" data-d7="{{ fmtiso(k.ngay_du_no_dau_ki) }}" data-d8="{{ fmtiso(k.ngay_du_no_cuoi_ki) }}">Sửa</button>
+            <form method="POST" action="/admin/kbc/{{ k.id }}/delete" style="display:inline" onsubmit="event.stopPropagation();return confirm('Xóa kỳ {{ k.ten_kbc }}?')"><button type="submit" class="btn btn-red" onclick="event.stopPropagation()">Xóa</button></form>
+        </div>
+    </div>
+    {% if k.loai_kbc == 'Tháng' %}
+    <div class="kbc-dates hidden">
+        <div class="card-field"><span class="lbl">BĐ xuất bán</span><span class="val"><code>{{ fmtd(k.ngay_bd_xuat_ban) }}</code></span></div>
+        <div class="card-field"><span class="lbl">KT xuất bán</span><span class="val"><code>{{ fmtd(k.ngay_kt_xuat_ban) }}</code></span></div>
+        <div class="card-field"><span class="lbl">BĐ thu tiền</span><span class="val"><code>{{ fmtd(k.ngay_bd_thu_tien) }}</code></span></div>
+        <div class="card-field"><span class="lbl">KT thu tiền</span><span class="val"><code>{{ fmtd(k.ngay_kt_thu_tien) }}</code></span></div>
+        <div class="card-field"><span class="lbl">BĐ lân kì</span><span class="val"><code>{{ fmtd(k.ngay_bd_lan_ki) }}</code></span></div>
+        <div class="card-field"><span class="lbl">KT lân kì</span><span class="val"><code>{{ fmtd(k.ngay_kt_lan_ki) }}</code></span></div>
+        <div class="card-field"><span class="lbl">Dư nợ ĐK</span><span class="val"><code>{{ fmtd(k.ngay_du_no_dau_ki) }}</code></span></div>
+        <div class="card-field"><span class="lbl">Dư nợ CK</span><span class="val"><code>{{ fmtd(k.ngay_du_no_cuoi_ki) }}</code></span></div>
+    </div>
+    {% endif %}
+</div>
+{% set kids = children_map.get(k.id, []) %}
+{% for child in kids|sort(attribute='sort_order') %}
+    {{ render_kbc(child, level + 1) }}
+{% endfor %}
+{% endmacro %}
+
+{% set roots = ky_bao_cao|selectattr('parent_id','none')|list %}
+{% for k in roots|sort(attribute='sort_order') %}
+    {{ render_kbc(k, 0) }}
+{% endfor %}
+{% for k in ky_bao_cao if k.parent_id and k.parent_id not in kbc_map %}
+    {{ render_kbc(k, 0) }}
+{% endfor %}
+</div>
+<button class="btn-add" onclick="document.getElementById('addKbcModal').classList.add('show');togKbcDates('add')">+ Thêm kỳ báo cáo</button>
+</div>
+
+<!-- ══ MODALS: KBC Add/Edit ══ -->
+<div class="modal-bg" id="addKbcModal"><div class="modal"><h3>Thêm kỳ báo cáo</h3><form method="POST" action="/admin/kbc/add"><div class="modal-col1">
+<div class="fg"><label>Loại</label><select name="loai_kbc" id="addKbcLoai" required onchange="togKbcDates('add')"><option value="Tháng">Tháng</option><option value="Quý">Quý</option><option value="Năm">Năm</option></select></div>
+<div class="fg"><label>Thuộc kỳ cha</label><select name="parent_id" id="addKbcParent"><option value="">— Không (gốc) —</option>{% for k in ky_bao_cao %}{% if k.loai_kbc != 'Tháng' %}<option value="{{ k.id }}" data-loai="{{ k.loai_kbc }}">{{ k.ten_kbc }} ({{ k.loai_kbc }})</option>{% endif %}{% endfor %}</select></div>
+<div class="fg"><label>Mã kỳ</label><input type="text" name="ma_kbc" required placeholder="T01-2026"></div>
+<div class="fg"><label>Tên</label><input type="text" name="ten_kbc" required placeholder="Tháng 01/2026"></div>
+<div class="fg"><label>Thứ tự</label><input type="number" name="sort_order" value="0"></div>
+<div id="addKbcDates">
+<div class="fg"><label>BĐ xuất bán</label><input type="date" name="ngay_bd_xuat_ban"></div>
+<div class="fg"><label>KT xuất bán</label><input type="date" name="ngay_kt_xuat_ban"></div>
+<div class="fg"><label>BĐ thu tiền</label><input type="date" name="ngay_bd_thu_tien"></div>
+<div class="fg"><label>KT thu tiền</label><input type="date" name="ngay_kt_thu_tien"></div>
+<div class="fg"><label>BĐ lân kì</label><input type="date" name="ngay_bd_lan_ki"></div>
+<div class="fg"><label>KT lân kì</label><input type="date" name="ngay_kt_lan_ki"></div>
+<div class="fg"><label>Dư nợ ĐK</label><input type="date" name="ngay_du_no_dau_ki"></div>
+<div class="fg"><label>Dư nợ CK</label><input type="date" name="ngay_du_no_cuoi_ki"></div>
+</div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('addKbcModal')">Hủy</button><button type="submit" class="btn btn-blue">Thêm</button></div></form></div></div>
+
+<div class="modal-bg" id="editKbcModal"><div class="modal"><h3>Chỉnh sửa kỳ báo cáo</h3><form method="POST" id="ekF"><div class="modal-col1">
+<div class="fg"><label>Loại</label><select name="loai_kbc" id="ekLoai" required onchange="togKbcDates('edit')"><option value="Tháng">Tháng</option><option value="Quý">Quý</option><option value="Năm">Năm</option></select></div>
+<div class="fg"><label>Thuộc kỳ cha</label><select name="parent_id" id="ekParent"><option value="">— Không (gốc) —</option>{% for k in ky_bao_cao %}{% if k.loai_kbc != 'Tháng' %}<option value="{{ k.id }}" data-loai="{{ k.loai_kbc }}">{{ k.ten_kbc }} ({{ k.loai_kbc }})</option>{% endif %}{% endfor %}</select></div>
+<div class="fg"><label>Tên</label><input type="text" name="ten_kbc" id="ekTen" required></div>
+<div class="fg"><label>Thứ tự</label><input type="number" name="sort_order" id="ekSort" value="0"></div>
+<div id="editKbcDates">
+<div class="fg"><label>BĐ xuất bán</label><input type="date" name="ngay_bd_xuat_ban" id="ekD1"></div>
+<div class="fg"><label>KT xuất bán</label><input type="date" name="ngay_kt_xuat_ban" id="ekD2"></div>
+<div class="fg"><label>BĐ thu tiền</label><input type="date" name="ngay_bd_thu_tien" id="ekD3"></div>
+<div class="fg"><label>KT thu tiền</label><input type="date" name="ngay_kt_thu_tien" id="ekD4"></div>
+<div class="fg"><label>BĐ lân kì</label><input type="date" name="ngay_bd_lan_ki" id="ekD5"></div>
+<div class="fg"><label>KT lân kì</label><input type="date" name="ngay_kt_lan_ki" id="ekD6"></div>
+<div class="fg"><label>Dư nợ ĐK</label><input type="date" name="ngay_du_no_dau_ki" id="ekD7"></div>
+<div class="fg"><label>Dư nợ CK</label><input type="date" name="ngay_du_no_cuoi_ki" id="ekD8"></div>
+</div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editKbcModal')">Hủy</button><button type="submit" class="btn btn-blue">Lưu</button></div></form></div></div>

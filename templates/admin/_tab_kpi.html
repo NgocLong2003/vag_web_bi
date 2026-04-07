@@ -1,0 +1,244 @@
+<!-- ══ TAB: KPI ══ -->
+<div class="tab-content" id="tab-kpi">
+<style>
+#tab-kpi{max-width:none!important;padding:0!important;height:calc(100vh - 108px)}
+#tab-kpi.active{display:flex;flex-direction:column}
+.kpi-toolbar{display:flex;align-items:center;gap:8px;padding:8px 16px;flex-wrap:wrap;border-bottom:1px solid var(--g2);background:var(--white);flex-shrink:0}
+.kpi-toolbar select,.kpi-toolbar button{height:32px;font-family:var(--sans)}
+.kpi-toolbar select{padding:0 8px;border:1.5px solid var(--g2);border-radius:6px;font-size:12px;outline:none;background:var(--white)}.kpi-toolbar select:focus{border-color:var(--blue)}
+.kpi-tbtn{padding:0 12px;border-radius:6px;border:1px solid var(--g2);background:var(--white);font-size:11px;font-weight:600;color:var(--g5);cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;height:32px}.kpi-tbtn:hover{background:var(--g1)}.kpi-tbtn svg{width:12px;height:12px;stroke:currentColor;fill:none}
+.kpi-tbtn.green{border-color:#2db87e;color:var(--green)}.kpi-tbtn.green:hover{background:var(--green-lt)}
+.kpi-views{display:flex;border:1.5px solid var(--g2);border-radius:6px;overflow:hidden;height:32px}
+.kpi-view-btn{padding:0 12px;border:none;background:var(--white);font-size:11px;font-weight:700;color:var(--g4);cursor:pointer;font-family:var(--sans);display:flex;align-items:center;gap:4px;border-right:1px solid var(--g2)}.kpi-view-btn:last-child{border-right:none}
+.kpi-view-btn:hover{background:var(--g1)}.kpi-view-btn.active{background:var(--blue);color:#fff}
+.kpi-view-btn svg{width:13px;height:13px;stroke:currentColor;fill:none}
+.kpi-stats{font-size:11px;color:var(--g4)}
+
+/* KBC Picker trigger */
+.kbc-pick-trigger{height:32px;padding:0 10px;border:1.5px solid var(--g2);border-radius:6px;font-size:12px;font-family:var(--sans);background:var(--white);cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.kbc-pick-trigger:hover{border-color:var(--blue)}
+.kbc-pick-trigger .kbc-badge{font-size:9px;font-weight:800;padding:1px 5px;border-radius:6px;background:var(--blue);color:#fff;min-width:14px;text-align:center}
+/* KBC dropdown panel */
+.kbc-pick-panel{display:none;position:fixed;z-index:9999;background:var(--white);border:1px solid var(--g2);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:260px;max-height:400px;overflow-y:auto;padding:8px 0}
+.kbc-pick-panel.show{display:block}
+.kbc-pick-item{display:flex;align-items:center;gap:6px;padding:4px 12px;cursor:pointer;font-size:12px}.kbc-pick-item:hover{background:var(--g1)}
+.kbc-pick-item input{width:14px;height:14px;cursor:pointer}
+.kbc-pick-item label{cursor:pointer;flex:1}
+.kbc-pick-item.lv0{font-weight:700;color:var(--purple)}.kbc-pick-item.lv1{padding-left:28px;font-weight:600;color:var(--blue)}.kbc-pick-item.lv2{padding-left:44px;color:var(--g5)}
+.kbc-pick-footer{padding:6px 12px;border-top:1px solid var(--g1);display:flex;justify-content:space-between;align-items:center}
+.kbc-pick-footer button{padding:4px 12px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);border:none}
+.kbc-pick-apply{background:var(--blue);color:#fff}.kbc-pick-clear{background:var(--g1);color:var(--g4)}
+
+/* Main layout: left panel + content */
+.kpi-main{display:flex;flex:1;overflow:hidden}
+.kpi-left{width:280px;min-width:280px;border-right:1px solid var(--g2);background:var(--white);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+.kpi-left.hidden{display:none}
+.kpi-left-header{padding:10px 12px;border-bottom:1px solid var(--g1);font-size:12px;font-weight:700;color:var(--g5);display:flex;justify-content:space-between;align-items:center}
+.kpi-left-close{background:none;border:none;font-size:16px;color:var(--g4);cursor:pointer;padding:0 4px}.kpi-left-close:hover{color:var(--g6)}
+.kpi-left-body{flex:1;overflow-y:auto;padding:8px 0}
+.kpi-left-name{padding:4px 12px;font-size:14px;font-weight:700;color:var(--g6)}
+.kpi-left-code{padding:0 12px 8px;font-size:10px;font-family:var(--mono);color:var(--g4)}
+.kpi-left-section{padding:4px 12px;font-size:10px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.04em}
+.kpi-left-row{display:flex;justify-content:space-between;align-items:center;padding:4px 12px;font-size:12px;border-bottom:1px solid var(--g1)}
+.kpi-left-row:hover{background:var(--g1)}
+.kpi-left-row .lbl{color:var(--g4);font-weight:600}
+.kpi-left-row .val{font-family:var(--mono);font-size:11px;color:var(--g6);font-weight:600}
+.kpi-left-row .val.zero{color:var(--g3)}
+.kpi-left-empty{padding:40px 12px;text-align:center;color:var(--g4);font-size:12px}
+
+.kpi-content{flex:1;overflow:hidden;position:relative}
+.kpi-view{display:none;height:100%}.kpi-view.active{display:block}
+</style>
+
+<!-- TOOLBAR -->
+<div class="kpi-toolbar">
+  <!-- KBC Picker (reuse shared component) -->
+  <div class="kbc-wrap">
+    <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()">
+      <svg viewBox="0 0 16 16" stroke-width="2"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4m6-4v4"/><line x1="2" y1="7" x2="14" y2="7"/></svg>
+      <span class="kbc-lbl" id="kbc-lbl">Chọn kỳ...</span>
+    </div>
+  </div>
+  <select id="kpiBp" onchange="kpiLoad()">
+    <option value="">— Tất cả BP —</option>
+    {% for b in all_bp %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+  </select>
+  <div class="kpi-views">
+    <button class="kpi-view-btn active" data-view="graph" onclick="kpiSwitchView('graph')"><svg viewBox="0 0 16 16" stroke-width="2"><circle cx="8" cy="4" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><line x1="8" y1="6" x2="4" y2="10"/><line x1="8" y1="6" x2="12" y2="10"/></svg>Sơ đồ</button>
+    <button class="kpi-view-btn" data-view="table" onclick="kpiSwitchView('table')"><svg viewBox="0 0 16 16" stroke-width="2"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="2" y1="10" x2="14" y2="10"/><line x1="6" y1="2" x2="6" y2="14"/></svg>Bảng</button>
+  </div>
+  <span class="kpi-stats" id="kpiStats">—</span>
+  <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+    <button class="kpi-tbtn" onclick="kpiCopyPeriod()"><svg viewBox="0 0 16 16" stroke-width="2"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M5 11H4a1.5 1.5 0 01-1.5-1.5V4A1.5 1.5 0 014 2.5h5.5A1.5 1.5 0 0111 4v1"/></svg>Copy kỳ trước</button>
+    <button class="kpi-tbtn" onclick="kpiImportSystem()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8h12m-4-4l4 4-4 4"/></svg>Import HT</button>
+    <button class="kpi-tbtn" onclick="document.getElementById('kpiExcelFile').click()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 10V2m0 0L5 5m3-3l3 3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Import Excel</button>
+    <input type="file" id="kpiExcelFile" accept=".xlsx,.xls" style="display:none" onchange="kpiImportExcel(this)">
+    <button class="kpi-tbtn green" onclick="kpiExport()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Export</button>
+  </div>
+</div>
+
+<!-- KBC Picker shared component (needs: kbcList, esc, iso, isMobile, isLandscapePhone, onKBCSelected) -->
+<script>
+var kbcList={{ ky_bao_cao | tojson }};
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function iso(d){if(!d)return null;return String(d).substring(0,10)}
+function isMobile(){return window.innerWidth<=768}
+function isLandscapePhone(){return window.innerWidth<=900&&window.innerHeight<500&&window.matchMedia('(hover:none)').matches}
+function onKBCSelected(){
+    // Collect selected ma_kbc from _kbc_picker
+    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
+    window._kpiSelectedKbcs=months.map(function(k){return k.ma_kbc});
+    kpiLoad();
+}
+</script>
+{% include "_kbc_picker.html" %}
+<script>
+populateKBC();
+// Sync initial selection to _kpiSelectedKbcs
+(function(){
+    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
+    window._kpiSelectedKbcs=months.map(function(k){return k.ma_kbc});
+})();
+</script>
+
+<!-- MAIN: LEFT PANEL + CONTENT -->
+<div class="kpi-main">
+  <div class="kpi-left hidden" id="kpiLeftPanel">
+    <div class="kpi-left-header">
+      <span id="kpiLeftTitle">Chi tiết NV</span>
+      <button class="kpi-left-close" onclick="kpiCloseLeft()">✕</button>
+    </div>
+    <div class="kpi-left-body" id="kpiLeftBody">
+      <div class="kpi-left-empty">Click vào 1 node trên sơ đồ</div>
+    </div>
+  </div>
+  <div class="kpi-content">
+
+<script>
+/* ═══ Shared KPI state — MUST run before sub-modules ═══ */
+(function(){
+var assignments=[], kpiData={}, nodeMap={}, byParent={}, expanded={};
+var detailData={};
+var FMT=new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0});
+function fN(v){return v==null||isNaN(v)?'—':FMT.format(Math.round(v))}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+function buildTree(){
+    nodeMap={};byParent={};
+    assignments.forEach(function(a){nodeMap[a.ma_nvkd]=a});
+    assignments.forEach(function(a){
+        var pid=a.ma_ql||'__ROOT__';
+        if(pid&&pid!=='__ROOT__'&&!nodeMap[pid])pid='__ROOT__';
+        if(!byParent[pid])byParent[pid]=[];
+        byParent[pid].push(a);
+    });
+}
+function getChildSum(ma,field){
+    var kids=byParent[ma];if(!kids||!kids.length)return null;
+    var s=0;kids.forEach(function(c){s+=((kpiData[c.ma_nvkd]||{})[field]||0)});return s;
+}
+window._kpi={
+    get assignments(){return assignments}, set assignments(v){assignments=v},
+    get kpiData(){return kpiData}, set kpiData(v){kpiData=v},
+    get detailData(){return detailData}, set detailData(v){detailData=v},
+    get nodeMap(){return nodeMap}, get byParent(){return byParent},
+    get expanded(){return expanded}, get selectedKbcs(){return getSelectedKbcs()},
+    fN:fN, esc:esc, buildTree:buildTree, getChildSum:getChildSum, FMT:FMT,
+    getKbc:function(){var selectedKbcs=getSelectedKbcs();return selectedKbcs.length===1?selectedKbcs[0]:(selectedKbcs[0]||'')},
+    getKbcs:function(){return getSelectedKbcs()},
+    getBp:function(){return document.getElementById('kpiBp').value||''}
+};
+/* KBC: selectedKbcs is synced from _kbc_picker via onKBCSelected */
+function getSelectedKbcs(){return window._kpiSelectedKbcs||[]}
+/* View switching */
+window.kpiSwitchView=function(v){document.querySelectorAll('.kpi-view-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view===v)});document.querySelectorAll('.kpi-view').forEach(function(el){el.classList.toggle('active',el.id==='kpiView'+(v==='table'?'Table':'Graph'))});if(v==='graph'&&typeof window.kpiRenderGraph==='function')window.kpiRenderGraph();if(v==='table'&&typeof window.kpiRenderTable==='function')window.kpiRenderTable()};
+function renderBoth(){if(typeof window.kpiRenderTable==='function')window.kpiRenderTable();if(typeof window.kpiRenderGraph==='function')window.kpiRenderGraph()}
+/* Load data */
+window.kpiLoad=function(){var kbcs=getSelectedKbcs(),mbp=window._kpi.getBp();if(!kbcs.length)return;var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');if(mbp)qp+='&ma_bp='+encodeURIComponent(mbp);fetch('/admin/kpi/data?'+qp).then(function(r){return r.json()}).then(function(d){if(!d.ok){if(d.error)alert('Lỗi: '+d.error);return}assignments=d.assignments||[];kpiData=d.kpi||{};detailData=d.detail||{};buildTree();if(typeof window._kpiResetExpand==='function')window._kpiResetExpand(!!mbp);renderBoth();var roots=byParent['__ROOT__'];if(roots&&roots.length){var firstMa=roots[0].ma_nvkd;if(typeof window.kpiShowDetail==='function')window.kpiShowDetail(firstMa)}})};
+/* Left panel */
+window.kpiShowDetail=function(ma){
+    var a=nodeMap[ma];if(!a)return;
+    document.getElementById('kpiLeftPanel').classList.remove('hidden');
+    document.getElementById('kpiLeftTitle').textContent='Chi tiết';
+    var fs=['kpi','kpi_cong_ty','kpi_ds','kpi_ds_cong_ty'];
+    var fn={'kpi':'DT Nội bộ','kpi_cong_ty':'DT Công ty','kpi_ds':'DS Nội bộ','kpi_ds_cong_ty':'DS Công ty'};
+    var det=detailData[ma]||{};
+    var mons=Object.keys(det).sort(function(a,b){return parseInt(b.replace(/[^\d]/g,''))-parseInt(a.replace(/[^\d]/g,''))});
+    var h='<div class="kpi-left-name">'+esc(a.ten_nvkd)+'</div><div class="kpi-left-code">'+esc(ma)+' · QL: '+esc(a.ma_ql||'(gốc)')+'</div>';
+    fs.forEach(function(f){
+        h+='<div class="kpi-left-section">'+fn[f]+'</div>';
+        if(!mons.length){h+='<div class="kpi-left-row"><span class="lbl">Chưa có dữ liệu</span></div>';return}
+        var tot=0;mons.forEach(function(m){tot+=(det[m]||{})[f]||0});
+        h+='<div class="kpi-left-row" style="background:var(--blue-lt)"><span class="lbl" style="font-weight:700">Tổng</span><span class="val" style="font-weight:700">'+fN(tot)+'</span></div>';
+        mons.forEach(function(m){
+            var v=(det[m]||{})[f]||0;
+            h+='<div class="kpi-left-row"><span class="lbl">'+esc(m)+'</span><span class="val kpi-left-editable'+(v?'':' zero')+'" data-ma="'+esc(ma)+'" data-kbc="'+esc(m)+'" data-field="'+f+'" style="cursor:pointer" title="Click để sửa">'+fN(v)+'</span></div>';
+        });
+    });
+    document.getElementById('kpiLeftBody').innerHTML=h;
+    // Bind click-to-edit on values
+    document.querySelectorAll('.kpi-left-editable').forEach(function(el){
+        el.addEventListener('click',function(){kpiLeftEdit(this)});
+    });
+};
+function kpiLeftEdit(el){
+    var ma=el.dataset.ma,kbc=el.dataset.kbc,field=el.dataset.field;
+    var det=detailData[ma]||{};var cur=(det[kbc]||{})[field]||0;
+    var oldText=el.textContent;
+    var inp=document.createElement('input');
+    inp.type='text';inp.value=cur?FMT.format(Math.round(cur)):'';
+    inp.style.cssText='width:100%;height:22px;padding:0 4px;border:1.5px solid var(--blue);border-radius:3px;font-family:var(--mono);font-size:11px;text-align:right;outline:none;background:#fff;color:var(--g6);';
+    el.textContent='';el.appendChild(inp);inp.focus();inp.select();
+    // Live thousand separator
+    inp.addEventListener('input',function(){
+        var c=this.selectionStart,ol=this.value.length,raw=this.value.replace(/[^\d]/g,'');
+        this.value=raw?FMT.format(parseInt(raw)):'';
+        this.setSelectionRange(Math.max(0,c+(this.value.length-ol)),Math.max(0,c+(this.value.length-ol)));
+    });
+    var saved=false;
+    function save(){
+        if(saved)return;saved=true;
+        var nv=parseFloat(inp.value.replace(/[^\d]/g,''))||0;
+        // Update detailData
+        if(!detailData[ma])detailData[ma]={};
+        if(!detailData[ma][kbc])detailData[ma][kbc]={kpi:0,kpi_cong_ty:0,kpi_ds:0,kpi_ds_cong_ty:0};
+        detailData[ma][kbc][field]=nv;
+        // Update kpiData (SUM across selected kbcs)
+        var total=0;Object.keys(detailData[ma]||{}).forEach(function(k){total+=(detailData[ma][k]||{})[field]||0});
+        if(!kpiData[ma])kpiData[ma]={kpi:0,kpi_cong_ty:0,kpi_ds:0,kpi_ds_cong_ty:0};
+        kpiData[ma][field]=total;
+        // Save to server
+        fetch('/admin/kpi/save-cell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:kbc,ma_nvkd:ma,field:field,value:nv})});
+        // Re-render
+        el.textContent=fN(nv);el.classList.toggle('zero',!nv);
+        // Update totals row
+        var section=el.closest('.kpi-left-row').parentElement;
+        var totalRow=section.querySelector('.kpi-left-row[style*="blue-lt"] .val');
+        if(totalRow){var t=0;Object.keys(detailData[ma]||{}).forEach(function(k){t+=(detailData[ma][k]||{})[field]||0});totalRow.textContent=fN(t)}
+        // Re-render graph + table
+        if(typeof window.kpiRenderGraph==='function')window.kpiRenderGraph();
+        if(typeof window.kpiRenderTable==='function')window.kpiRenderTable();
+    }
+    inp.addEventListener('blur',save);
+    inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();inp.blur()}if(e.key==='Escape'){saved=true;el.textContent=oldText}});
+}
+window.kpiCloseLeft=function(){document.getElementById('kpiLeftPanel').classList.add('hidden')};
+/* Actions */
+window.kpiCopyPeriod=function(){var sK=getSelectedKbcs();var to=sK.length===1?sK[0]:'';if(!to){alert('Chọn đúng 1 kỳ tháng đích');return}var fr=prompt('Copy từ kỳ nào?');if(!fr)return;if(!confirm('Copy '+fr+' → '+to+'?'))return;fetch('/admin/kpi/copy-period',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from_kbc:fr,to_kbc:to,ma_bp:window._kpi.getBp()})}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}})};
+window.kpiImportSystem=function(){var sK=getSelectedKbcs();var kbc=sK.length===1?sK[0]:'';if(!kbc){alert('Chọn đúng 1 kỳ tháng');return}if(!confirm('Import NV vào '+kbc+'?'))return;fetch('/admin/kpi/import-system',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:kbc,ma_bp:window._kpi.getBp()})}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}})};
+window.kpiExport=function(){var kbc=getSelectedKbcs().join(',');if(!kbc){alert('Chọn kỳ trước');return}window.open('/admin/kpi/export?ma_kbc='+encodeURIComponent(kbc)+'&ma_bp='+encodeURIComponent(window._kpi.getBp()),'_blank')};
+window.kpiImportExcel=function(inp){if(!inp.files||!inp.files[0])return;if(!confirm('Import "'+inp.files[0].name+'"?'))return;var fd=new FormData();fd.append('file',inp.files[0]);fd.append('mode','upsert');fetch('/admin/kpi/import-excel',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}}).catch(function(e){alert('Lỗi: '+e.message)});inp.value=''};
+/* Auto-load on first tab open */
+var _kpiLoaded=false;
+var _kpiObs=new MutationObserver(function(muts){muts.forEach(function(mut){
+    if(mut.target.id==='tab-kpi'&&mut.target.classList.contains('active')&&!_kpiLoaded){_kpiLoaded=true;kpiLoad()}
+})});
+var _kpiTabEl=document.getElementById('tab-kpi');
+if(_kpiTabEl)_kpiObs.observe(_kpiTabEl,{attributes:true,attributeFilter:['class']});
+})();
+</script>
+
+    {% include "admin/kpi/_kpi_table.html" %}
+    {% include "admin/kpi/_kpi_graph.html" %}
+  </div>
+</div>
+</div>

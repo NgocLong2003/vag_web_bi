@@ -1,0 +1,41 @@
+<!-- ══ TAB: DASHBOARD ══ -->
+<div class="tab-content" id="tab-dashboards"><div class="card-list">
+{% for d in dashboards %}
+<div class="card">
+    <div class="card-header">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="card-title">{{ d.name }}</span><span class="badge {{ d.dashboard_type or 'powerbi' }}">{{ d.dashboard_type or 'powerbi' }}</span>{% if d.is_active %}<span class="badge active">Bật</span>{% else %}<span class="badge inactive">Tắt</span>{% endif %}</div>
+        <div class="card-actions">
+            <button class="btn btn-outline btn-edit-dash" data-id="{{ d.id }}" data-name="{{ d.name }}" data-slug="{{ d.slug }}" data-url="{{ d.powerbi_url or '' }}" data-desc="{{ d.description }}" data-type="{{ d.dashboard_type or 'powerbi' }}" data-order="{{ d.sort_order }}" data-active="{{ d.is_active }}">Sửa</button>
+            <form method="POST" action="/admin/dashboard/{{ d.id }}/delete" style="display:inline" onsubmit="return confirm('Xóa?')"><button type="submit" class="btn btn-red">Xóa</button></form>
+        </div>
+    </div>
+    <div class="card-grid">
+        <div class="card-field"><span class="lbl">Slug</span><span class="val"><code>/d/{{ d.slug }}</code></span></div>
+        <div class="card-field"><span class="lbl">Users</span><span class="val">{{ dash_user_counts.get(d.id,0) }}</span></div>
+        <div class="card-field"><span class="lbl">Thứ tự</span><span class="val">{{ d.sort_order }}</span></div>
+        {% if d.description %}<div class="card-field" style="grid-column:1/-1"><span class="lbl">Mô tả</span><span class="val">{{ d.description }}</span></div>{% endif %}
+    </div>
+</div>
+{% endfor %}
+<button class="btn-add" onclick="document.getElementById('addDashModal').classList.add('show')">+ Thêm Dashboard</button>
+</div></div>
+
+<!-- ══ MODALS: Dashboard Add/Edit ══ -->
+<div class="modal-bg" id="addDashModal"><div class="modal"><h3>Thêm Dashboard</h3><form method="POST" action="/admin/dashboard/add"><div class="modal-grid">
+<div class="fg"><label>Tên</label><input type="text" name="name" required></div>
+<div class="fg"><label>Slug</label><input type="text" name="slug" required placeholder="doanh-thu-q1" pattern="[a-z0-9\-]+"></div>
+<div class="fg"><label>Loại</label><select name="dashboard_type" id="addDT" onchange="togUrl()"><option value="powerbi">Power BI</option><option value="analytics">Analytics</option><option value="report">Báo cáo SQL</option></select></div>
+<div class="fg" id="addUrlG"><label>Power BI URL</label><input type="url" name="powerbi_url"></div>
+<div class="fg"><label>Mô tả</label><input type="text" name="description"></div>
+<div class="fg"><label>Thứ tự</label><input type="number" name="sort_order" value="0"></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('addDashModal')">Hủy</button><button type="submit" class="btn btn-blue">Thêm</button></div></form></div></div>
+
+<div class="modal-bg" id="editDashModal"><div class="modal"><h3>Chỉnh sửa Dashboard</h3><form method="POST" id="edDF"><div class="modal-grid">
+<div class="fg"><label>Tên</label><input type="text" name="name" id="edN" required></div>
+<div class="fg"><label>Slug</label><input type="text" name="slug" id="edSlug" required pattern="[a-z0-9\-]+"></div>
+<div class="fg"><label>Loại</label><select name="dashboard_type" id="edT" onchange="togEUrl()"><option value="powerbi">Power BI</option><option value="analytics">Analytics</option><option value="report">Báo cáo SQL</option></select></div>
+<div class="fg" id="edUG"><label>Power BI URL</label><input type="url" name="powerbi_url" id="edU"></div>
+<div class="fg"><label>Mô tả</label><input type="text" name="description" id="edD"></div>
+<div class="fg"><label>Thứ tự</label><input type="number" name="sort_order" id="edO"></div>
+<div class="fg" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="is_active" id="edA" value="1"><label for="edA" style="font-size:13px;text-transform:none">Hoạt động</label></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editDashModal')">Hủy</button><button type="submit" class="btn btn-blue">Lưu</button></div></form></div></div>

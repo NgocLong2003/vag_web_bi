@@ -136,3 +136,39 @@ GO
  
 PRINT N'user_audit_log OK';
 GO
+
+
+IF OBJECT_ID('dbo.kpi_targets', 'U') IS NOT NULL DROP TABLE dbo.kpi_targets;
+GO
+
+CREATE TABLE kpi_targets (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    ma_bp NVARCHAR(50) NOT NULL,
+    ma_kbc NVARCHAR(50) NOT NULL,
+    nam INT NOT NULL,
+    thang INT NOT NULL,
+    ma_nvkd NVARCHAR(50) NOT NULL,
+    ten_nvkd NVARCHAR(200) DEFAULT '',
+    nguoi_gd NVARCHAR(200) DEFAULT '',
+    ma_ql NVARCHAR(50) DEFAULT '',
+    stt_nhom NVARCHAR(500) DEFAULT '',
+    kpi DECIMAL(18,2) DEFAULT 0,
+    kpi_cong_ty DECIMAL(18,2) DEFAULT 0,
+    kpi_ds DECIMAL(18,2) DEFAULT 0,
+    kpi_ds_cong_ty DECIMAL(18,2) DEFAULT 0,
+    merge_kpi BIT DEFAULT 0,
+    cdate DATETIME DEFAULT GETDATE(),
+    ldate DATETIME DEFAULT GETDATE(),
+    CONSTRAINT uq_kpi_kbc_nvkd UNIQUE(ma_kbc, ma_nvkd)
+);
+GO
+
+CREATE INDEX idx_kpi_kbc ON kpi_targets(ma_kbc);
+CREATE INDEX idx_kpi_bp ON kpi_targets(ma_bp);
+CREATE INDEX idx_kpi_nvkd ON kpi_targets(ma_nvkd);
+CREATE INDEX idx_kpi_ql ON kpi_targets(ma_ql);
+CREATE INDEX idx_kpi_kbc_bp ON kpi_targets(ma_kbc, ma_bp);
+GO
+
+PRINT N'kpi_targets OK';
+GO

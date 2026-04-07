@@ -1,0 +1,74 @@
+<!-- ══ TAB: PHÂN QUYỀN ══ -->
+<div class="tab-content" id="tab-permissions">
+<style>
+#tab-permissions{max-width:none!important;padding:12px 16px!important}
+.pm-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.pm-search{height:34px;padding:0 10px;border:1.5px solid var(--g2);border-radius:6px;font-size:12px;width:260px;outline:none;background:var(--white);font-family:var(--sans)}.pm-search:focus{border-color:var(--blue)}
+.pm-stats{font-size:11px;color:var(--g4);margin-left:auto}
+.pm-wrap{overflow:auto;max-height:calc(100vh - 180px);border:1px solid var(--g2);border-radius:8px;background:var(--white)}
+.pm-tbl{border-collapse:separate;border-spacing:0;width:max-content}
+.pm-tbl thead th{position:sticky;top:0;z-index:10;background:#eef0f6;padding:0;font-size:11px;font-weight:700;color:var(--g5);border-bottom:2px solid var(--g2);text-align:center;vertical-align:middle;white-space:nowrap;min-width:80px;transition:background .1s;letter-spacing:.01em}
+.pm-th-inner{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 6px}
+.pm-th-name{cursor:default}
+.pm-th-all{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;border:1px solid var(--g2);background:var(--white);font-size:9px;font-weight:700;color:var(--g4);cursor:pointer;transition:all .1s;font-family:var(--sans)}
+.pm-th-all:hover{background:var(--blue-lt);color:var(--blue);border-color:var(--blue)}
+.pm-th-all.all-on{background:var(--green-lt);color:var(--green);border-color:#86efac}
+.pm-tbl thead th.c-bp{left:0;z-index:14;min-width:44px;width:44px;background:#dde2f0;border-right:1px solid var(--g2);cursor:default}
+.pm-tbl thead th.c-ma{left:44px;z-index:14;min-width:68px;width:68px;background:#dde2f0;cursor:default}
+.pm-tbl thead th.c-ten{left:112px;z-index:14;min-width:160px;width:160px;background:#dde2f0;border-right:2px solid #b0b8d0;text-align:left;cursor:default}
+.pm-tbl tbody td{padding:0;text-align:center;border-bottom:1px solid #eff0f4;height:32px;vertical-align:middle;min-width:80px}
+.pm-tbl tbody td.c-bp{position:sticky;left:0;z-index:5;background:var(--white);font-size:10px;font-weight:800;color:var(--blue);padding:0 6px;border-right:1px solid var(--g2);white-space:nowrap;width:44px;min-width:44px}
+.pm-tbl tbody td.c-ma{position:sticky;left:44px;z-index:5;background:var(--white);font-family:var(--mono);font-size:9px;color:var(--g4);padding:0 4px;white-space:nowrap;width:68px;min-width:68px}
+.pm-tbl tbody td.c-ten{position:sticky;left:112px;z-index:5;background:var(--white);font-size:11px;font-weight:500;padding:0 8px;border-right:2px solid #b0b8d0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:160px;min-width:160px;max-width:160px;text-align:left}
+.pm-tbl tbody tr:hover td{background:#f0f3fc!important}
+.pm-tbl tbody tr:hover td.c-bp,.pm-tbl tbody tr:hover td.c-ma,.pm-tbl tbody tr:hover td.c-ten{background:#e8ecfa!important}
+.pm-tbl tbody tr.bp-sep td{border-top:2.5px solid #c0c8dc}
+.pm-tbl tbody tr.pm-hidden{display:none}
+.pm-cell{width:100%;height:100%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .05s;user-select:none}
+.pm-cell:hover{background:#e0e8ff}
+.pm-cell.on{background:#d4f0e0}
+.pm-cell.on::after{content:'✓';font-size:13px;font-weight:800;color:var(--green)}
+.pm-wrap::-webkit-scrollbar{width:8px;height:8px}
+.pm-wrap::-webkit-scrollbar-track{background:#f5f5f5}
+.pm-wrap::-webkit-scrollbar-thumb{background:#c0c8d8;border-radius:4px}
+.pm-wrap::-webkit-scrollbar-thumb:hover{background:#a0a8bc}
+</style>
+
+<div class="pm-toolbar">
+  <input class="pm-search" type="text" id="pmSearch" placeholder="Tìm tên, mã NV, BP..." oninput="pmFilter()">
+  <span class="pm-stats" id="pmStats">—</span>
+</div>
+<div class="pm-wrap">
+  <table class="pm-tbl" id="pmTbl">
+    <thead><tr id="pmHead"></tr></thead>
+    <tbody id="pmBody"></tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+var PM_USERS={{ perm_users|tojson }};
+var PM_DASH={{ dashboards|tojson }};
+var PM_MAP={{ perm_map|tojson }};
+var pmPerm={};
+PM_USERS.forEach(function(u){pmPerm[u.id]=new Set(PM_MAP[u.id]||[])});
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+function pmColState(did){var total=0,have=0;document.querySelectorAll('.pm-cell[data-d="'+did+'"]').forEach(function(el){if(el.closest('tr').classList.contains('pm-hidden'))return;total++;if(el.classList.contains('on'))have++});return{total:total,have:have,allOn:total>0&&have===total}}
+function pmUpdateColBtn(did){var btn=document.querySelector('.pm-th-all[data-d="'+did+'"]');if(!btn)return;var st=pmColState(did);btn.classList.toggle('all-on',st.allOn);btn.textContent=st.allOn?'✓ Tất cả':'Chọn tất cả'}
+window.pmBuildMatrix=function(){
+    var h='<th class="c-bp"><div class="pm-th-inner"><span class="pm-th-name">BP</span></div></th><th class="c-ma"><div class="pm-th-inner"><span class="pm-th-name">Mã NV</span></div></th><th class="c-ten"><div class="pm-th-inner"><span class="pm-th-name">Họ tên</span></div></th>';
+    PM_DASH.forEach(function(d){h+='<th><div class="pm-th-inner"><span class="pm-th-name">'+esc(d.name)+'</span><button class="pm-th-all" data-d="'+d.id+'" onclick="pmToggleCol('+d.id+')">Chọn tất cả</button></div></th>'});
+    document.getElementById('pmHead').innerHTML=h;
+    var html='',lastBP='';
+    PM_USERS.forEach(function(u){var bp=u.ma_bp||'';var isSep=bp!==lastBP;lastBP=bp;var ma=u.ma_nvkd_list||u.username||'';var ten=u.display_name||u.username||'';var search=(ma+' '+ten+' '+bp).toLowerCase();html+='<tr class="'+(isSep?'bp-sep':'')+'" data-uid="'+u.id+'" data-s="'+esc(search)+'">';html+='<td class="c-bp">'+esc(bp)+'</td>';html+='<td class="c-ma">'+esc(ma)+'</td>';html+='<td class="c-ten" title="'+esc(ten)+'">'+esc(ten)+'</td>';PM_DASH.forEach(function(d){var on=pmPerm[u.id]&&pmPerm[u.id].has(d.id);html+='<td><div class="pm-cell'+(on?' on':'')+'" data-u="'+u.id+'" data-d="'+d.id+'" onclick="pmToggle(this)"></div></td>'});html+='</tr>'});
+    document.getElementById('pmBody').innerHTML=html;
+    PM_DASH.forEach(function(d){pmUpdateColBtn(d.id)});pmUpdateStats()};
+window.pmToggle=function(el){var uid=parseInt(el.dataset.u),did=parseInt(el.dataset.d);var isOn=el.classList.contains('on');el.classList.toggle('on');if(isOn){pmPerm[uid].delete(did);fetch('/admin/phan-quyen/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:uid,dashboard_id:did,action:'remove'})})}else{pmPerm[uid].add(did);fetch('/admin/phan-quyen/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:uid,dashboard_id:did,action:'add'})})}pmUpdateColBtn(did);pmUpdateStats()};
+window.pmToggleCol=function(did){var st=pmColState(did);var add=!st.allOn;var allOn=[];document.querySelectorAll('.pm-cell[data-d="'+did+'"]').forEach(function(el){var uid=parseInt(el.dataset.u);if(add){el.classList.add('on');pmPerm[uid].add(did)}else{el.classList.remove('on');pmPerm[uid].delete(did)}if(el.classList.contains('on'))allOn.push(uid)});fetch('/admin/phan-quyen/bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'dash_col',target_id:did,ids:allOn})});pmUpdateColBtn(did);pmUpdateStats()};
+window.pmFilter=function(){var q=document.getElementById('pmSearch').value.toLowerCase().trim();document.querySelectorAll('#pmBody tr').forEach(function(tr){tr.classList.toggle('pm-hidden',q&&!(tr.dataset.s||'').includes(q))});PM_DASH.forEach(function(d){pmUpdateColBtn(d.id)});pmUpdateStats()};
+function pmUpdateStats(){var vis=document.querySelectorAll('#pmBody tr:not(.pm-hidden)').length;var perms=0;Object.values(pmPerm).forEach(function(s){perms+=s.size});document.getElementById('pmStats').textContent=vis+'/'+PM_USERS.length+' users · '+PM_DASH.length+' dashboards · '+perms+' quyền'}
+window.pmBulkCreate=function(){if(!confirm('Tạo tài khoản hàng loạt từ SQL Server?\nMật khẩu: (ma_bp+123+ma_nvkd) viết thường\nUser đã tồn tại sẽ bỏ qua.'))return;fetch('/admin/bulk-create-users',{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert('Tạo '+d.created+'/'+d.total+' (bỏ qua '+d.skipped+')');location.reload()}else{alert('Lỗi: '+(d.error||''))}}).catch(function(e){alert('Lỗi: '+e.message)})};
+document.addEventListener('DOMContentLoaded',function(){pmBuildMatrix()});
+})();
+</script>
+</div>

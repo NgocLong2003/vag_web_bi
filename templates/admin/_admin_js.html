@@ -1,0 +1,87 @@
+<script>
+/* ═══ Tab switching ═══ */
+function switchTab(n){document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active',b.dataset.tab===n)});document.querySelectorAll('.tab-content').forEach(function(t){t.classList.toggle('active',t.id==='tab-'+n)});history.replaceState(null,'','#'+n)}
+(function(){var h=location.hash.replace('#','');var valid=Array.from(document.querySelectorAll('.tab-btn')).map(function(b){return b.dataset.tab});if(valid.indexOf(h)>-1)switchTab(h)})();
+
+/* ═══ User table filter ═══ */
+function filterUsers(){
+  var q=(document.getElementById('userSearch').value||'').toLowerCase().trim();
+  var fName=(document.querySelector('[data-col="name"]').value||'').toLowerCase();
+  var fUname=(document.querySelector('[data-col="uname"]').value||'').toLowerCase();
+  var fRole=document.querySelector('[data-col="role"]').value;
+  var fStatus=document.querySelector('[data-col="status"]').value;
+  var fKhoi=(document.querySelector('[data-col="khoi"]').value||'').toLowerCase();
+  var fBp=(document.querySelector('[data-col="bp"]').value||'').toLowerCase();
+  var fNvkd=(document.querySelector('[data-col="nvkd"]').value||'').toLowerCase();
+  var fMabp=(document.querySelector('[data-col="mabp"]').value||'').toLowerCase();
+  var fDash=document.querySelector('[data-col="dash"]').value;
+  var rows=document.querySelectorAll('#userTable tbody tr');
+  var vis=0;
+  rows.forEach(function(tr){
+    var d=tr.dataset;var show=true;
+    if(q&&d.name.indexOf(q)<0&&d.uname.indexOf(q)<0&&d.nvkd.indexOf(q)<0)show=false;
+    if(fName&&d.name.indexOf(fName)<0)show=false;
+    if(fUname&&d.uname.indexOf(fUname)<0)show=false;
+    if(fRole&&d.role!==fRole)show=false;
+    if(fStatus&&d.status!==fStatus)show=false;
+    if(fKhoi&&d.khoi.indexOf(fKhoi)<0)show=false;
+    if(fBp&&d.bp.indexOf(fBp)<0)show=false;
+    if(fNvkd&&d.nvkd.indexOf(fNvkd)<0)show=false;
+    if(fMabp){var mbps=d.mabp.split(',').map(function(s){return s.trim()});if(mbps.indexOf(fMabp)<0)show=false}
+    if(fDash){var dids=(d.dashids||'').split(',');if(dids.indexOf(fDash)<0)show=false}
+    tr.classList.toggle('hidden',!show);
+    if(show)vis++;
+  });
+  document.getElementById('userCount').textContent=vis+'/'+rows.length+' người dùng';
+}
+
+/* ═══ Modals ═══ */
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+document.querySelectorAll('.modal-bg').forEach(function(bg){bg.addEventListener('click',function(e){if(e.target===bg)bg.classList.remove('show')})});
+var userDashMap={{ user_dash_map | tojson }};
+function toggleAllPerm(boxId){var box=document.getElementById(boxId);var bx=box.querySelectorAll('input[type="checkbox"]');var al=Array.from(bx).every(function(c){return c.checked});bx.forEach(function(c){c.checked=!al});box.querySelector('.picker-act-btn').textContent=al?'Chọn tất cả':'Bỏ chọn tất cả'}
+function syncBpHidden(panelId,hiddenId,badgeId){var p=document.getElementById(panelId);var vs=Array.from(p.querySelectorAll('input[type="checkbox"]:checked')).map(function(c){return c.value});document.getElementById(hiddenId).value=vs.join(',');var b=document.getElementById(badgeId);if(b){b.textContent=vs.length||'0';b.className='dd-badge'+(vs.length?'':' zero')}}
+function toggleAllBp(panelId,hiddenId,badgeId){var p=document.getElementById(panelId);var cbs=p.querySelectorAll('input[type="checkbox"]');var allChecked=Array.from(cbs).every(function(c){return c.checked});cbs.forEach(function(c){c.checked=!allChecked});var btn=p.querySelector('.dd-toggle');if(btn)btn.textContent=allChecked?'Chọn tất cả':'Bỏ chọn';syncBpHidden(panelId,hiddenId,badgeId)}
+
+/* ═══ Edit user ═══ */
+document.querySelectorAll('.btn-edit-user').forEach(function(b){b.addEventListener('click',function(){var d=this.dataset;document.getElementById('editUserForm').action='/admin/user/'+d.id+'/edit';document.getElementById('euName').value=d.name||'';document.getElementById('euEmail').value=d.email||'';document.getElementById('euKhoi').value=d.khoi||'';document.getElementById('euBP').value=d.bp||'';document.getElementById('euCV').value=d.cv||'';document.getElementById('euNvkd').value=d.nvkd||'';document.getElementById('euPw').value=d.pw||'';document.getElementById('euRole').value=d.role||'user';document.getElementById('euAct').checked=d.active==='1'||d.active==='True';
+var mbps=(d.mabp||'').split(',').map(function(s){return s.trim()}).filter(Boolean);document.getElementById('mbpPaneledit').querySelectorAll('input[type="checkbox"]').forEach(function(cb){cb.checked=mbps.indexOf(cb.value)>-1});syncBpHidden('mbpPaneledit','euMaBPVal','editBpBadge');
+var assigned=userDashMap[parseInt(d.id)]||[];document.getElementById('editPermBox').querySelectorAll('input[type="checkbox"]').forEach(function(cb){cb.checked=assigned.indexOf(parseInt(cb.value))>-1});
+document.getElementById('editUserModal').classList.add('show')})});
+
+/* ═══ Edit dashboard ═══ */
+document.querySelectorAll('.btn-edit-dash').forEach(function(b){b.addEventListener('click',function(){var d=this.dataset;document.getElementById('edDF').action='/admin/dashboard/'+d.id+'/edit';document.getElementById('edN').value=d.name||'';document.getElementById('edSlug').value=d.slug||'';document.getElementById('edU').value=d.url||'';document.getElementById('edD').value=d.desc||'';document.getElementById('edT').value=d.type||'powerbi';document.getElementById('edO').value=d.order||0;document.getElementById('edA').checked=d.active==='1'||d.active==='True';togEUrl();document.getElementById('editDashModal').classList.add('show')})});
+
+/* ═══ Edit KBC ═══ */
+document.querySelectorAll('.btn-edit-kbc').forEach(function(b){b.addEventListener('click',function(){var d=this.dataset;document.getElementById('ekF').action='/admin/kbc/'+d.id+'/edit';document.getElementById('ekTen').value=d.ten||'';document.getElementById('ekLoai').value=d.loai||'Tháng';document.getElementById('ekParent').value=d.parent||'';document.getElementById('ekSort').value=d.sort||'0';for(var i=1;i<=8;i++)document.getElementById('ekD'+i).value=d['d'+i]||'';togKbcDates('edit');document.getElementById('editKbcModal').classList.add('show')})});
+function togKbcDates(mode){
+  var loai=document.getElementById(mode==='add'?'addKbcLoai':'ekLoai').value;
+  var container=document.getElementById(mode==='add'?'addKbcDates':'editKbcDates');
+  if(loai==='Tháng'){container.style.display='';container.querySelectorAll('input[type="date"]').forEach(function(i){i.setAttribute('required','required')})}
+  else{container.style.display='none';container.querySelectorAll('input[type="date"]').forEach(function(i){i.removeAttribute('required');i.value=''})}
+  var parentSel=document.getElementById(mode==='add'?'addKbcParent':'ekParent');
+  var validParent=loai==='Tháng'?'Quý':loai==='Quý'?'Năm':'';
+  Array.from(parentSel.options).forEach(function(opt){if(!opt.value){opt.style.display='';return}opt.style.display=(opt.dataset.loai===validParent)?'':'none'});
+  if(loai==='Năm')parentSel.value='';
+}
+function togUrl(){document.getElementById('addUrlG').style.display=document.getElementById('addDT').value==='powerbi'?'':'none'}
+function togEUrl(){document.getElementById('edUG').style.display=document.getElementById('edT').value==='powerbi'?'':'none'}
+
+/* ═══ DD panels (BP/Dash in user table) ═══ */
+var _op=null;
+function sortCheckedFirst(panel){var items=Array.from(panel.querySelectorAll('.dd-item'));var footer=panel.querySelector('.dd-footer');items.sort(function(a,b){var ca=a.querySelector('input').checked?0:1;var cb=b.querySelector('input').checked?0:1;return ca-cb});items.forEach(function(it){panel.insertBefore(it,footer)})}
+function positionPanel(trigger,panel){var r=trigger.getBoundingClientRect();var pw=200,ph=280;var left=r.left;var top=r.bottom+4;if(left+pw>window.innerWidth)left=window.innerWidth-pw-8;if(left<4)left=4;if(top+ph>window.innerHeight)top=r.top-ph-4;panel.style.left=left+'px';panel.style.top=top+'px'}
+function togglePanel(t,uid){var id;if(t==='bp')id='bpPanel'+uid;else if(t==='pm')id='pmPanel'+uid;else id=t+'Panel'+uid;if(_op&&_op!==id){var o=document.getElementById(_op);if(o)o.classList.remove('show')}var p=document.getElementById(id);if(!p)return;var wasOpen=p.classList.contains('show');if(wasOpen){p.classList.remove('show');_op=null;return}var trigger=p.previousElementSibling||p.parentElement.querySelector('.dd-trigger');positionPanel(trigger,p);sortCheckedFirst(p);p.classList.add('show');_op=id}
+function toggleAll(t,uid){var id=(t==='bp'?'bpPanel':'pmPanel')+uid;var p=document.getElementById(id);var bx=p.querySelectorAll('input[type="checkbox"]');var al=Array.from(bx).every(function(c){return c.checked});bx.forEach(function(c){c.checked=!al});p.querySelector('.dd-toggle').textContent=al?'Chọn tất cả':'Bỏ chọn tất cả'}
+function saveBp(uid){var p=document.getElementById('bpPanel'+uid);var vs=Array.from(p.querySelectorAll('input:checked')).map(function(c){return c.value});fetch('/admin/user/'+uid+'/bp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_bp:vs.join(',')})}).then(function(){var b=p.parentElement.querySelector('.dd-badge');if(b){b.textContent=vs.length>0?vs.length:'∞';b.className='dd-badge'+(vs.length===0?' zero':'')};p.classList.remove('show');_op=null})}
+document.addEventListener('click',function(e){if(_op&&!e.target.closest('.dd-wrap')){var p=document.getElementById(_op);if(p)p.classList.remove('show');_op=null}});
+
+/* ═══ Audit Log ═══ */
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function formatChanges(changesStr){try{var c=JSON.parse(changesStr);if(!c||typeof c!=='object')return changesStr}catch(e){return changesStr||'—'}var parts=[];Object.keys(c).forEach(function(k){var v=c[k];if(v&&typeof v==='object'&&('old' in v||'new' in v)){parts.push('<span class="chg-field">'+k+'</span>: <span class="chg-old">'+(v.old||'(trống)')+'</span> → <span class="chg-new">'+(v['new']||'(trống)')+'</span>')}else if(Array.isArray(v)){parts.push('<span class="chg-field">'+k+'</span>: '+v.join(', '))}else{parts.push('<span class="chg-field">'+k+'</span>: '+String(v))}});return parts.join('<br>')||'—'}
+function fmtTime(s){if(!s)return'';return s.replace('T',' ').substring(0,19)}
+var ACTION_LABELS={create:'Tạo mới',edit:'Chỉnh sửa','delete':'Xóa',perm_change:'Phân quyền',bp_change:'Đổi BP'};
+function renderLogRows(logs){if(!logs.length)return'<tr><td colspan="5" class="log-empty">Không có dữ liệu</td></tr>';return logs.map(function(r){return'<tr><td style="font-family:var(--mono);font-size:10px;color:var(--g4)">'+fmtTime(r.created_at)+'</td><td><strong>'+esc(r.changed_by_username)+'</strong></td><td><span class="log-action '+(r.action||'')+'">'+(ACTION_LABELS[r.action]||r.action)+'</span></td><td>'+esc(r.target_username)+' <span style="font-size:10px;color:var(--g4)">#'+r.target_user_id+'</span></td><td class="changes-cell">'+formatChanges(r.changes)+'</td></tr>'}).join('')}
+function loadAuditLog(){var q=(document.getElementById('logSearch').value||'').trim();var action=document.getElementById('logAction').value;var days=document.getElementById('logDays').value;var params='?days='+days;if(q)params+='&q='+encodeURIComponent(q);if(action)params+='&action='+action;document.getElementById('logBody').innerHTML='<tr><td colspan="5" class="log-empty">Đang tải...</td></tr>';fetch('/admin/audit-log'+params).then(function(r){return r.json()}).then(function(d){if(!d.ok){document.getElementById('logBody').innerHTML='<tr><td colspan="5" class="log-empty">Lỗi: '+(d.error||'')+'</td></tr>';return}document.getElementById('logBody').innerHTML=renderLogRows(d.data);document.getElementById('logCount').textContent=d.data.length+' bản ghi'}).catch(function(e){document.getElementById('logBody').innerHTML='<tr><td colspan="5" class="log-empty">Lỗi: '+e.message+'</td></tr>'})}
+function showUserLog(uid,name){document.getElementById('userLogTitle').textContent='Lịch sử: '+name;document.getElementById('userLogBody').innerHTML='<p style="color:var(--g4);text-align:center;padding:20px">Đang tải...</p>';document.getElementById('userLogModal').classList.add('show');fetch('/admin/audit-log?user_id='+uid+'&days=0').then(function(r){return r.json()}).then(function(d){if(!d.ok||!d.data.length){document.getElementById('userLogBody').innerHTML='<p style="color:var(--g4);text-align:center;padding:20px">Chưa có lịch sử</p>';return}var h='<table class="log-tbl" style="font-size:11px"><thead><tr><th>Thời gian</th><th>Admin</th><th>Hành động</th><th>Chi tiết</th></tr></thead><tbody>';h+=d.data.map(function(r){return'<tr><td style="font-family:var(--mono);font-size:10px;color:var(--g4)">'+fmtTime(r.created_at)+'</td><td>'+esc(r.changed_by_username)+'</td><td><span class="log-action '+(r.action||'')+'">'+(ACTION_LABELS[r.action]||r.action)+'</span></td><td class="changes-cell">'+formatChanges(r.changes)+'</td></tr>'}).join('');h+='</tbody></table>';document.getElementById('userLogBody').innerHTML=h}).catch(function(e){document.getElementById('userLogBody').innerHTML='<p style="color:var(--red);text-align:center;padding:20px">Lỗi: '+e.message+'</p>'})}
+</script>

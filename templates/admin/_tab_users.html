@@ -1,0 +1,90 @@
+<!-- ══ TAB: NGƯỜI DÙNG ══ -->
+<div class="tab-content active" id="tab-users">
+  <div class="user-toolbar">
+    <div class="user-search"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="userSearch" placeholder="Tìm tên, username, mã NVKD…" oninput="filterUsers()"/></div>
+    <span class="user-count" id="userCount">{{ users|length }} người dùng</span>
+    <button class="btn btn-blue" onclick="document.getElementById('addUserModal').classList.add('show')">+ Thêm</button>
+    {% if not admin_bps %}<button class="btn" style="background:var(--amber);color:#fff;font-size:11px;padding:6px 12px" onclick="pmBulkCreate()">Tạo TK hàng loạt</button>{% endif %}
+  </div>
+  <div class="utbl-wrap">
+  <table class="utbl" id="userTable">
+    <thead><tr>
+      <th><div class="th-wrap"><span class="th-label">Tên</span><div class="th-filter"><input type="text" placeholder="Lọc…" data-col="name" oninput="filterUsers()"/></div></div></th>
+      <th><div class="th-wrap"><span class="th-label">Username</span><div class="th-filter"><input type="text" placeholder="Lọc…" data-col="uname" oninput="filterUsers()"/></div></div></th>
+      <th><div class="th-wrap"><span class="th-label">Vai trò</span><div class="th-filter"><select data-col="role" onchange="filterUsers()"><option value="">Tất cả</option><option value="admin">Admin</option><option value="user">User</option></select></div></div></th>
+      <th><div class="th-wrap"><span class="th-label">Trạng thái</span><div class="th-filter"><select data-col="status" onchange="filterUsers()"><option value="">Tất cả</option><option value="1">Hoạt động</option><option value="0">Khóa</option></select></div></div></th>
+      <th><div class="th-wrap"><span class="th-label">Khối</span><div class="th-filter"><input type="text" placeholder="Lọc…" data-col="khoi" oninput="filterUsers()"/></div></div></th>
+      <th><div class="th-wrap"><span class="th-label">Bộ phận</span><div class="th-filter"><input type="text" placeholder="Lọc…" data-col="bp" oninput="filterUsers()"/></div></div></th>
+      <th><div class="th-wrap"><span class="th-label">Mã NVKD</span><div class="th-filter"><input type="text" placeholder="Lọc…" data-col="nvkd" oninput="filterUsers()"/></div></div></th>
+      <th><div class="th-wrap"><span class="th-label">Mã BP</span><div class="th-filter"><select data-col="mabp" onchange="filterUsers()"><option value="">Tất cả</option>{% for bpv in all_bp %}<option value="{{ bpv }}">{{ bpv }}</option>{% endfor %}</select></div></div></th>
+      <th><div class="th-wrap"><span class="th-label">Dashboard</span><div class="th-filter"><select data-col="dash" onchange="filterUsers()"><option value="">Tất cả</option>{% for d in dashboards %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select></div></div></th>
+      <th>BP</th><th>Dash</th><th>Thao tác</th>
+    </tr></thead>
+    <tbody>
+    {% for u in users %}
+    <tr data-name="{{ (u.display_name or u.username)|lower }}" data-uname="{{ u.username|lower }}" data-role="{{ u.role }}" data-status="{{ u.is_active }}" data-khoi="{{ (u.khoi or '')|lower }}" data-bp="{{ (u.bo_phan or '')|lower }}" data-nvkd="{{ (u.ma_nvkd_list or '')|lower }}" data-mabp="{{ (u.ma_bp or '')|lower }}" data-dashids="{{ user_dash_map.get(u.id,[])|join(',') }}">
+      <td title="{{ u.display_name }}">{{ u.display_name or u.username }}</td>
+      <td><code style="font-family:var(--mono);font-size:10px">{{ u.username }}</code></td>
+      <td><span class="badge {{ 'active' if u.role == 'admin' else 'inactive' }}">{{ u.role }}</span></td>
+      <td><span class="badge {{ 'active' if u.is_active else 'inactive' }}">{{ 'Bật' if u.is_active else 'Tắt' }}</span></td>
+      <td>{{ u.khoi or '' }}</td>
+      <td>{{ u.bo_phan or '' }}</td>
+      <td><code title="{{ u.ma_nvkd_list or '(tất cả)' }}">{{ u.ma_nvkd_list or '∞' }}</code></td>
+      <td>
+        <div class="dd-wrap">{% set ubps = (u.ma_bp or '').split(',') | map('trim') | reject('equalto','') | list %}
+          <div class="dd-trigger" onclick="togglePanel('bp',{{ u.id }})">BP<span class="dd-badge {{ 'zero' if ubps|length==0 }}">{{ ubps|length if ubps|length>0 else '∞' }}</span></div>
+          <div class="dd-panel" id="bpPanel{{ u.id }}"><div class="dd-head"><span>Chọn BP</span><button type="button" class="dd-toggle" onclick="toggleAll('bp',{{ u.id }})">Chọn tất cả</button></div>{% for bpv in all_bp %}<div class="dd-item"><input type="checkbox" id="bp_{{ u.id }}_{{ bpv }}" value="{{ bpv }}" {{ 'checked' if bpv in ubps }}><label for="bp_{{ u.id }}_{{ bpv }}">{{ bpv }}</label></div>{% endfor %}<div class="dd-footer"><button type="button" class="dd-apply" onclick="saveBp({{ u.id }})">Áp dụng</button></div></div>
+        </div>
+      </td>
+      <td>
+        <form method="POST" action="/admin/user/{{ u.id }}/permissions" id="pf{{ u.id }}" style="display:inline"><div class="dd-wrap">{% set asgn = user_dash_map.get(u.id,[]) %}
+          <div class="dd-trigger" onclick="togglePanel('pm',{{ u.id }})">Dash<span class="dd-badge {{ 'zero' if asgn|length==0 }}">{{ asgn|length }}</span></div>
+          <div class="dd-panel" id="pmPanel{{ u.id }}"><div class="dd-head"><span>Chọn dashboard</span><button type="button" class="dd-toggle" onclick="toggleAll('pm',{{ u.id }})">Chọn tất cả</button></div>{% for d in dashboards %}<div class="dd-item"><input type="checkbox" name="dash_ids" value="{{ d.id }}" id="pm_{{ u.id }}_{{ d.id }}" {{ 'checked' if d.id in asgn }}><label for="pm_{{ u.id }}_{{ d.id }}">{{ d.name }}</label></div>{% endfor %}<div class="dd-footer"><button type="button" class="dd-apply" onclick="document.getElementById('pf{{ u.id }}').submit()">Áp dụng</button></div></div>
+        </div></form>
+      </td>
+      <td>
+        <div class="col-actions">
+          <button class="btn btn-sm" style="background:var(--amber-lt);color:var(--amber);border:1px solid #fbbf24" onclick="showUserLog({{ u.id }},'{{ u.display_name or u.username }}')">Lịch sử</button>
+          <button class="btn btn-outline btn-sm btn-edit-user" data-id="{{ u.id }}" data-name="{{ u.display_name }}" data-email="{{ u.email or '' }}" data-khoi="{{ u.khoi }}" data-bp="{{ u.bo_phan }}" data-cv="{{ u.chuc_vu }}" data-nvkd="{{ u.ma_nvkd_list or '' }}" data-mabp="{{ u.ma_bp or '' }}" data-role="{{ u.role }}" data-active="{{ u.is_active }}" data-pw="{{ u.password_plain or '' }}">Sửa</button>
+          <form method="POST" action="/admin/user/{{ u.id }}/delete" style="display:inline" onsubmit="return confirm('Xóa user {{ u.username }}?')"><button type="submit" class="btn btn-red btn-sm">Xóa</button></form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <button class="btn-add" onclick="document.getElementById('addUserModal').classList.add('show')">+ Thêm người dùng</button>
+</div>
+
+<!-- ══ MODALS: User Add/Edit ══ -->
+<div class="modal-bg" id="addUserModal"><div class="modal"><h3>Thêm người dùng</h3><form method="POST" action="/admin/user/add"><div class="modal-grid">
+<div class="fg"><label>Username</label><input type="text" name="username" required placeholder="nguyenvana"></div>
+<div class="fg"><label>Mật khẩu</label><input type="password" name="password" required></div>
+<div class="fg"><label>Tên hiển thị</label><input type="text" name="display_name"></div>
+<div class="fg"><label>Email</label><input type="email" name="email"></div>
+<div class="fg"><label>Khối</label><input type="text" name="khoi"></div>
+<div class="fg"><label>Bộ phận</label><input type="text" name="bo_phan"></div>
+<div class="fg"><label>Chức vụ</label><input type="text" name="chuc_vu"></div>
+<div class="fg"><label>Mã NVKD</label><input type="text" name="ma_nvkd_list" class="mono" placeholder="TVV01,NVD01" required></div>
+<div class="fg"><label>Mã BP (phân quyền)</label><input type="hidden" name="ma_bp" id="addMaBPVal"/><div class="dd-wrap"><div class="dd-trigger" onclick="togglePanel('mbp','add')" style="height:34px;padding:0 10px;border-radius:6px;font-size:12px">BP <span class="dd-badge zero" id="addBpBadge">0</span></div><div class="dd-panel" id="mbpPaneladd"><div class="dd-head"><span>Chọn BP</span><button type="button" class="dd-toggle" onclick="toggleAllBp('mbpPaneladd','addMaBPVal','addBpBadge')">Chọn tất cả</button></div>{% for bpv in all_bp %}<div class="dd-item"><input type="checkbox" id="addBp_{{ bpv }}" value="{{ bpv }}" onchange="syncBpHidden('mbpPaneladd','addMaBPVal','addBpBadge')"><label for="addBp_{{ bpv }}">{{ bpv }}</label></div>{% endfor %}</div></div></div>
+<div class="fg"><label>Vai trò</label><select name="role"><option value="user">User</option><option value="admin">Admin</option></select></div>
+<div class="fg" style="grid-column:1/-1"><label>Phân quyền báo cáo</label><div class="perm-box" id="addPermBox"><div class="perm-actions"><button type="button" class="picker-act-btn" onclick="toggleAllPerm('addPermBox')">Chọn tất cả</button></div>{% for d in dashboards %}<div class="perm-item"><input type="checkbox" name="dash_ids" value="{{ d.id }}" id="add_d_{{ d.id }}"><label for="add_d_{{ d.id }}">{{ d.name }}</label></div>{% endfor %}</div></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('addUserModal')">Hủy</button><button type="submit" class="btn btn-blue">Thêm</button></div></form></div></div>
+
+<div class="modal-bg" id="editUserModal"><div class="modal"><h3>Chỉnh sửa người dùng</h3><form method="POST" id="editUserForm"><div class="modal-grid">
+<div class="fg"><label>Tên hiển thị</label><input type="text" name="display_name" id="euName"></div>
+<div class="fg"><label>Email</label><input type="email" name="email" id="euEmail"></div>
+<div class="fg"><label>Khối</label><input type="text" name="khoi" id="euKhoi"></div>
+<div class="fg"><label>Bộ phận</label><input type="text" name="bo_phan" id="euBP"></div>
+<div class="fg"><label>Chức vụ</label><input type="text" name="chuc_vu" id="euCV"></div>
+<div class="fg"><label>Mã NVKD</label><input type="text" name="ma_nvkd_list" id="euNvkd" class="mono" required></div>
+<div class="fg"><label>Mã BP (phân quyền)</label><input type="hidden" name="ma_bp" id="euMaBPVal"/><div class="dd-wrap"><div class="dd-trigger" onclick="togglePanel('mbp','edit')" style="height:34px;padding:0 10px;border-radius:6px;font-size:12px">BP <span class="dd-badge zero" id="editBpBadge">0</span></div><div class="dd-panel" id="mbpPaneledit"><div class="dd-head"><span>Chọn BP</span><button type="button" class="dd-toggle" onclick="toggleAllBp('mbpPaneledit','euMaBPVal','editBpBadge')">Chọn tất cả</button></div>{% for bpv in all_bp %}<div class="dd-item"><input type="checkbox" id="editBp_{{ bpv }}" value="{{ bpv }}" onchange="syncBpHidden('mbpPaneledit','euMaBPVal','editBpBadge')"><label for="editBp_{{ bpv }}">{{ bpv }}</label></div>{% endfor %}</div></div></div>
+<div class="fg"><label>Mật khẩu</label><div style="position:relative"><input type="text" name="new_password" id="euPw" class="mono" style="padding-right:32px"><button type="button" class="pw-eye" onclick="var i=document.getElementById('euPw');i.type=i.type==='text'?'password':'text'" title="Ẩn/hiện">👁</button></div></div>
+<div class="fg"><label>Vai trò</label><select name="role" id="euRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+<div class="fg" style="grid-column:1/-1"><div class="switch-row"><label class="switch"><input type="checkbox" name="is_active" id="euAct" value="1"><span class="switch-slider"></span></label><span class="switch-label">Hoạt động</span></div></div>
+<div class="fg" style="grid-column:1/-1"><label>Phân quyền báo cáo</label><div class="perm-box" id="editPermBox"><div class="perm-actions"><button type="button" class="picker-act-btn" onclick="toggleAllPerm('editPermBox')">Chọn tất cả</button></div>{% for d in dashboards %}<div class="perm-item"><input type="checkbox" name="dash_ids" value="{{ d.id }}" id="edit_d_{{ d.id }}"><label for="edit_d_{{ d.id }}">{{ d.name }}</label></div>{% endfor %}</div></div>
+</div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('editUserModal')">Hủy</button><button type="submit" class="btn btn-blue">Lưu</button></div></form></div></div>
+
+<!-- ══ MODAL: Lịch sử user ══ -->
+<div class="modal-bg" id="userLogModal"><div class="modal" style="max-width:700px"><h3 id="userLogTitle">Lịch sử</h3><div id="userLogBody" style="max-height:60vh;overflow-y:auto"><p style="color:var(--g4);text-align:center;padding:20px">Đang tải...</p></div><div class="modal-actions"><button type="button" class="btn btn-cancel" onclick="closeModal('userLogModal')">Đóng</button></div></div></div>

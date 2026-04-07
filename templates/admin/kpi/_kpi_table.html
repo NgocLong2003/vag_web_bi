@@ -1,0 +1,149 @@
+<!-- ═══ KPI VIEW: BẢNG ═══ -->
+<div class="kpi-view" id="kpiViewTable">
+<style>
+.kpi-wrap{overflow:auto;border:1px solid var(--g2);border-radius:8px;background:var(--white);max-height:calc(100vh - 200px)}
+.kpi-tbl{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+.kpi-tbl thead th{position:sticky;top:0;z-index:10;background:#eef0f6;padding:6px 8px;font-size:10px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.02em;border-bottom:2px solid var(--g2);white-space:nowrap;text-align:center}
+.kpi-tbl thead th.c-nv{text-align:left;min-width:240px;position:sticky;left:0;z-index:14;background:#dde2f0;border-right:2px solid #b0b8d0}
+.kpi-tbl thead th.c-sum{background:#f0eef6;color:var(--purple);min-width:110px}
+.kpi-tbl thead th.c-input{background:#eef6f0;min-width:120px}
+.kpi-tbl thead th.c-delta{min-width:70px;background:#fef9ec}
+.kpi-tbl tbody tr{border-bottom:1px solid #f0f1f5;transition:background .06s}
+.kpi-tbl tbody tr:hover{background:#f5f7ff}
+.kpi-tbl tbody tr.is-root>td{background:#f8f7ff}
+.kpi-tbl tbody tr.is-root:hover>td{background:#eeedff}
+.kpi-tbl td.c-nv{position:sticky;left:0;z-index:5;background:var(--white);border-right:2px solid #b0b8d0;padding:0;white-space:nowrap}
+.kpi-tbl tr:hover td.c-nv{background:#f5f7ff}
+.kpi-tbl tr.is-root td.c-nv{background:#f8f7ff}
+.kpi-tbl tr.is-root:hover td.c-nv{background:#eeedff}
+.nv-cell{display:flex;align-items:center;gap:4px;padding:4px 8px;min-height:36px}
+.nv-drag{width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:var(--g3);cursor:grab;flex-shrink:0;font-size:12px;border-radius:3px;touch-action:none}.nv-drag:hover{background:var(--g1);color:var(--g5)}.nv-drag:active{cursor:grabbing;color:var(--blue)}
+.nv-expand{width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:var(--g3);cursor:pointer;flex-shrink:0;border-radius:3px}.nv-expand:hover{background:var(--g1);color:var(--g5)}.nv-expand svg{width:8px;height:8px;stroke:currentColor;fill:none;stroke-linecap:round}
+.nv-sp{width:16px;flex-shrink:0}
+.nv-code{font-family:var(--mono);font-size:9px;color:var(--g4);padding:1px 4px;background:var(--g1);border-radius:3px;flex-shrink:0}
+.nv-name{font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis}.nv-name.is-manager{font-weight:700;color:var(--g5)}
+.kpi-tbl td{padding:0;text-align:right;vertical-align:middle;min-width:110px}
+.kpi-tbl td.c-sum{background:#faf8ff;color:var(--purple);font-family:var(--mono);font-size:11px;padding:4px 8px}
+.kpi-tbl td.c-delta{font-family:var(--mono);font-size:10px;font-weight:700;padding:4px 6px;text-align:center}
+.kpi-tbl td.c-delta.pos{color:var(--green)}.kpi-tbl td.c-delta.neg{color:var(--red)}.kpi-tbl td.c-delta.zero{color:var(--g3)}
+.kpi-input-cell{padding:2px 4px}
+.kpi-input{width:100%;height:28px;padding:0 6px;border:1.5px solid transparent;border-radius:4px;font-family:var(--mono);font-size:11px;text-align:right;outline:none;background:transparent;color:var(--g6);transition:border .12s}
+.kpi-input:hover{border-color:var(--g2)}.kpi-input:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 2px rgba(26,70,196,.08)}
+.kpi-input.saving{opacity:.5}
+.kpi-tbl tbody tr.drop-into{background:var(--blue-lt)!important;box-shadow:inset 0 0 0 2px var(--blue)}
+</style>
+
+<div class="kpi-wrap">
+  <table class="kpi-tbl" id="kpiTbl">
+    <thead><tr>
+      <th class="c-nv">Nhân viên</th>
+      <th class="c-sum">Σ DT NB</th><th class="c-input">DT Nội bộ</th><th class="c-delta">Δ</th><th class="c-input">DT Công ty</th>
+      <th class="c-sum">Σ DS NB</th><th class="c-input">DS Nội bộ</th><th class="c-delta">Δ</th><th class="c-input">DS Công ty</th>
+    </tr></thead>
+    <tbody id="kpiBody"></tbody>
+  </table>
+</div>
+
+<script>
+(function(){
+var K=window._kpi;
+var _rendering=false;
+var dragId=null;
+
+window.kpiRenderTable=function(){
+    if(!K||!K.byParent||!K.assignments)return;
+    _rendering=true;
+    var html='',total=0;
+    function walk(pid,depth){
+        var kids=K.byParent[pid];if(!kids)return;
+        kids.forEach(function(a){
+            total++;var ma=a.ma_nvkd;
+            var hasKids=K.byParent[ma]&&K.byParent[ma].length>0;
+            var isExp=K.expanded[ma]===true;
+            var kpi=K.kpiData[ma]||{};
+            var indent=depth*20;var isRoot=depth===0;
+            var sumKpi=K.getChildSum(ma,'kpi'),sumDs=K.getChildSum(ma,'kpi_ds');
+            var valKpi=kpi.kpi||0,valKpiCty=kpi.kpi_cong_ty||0,valDs=kpi.kpi_ds||0,valDsCty=kpi.kpi_ds_cong_ty||0;
+            var dKpi=sumKpi!=null?valKpi-sumKpi:null,dDs=sumDs!=null?valDs-sumDs:null;
+
+            html+='<tr class="'+(isRoot?'is-root':'')+'" data-ma="'+ma+'" data-depth="'+depth+'">';
+            html+='<td class="c-nv"><div class="nv-cell" style="padding-left:'+(8+indent)+'px">';
+            html+='<span class="nv-drag" draggable="true" data-ma="'+ma+'">☰</span>';
+            html+=hasKids?'<span class="nv-expand" onclick="kpiToggle(\''+ma+'\')"><svg viewBox="0 0 8 8">'+(isExp?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="nv-sp"></span>';
+            html+='<span class="nv-code">'+K.esc(ma)+'</span><span class="nv-name'+(hasKids?' is-manager':'')+'">'+K.esc(a.ten_nvkd)+'</span></div></td>';
+            html+='<td class="c-sum">'+(sumKpi!=null?K.fN(sumKpi):'—')+'</td>';
+            html+='<td class="kpi-input-cell"><input class="kpi-input" data-ma="'+ma+'" data-field="kpi" value="'+(valKpi?Math.round(valKpi):'')+'"></td>';
+            html+='<td class="c-delta '+(dKpi!=null?(dKpi>0?'pos':dKpi<0?'neg':'zero'):'')+'">'+( dKpi!=null?(dKpi>0?'+':'')+K.fN(dKpi):'—')+'</td>';
+            html+='<td class="kpi-input-cell"><input class="kpi-input" data-ma="'+ma+'" data-field="kpi_cong_ty" value="'+(valKpiCty?Math.round(valKpiCty):'')+'"></td>';
+            html+='<td class="c-sum">'+(sumDs!=null?K.fN(sumDs):'—')+'</td>';
+            html+='<td class="kpi-input-cell"><input class="kpi-input" data-ma="'+ma+'" data-field="kpi_ds" value="'+(valDs?Math.round(valDs):'')+'"></td>';
+            html+='<td class="c-delta '+(dDs!=null?(dDs>0?'pos':dDs<0?'neg':'zero'):'')+'">'+( dDs!=null?(dDs>0?'+':'')+K.fN(dDs):'—')+'</td>';
+            html+='<td class="kpi-input-cell"><input class="kpi-input" data-ma="'+ma+'" data-field="kpi_ds_cong_ty" value="'+(valDsCty?Math.round(valDsCty):'')+'"></td>';
+            html+='</tr>';
+            if(hasKids&&isExp)walk(ma,depth+1);
+        });
+    }
+    walk('__ROOT__',0);
+    document.getElementById('kpiBody').innerHTML=html||'<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--g4)">Chọn kỳ và BP rồi nhấn Tải</td></tr>';
+    document.getElementById('kpiStats').textContent=total+' nhân viên';
+    bindInputs();bindDrag();
+    _rendering=false;
+};
+
+function bindInputs(){
+    document.querySelectorAll('.kpi-input').forEach(function(inp){
+        inp.addEventListener('focus',function(){this.select()});
+        inp.addEventListener('blur',function(){saveCell(this)});
+        inp.addEventListener('keydown',function(e){
+            if(e.key==='Enter'){e.preventDefault();this.blur()}
+            if(e.key==='Tab'){var all=Array.from(document.querySelectorAll('.kpi-input'));var i=all.indexOf(this);if(i>=0&&i<all.length-1){e.preventDefault();this.blur();all[i+1].focus()}}
+        });
+    });
+}
+function saveCell(inp){
+    if(_rendering)return;
+    var ma=inp.dataset.ma,field=inp.dataset.field;
+    var val=parseFloat(inp.value.replace(/[,.\s]/g,''))||0;
+    if(!K.kpiData[ma])K.kpiData[ma]={kpi:0,kpi_cong_ty:0,kpi_ds:0,kpi_ds_cong_ty:0};
+    var old=K.kpiData[ma][field]||0;
+    K.kpiData[ma][field]=val;
+    inp.value=val?Math.round(val):'';
+    inp.classList.add('saving');
+    fetch('/admin/kpi/save-cell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:K.getKbc(),ma_nvkd:ma,field:field,value:val})}).then(function(){inp.classList.remove('saving')}).catch(function(){inp.classList.remove('saving')});
+    if(Math.round(old)!==Math.round(val))updateSums();
+}
+function updateSums(){
+    document.querySelectorAll('#kpiBody tr').forEach(function(tr){
+        var ma=tr.dataset.ma;var tds=tr.querySelectorAll('td');
+        var sK=K.getChildSum(ma,'kpi'),sD=K.getChildSum(ma,'kpi_ds');
+        var vK=(K.kpiData[ma]||{}).kpi||0,vD=(K.kpiData[ma]||{}).kpi_ds||0;
+        if(tds[1])tds[1].textContent=sK!=null?K.fN(sK):'—';
+        if(tds[3]&&sK!=null){var d=vK-sK;tds[3].textContent=(d>0?'+':'')+K.fN(d);tds[3].className='c-delta '+(d>0?'pos':d<0?'neg':'zero')}
+        if(tds[5])tds[5].textContent=sD!=null?K.fN(sD):'—';
+        if(tds[7]&&sD!=null){var d2=vD-sD;tds[7].textContent=(d2>0?'+':'')+K.fN(d2);tds[7].className='c-delta '+(d2>0?'pos':d2<0?'neg':'zero')}
+    });
+}
+
+window.kpiToggle=function(ma){K.expanded[ma]=!K.expanded[ma];window.kpiRenderTable()};
+
+/* ═══ Drag & Drop ═══ */
+function bindDrag(){
+    document.querySelectorAll('.nv-drag').forEach(function(h){
+        h.addEventListener('dragstart',function(e){dragId=this.dataset.ma;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragId);this.closest('tr').style.opacity='0.4'});
+        h.addEventListener('dragend',function(){dragId=null;this.closest('tr').style.opacity='';document.querySelectorAll('.drop-into').forEach(function(el){el.classList.remove('drop-into')})});
+    });
+    document.querySelectorAll('#kpiBody tr').forEach(function(tr){
+        tr.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';document.querySelectorAll('.drop-into').forEach(function(el){el.classList.remove('drop-into')});if(tr.dataset.ma!==dragId)tr.classList.add('drop-into')});
+        tr.addEventListener('dragleave',function(){tr.classList.remove('drop-into')});
+        tr.addEventListener('drop',function(e){e.preventDefault();tr.classList.remove('drop-into');var target=tr.dataset.ma;if(!dragId||dragId===target)return;if(isDesc(target,dragId))return;reassign(dragId,target)});
+    });
+}
+function isDesc(ma,anc){var cur=ma,vis=new Set();while(cur&&K.nodeMap[cur]&&!vis.has(cur)){vis.add(cur);if(cur===anc)return true;cur=K.nodeMap[cur].ma_ql}return false}
+function reassign(child,newParent){
+    fetch('/admin/kpi/reassign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:K.getKbc(),ma_bp:K.getBp(),ma_nvkd:child,new_ma_ql:newParent})}).then(function(r){return r.json()}).then(function(d){
+        if(d.ok&&d.assignments){K.assignments=d.assignments;K.expanded[newParent]=true;K.buildTree();window.kpiRenderTable()}
+    });
+}
+})();
+</script>
+</div>

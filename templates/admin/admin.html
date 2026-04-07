@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VietAnh BI - Quản trị</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f0f2f5;--white:#fff;--g1:#f5f6f8;--g2:#e4e7ed;--g3:#b0b8c9;--g4:#6e7a94;--g5:#3d4a63;--g6:#1a1a2e;--blue:#0066cc;--blue-lt:#e8f0fe;--green:#0a7c50;--green-lt:#e6f7f0;--red:#c0392b;--red-lt:#fdf0ef;--amber:#c07f00;--amber-lt:#fef9ec;--purple:#6c3ec2;--purple-lt:#f4f0ff;--radius:10px;--shadow:0 1px 4px rgba(0,0,0,.06);--sans:'Nunito Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:var(--sans);background:var(--bg);color:var(--g6);font-size:14px;min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;background:var(--g6);color:#fff;position:sticky;top:0;z-index:50}.topbar .brand{font-weight:800;font-size:15px}.topbar .nav{display:flex;gap:8px;align-items:center;font-size:12px}.topbar a{color:#fff;text-decoration:none;padding:5px 12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:6px;font-size:11px;font-weight:600;transition:.15s}.topbar a:hover{background:rgba(255,255,255,.22)}
+.tab-bar{display:flex;gap:0;background:var(--white);border-bottom:2px solid var(--g2);padding:0 16px;position:sticky;top:48px;z-index:40}.tab-btn{padding:12px 20px;font-size:13px;font-weight:700;color:var(--g4);background:none;border:none;cursor:pointer;position:relative;transition:.15s;white-space:nowrap}.tab-btn:hover{color:var(--g6)}.tab-btn.active{color:var(--blue)}.tab-btn.active::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2.5px;background:var(--blue);border-radius:2px 2px 0 0}.tab-btn .cnt{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 5px;background:var(--g2);color:var(--g4);border-radius:9px;font-size:10px;font-weight:800;margin-left:5px}.tab-btn.active .cnt{background:var(--blue-lt);color:var(--blue)}
+.flash{padding:10px 16px;border-radius:8px;margin-bottom:14px;font-size:13px;font-weight:600}.flash.success{background:var(--green-lt);color:var(--green);border:1px solid #b8e6d4}.flash.error{background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0}
+.tab-content{display:none;max-width:1400px;margin:16px auto;padding:0 16px}.tab-content.active{display:block}
+.btn{padding:6px 14px;border-radius:6px;font-weight:700;font-size:11px;border:none;cursor:pointer;font-family:var(--sans);transition:.15s}.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{opacity:.88}.btn-red{background:var(--red);color:#fff;font-size:10px;padding:4px 10px}.btn-outline{background:var(--white);color:var(--blue);border:1px solid var(--blue);font-size:10px;padding:4px 10px}.btn-sm{font-size:10px;padding:4px 10px}.btn-cancel{background:var(--g2);color:var(--g5)}.btn-add{display:block;margin:14px 0;width:100%;padding:10px;border:2px dashed var(--g2);border-radius:var(--radius);background:none;font-size:13px;font-weight:700;color:var(--g4);cursor:pointer;font-family:var(--sans)}.btn-add:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+.badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;white-space:nowrap}.badge.active{background:var(--green-lt);color:var(--green)}.badge.inactive{background:var(--g2);color:var(--g4)}.badge.powerbi{background:var(--amber-lt);color:var(--amber)}.badge.analytics{background:var(--blue-lt);color:var(--blue)}.badge.report{background:var(--purple-lt);color:var(--purple)}.badge.Tháng{background:var(--green-lt);color:var(--green)}.badge.Quý{background:var(--blue-lt);color:var(--blue)}.badge.Năm{background:var(--purple-lt);color:var(--purple)}
+/* ═══ SHARED COMPONENTS ═══ */
+{% include "admin/_admin_shared_css.html" %}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="brand">Quản trị hệ thống</div><div class="nav"><span style="font-size:13px">{{ username }}</span><a href="/dashboards">Dashboard</a><a href="/logout">Đăng xuất</a></div></div>
+<div class="tab-bar">
+    <button class="tab-btn active" data-tab="users" onclick="switchTab('users')">Người dùng<span class="cnt">{{ users|length }}</span></button>
+    {% if not admin_bps %}<button class="tab-btn" data-tab="dashboards" onclick="switchTab('dashboards')">Dashboard<span class="cnt">{{ dashboards|length }}</span></button>{% endif %}
+    <button class="tab-btn" data-tab="permissions" onclick="switchTab('permissions')">Phân quyền<span class="cnt">{{ perm_users|length }}</span></button>
+    {% if not admin_bps %}<button class="tab-btn" data-tab="kbc" onclick="switchTab('kbc')">Kỳ báo cáo<span class="cnt">{{ ky_bao_cao|length }}</span></button>{% endif %}
+    <button class="tab-btn" data-tab="log" onclick="switchTab('log');loadAuditLog()">Log</button>
+    {% if not admin_bps %}<button class="tab-btn" data-tab="kpi" onclick="switchTab('kpi')">KPI</button>{% endif %}
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div style="max-width:1400px;margin:14px auto 0;padding:0 16px">{% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+
+{% include "admin/_tab_users.html" %}
+{% if not admin_bps %}{% include "admin/_tab_dashboards.html" %}{% endif %}
+{% if not admin_bps %}{% include "admin/_tab_kbc.html" %}{% endif %}
+{% include "admin/_tab_permissions.html" %}
+{% include "admin/_tab_log.html" %}
+{% if not admin_bps %}{% include "admin/_tab_kpi.html" %}{% endif %}
+
+{% include "admin/_admin_js.html" %}
+</body>
+</html>
