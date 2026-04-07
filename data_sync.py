@@ -194,6 +194,13 @@ class DataSync:
             self.sync_count += 1
             logger.info(f"[DataSync] ✓ Sync #{self.sync_count} hoàn thành trong {elapsed:.1f}s")
 
+            # Sync dimension history (SCD Type 2)
+            try:
+                from dim_history import sync_dim_history
+                sync_dim_history(self.config)
+            except Exception as dh_err:
+                logger.error(f"[DataSync] DimHistory error (non-fatal): {dh_err}")
+
             # Gọi callback (ví dụ: reload DuckDB)
             if self.on_success:
                 try:
