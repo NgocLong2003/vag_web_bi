@@ -524,3 +524,122 @@ def kpi_import_excel():
 
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════
+# API: Unassigned NVKDs
+# ═══════════════════════════════════════════════
+
+@bp.route('/kpi/unassigned')
+@admin_required
+def kpi_unassigned():
+    """NV active (DMNHANVIENKD_VIEW) nhưng chưa có trong kpi_targets cho kỳ này."""
+    ma_kbc_list = request.args.getlist('ma_kbc')
+    ma_bp = request.args.get('ma_bp', '').strip()
+    kbcs = []
+    for k in ma_kbc_list:
+        for p in k.split(','):
+            p = p.strip()
+            if p: kbcs.append(p)
+    first_kbc = kbcs[0] if kbcs else ''
+
+    try:
+        conn = _ss_conn()
+        cur = conn.cursor()
+        existing = set()
+        if first_kbc:
+            cur.execute('SELECT ma_nvkd FROM kpi_targets WHERE ma_kbc = ?', (first_kbc,))
+            existing = set(r[0] for r in cur.fetchall())
+
+        cur.execute("""SELECT ma_nvkd, ten_nvkd, ma_ql, ksd
+                       FROM DMNHANVIENKD_VIEW
+                       WHERE ma_nvkd IS NOT NULL AND ma_nvkd != ''
+                         AND (ksd = 1 OR ksd IS NULL)""")
+        all_nv = cur.fetchall()
+
+        bp_map = {}
+        cur.execute("""SELECT DISTINCT ma_nvkd, ma_bp FROM DMKHACHHANG_VIEW
+                       WHERE ma_nvkd IS NOT NULL AND ma_nvkd != ''
+                         AND ma_bp IS NOT NULL AND ma_bp != '' AND ma_bp != 'TN'""")
+        for r in cur.fetchall():
+            bp_map[r[0]] = r[1]
+        conn.close()
+
+        result = []
+        for r in all_nv:
+            ma = (r[0] or '').strip()
+            if not ma or ma in existing:
+                continue
+            nv_bp = bp_map.get(ma, '')
+            if ma_bp and nv_bp != ma_bp:
+                continue
+            result.append({'ma_nvkd': ma, 'ten_nvkd': (r[1] or '').strip(),
+                           'ma_ql': (r[2] or '').strip(), 'ma_bp': nv_bp})
+        return jsonify({'ok': True, 'data': result})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@bp.route('/kpi/add-nvkd', methods=['POST'])
+@admin_required
+def kpi_add_nvkd():
+    """Thêm 1 NVKD vào kpi_targets (drag từ unassigned panel)."""
+    data = request.get_json(force=True)
+    ma_kbc = data.get('ma_kbc', '').strip()
+    ma_nvkd = data.get('ma_nvkd', '').strip()
+    ten_nvkd = data.get('ten_nvkd', '').strip()
+    ma_ql = data.get('ma_ql', '').strip()
+    ma_bp = data.get('ma_bp', '').strip()
+    if not ma_kbc or not ma_nvkd:
+        return jsonify({'ok': False, 'error': 'Thiếu thông tin'}), 400
+    nam, thang = _parse_kbc(ma_kbc)
+    try:
+        conn = _ss_conn()
+        cur = conn.cursor()
+        cur.execute('SELECT id FROM kpi_targets WHERE ma_kbc = ? AND ma_nvkd = ?', (ma_kbc, ma_nvkd))
+        if cur.fetchone():
+            conn.close()
+            return jsonify({'ok': True, 'message': 'Đã tồn tại'})
+        cur.execute('''INSERT INTO kpi_targets
+            (ma_bp, ma_kbc, nam, thang, ma_nvkd, ten_nvkd, nguoi_gd, ma_ql)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (ma_bp, ma_kbc, nam, thang, ma_nvkd, ten_nvkd, ten_nvkd, ma_ql))
+        conn.commit()
+        _recalc_paths(conn, ma_kbc)
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@bp.route('/kpi/delete-nvkd', methods=['POST'])
+@admin_required
+def kpi_delete_nvkd():
+    """Xóa 1 hoặc nhiều NVKD khỏi kpi_targets. Con trực tiếp sẽ được gán lên QL cha."""
+    data = request.get_json(force=True)
+    ma_kbc_list = data.get('ma_kbc', [])
+    ma_nvkd = data.get('ma_nvkd', '').strip()
+    if isinstance(ma_kbc_list, str):
+        ma_kbc_list = [k.strip() for k in ma_kbc_list.split(',') if k.strip()]
+    if not ma_nvkd or not ma_kbc_list:
+        return jsonify({'ok': False, 'error': 'Thiếu thông tin'}), 400
+
+    try:
+        conn = _ss_conn()
+        cur = conn.cursor()
+        for kbc in ma_kbc_list:
+            # Find this NV's parent (ma_ql)
+            cur.execute('SELECT ma_ql FROM kpi_targets WHERE ma_kbc = ? AND ma_nvkd = ?', (kbc, ma_nvkd))
+            row = cur.fetchone()
+            parent_ql = row[0] if row else ''
+            # Reassign direct children to parent_ql
+            cur.execute('UPDATE kpi_targets SET ma_ql = ?, ldate = GETDATE() WHERE ma_kbc = ? AND ma_ql = ?',
+                        (parent_ql or '', kbc, ma_nvkd))
+            # Delete the node
+            cur.execute('DELETE FROM kpi_targets WHERE ma_kbc = ? AND ma_nvkd = ?', (kbc, ma_nvkd))
+            conn.commit()
+            _recalc_paths(conn, kbc)
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500

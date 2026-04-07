@@ -45,6 +45,15 @@
 .kpi-left-row .val{font-family:var(--mono);font-size:11px;color:var(--g6);font-weight:600}
 .kpi-left-row .val.zero{color:var(--g3)}
 .kpi-left-empty{padding:40px 12px;text-align:center;color:var(--g4);font-size:12px}
+.kpi-left-search{width:calc(100% - 24px);margin:8px 12px 4px;height:28px;padding:0 8px;border:1.5px solid var(--g2);border-radius:5px;font-size:11px;font-family:var(--sans);outline:none}.kpi-left-search:focus{border-color:var(--blue)}
+.kpi-ua-item{display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid var(--g1);cursor:grab;transition:background .08s;user-select:none}
+.kpi-ua-item:hover{background:var(--blue-lt)}
+.kpi-ua-item:active{cursor:grabbing;background:#dbeafe}
+.kpi-ua-drag{color:var(--g3);font-size:11px;flex-shrink:0}
+.kpi-ua-info{flex:1;min-width:0}
+.kpi-ua-name{font-size:12px;font-weight:600;color:var(--g6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi-ua-meta{font-size:9px;color:var(--g4);font-family:var(--mono)}
+.kpi-ua-count{font-size:10px;color:var(--g4);padding:0 12px 4px}
 
 .kpi-content{flex:1;overflow:hidden;position:relative}
 .kpi-view{display:none;height:100%}.kpi-view.active{display:block}
@@ -103,13 +112,13 @@ populateKBC();
 
 <!-- MAIN: LEFT PANEL + CONTENT -->
 <div class="kpi-main">
-  <div class="kpi-left hidden" id="kpiLeftPanel">
+  <div class="kpi-left" id="kpiLeftPanel">
     <div class="kpi-left-header">
-      <span id="kpiLeftTitle">Chi tiết NV</span>
+      <span id="kpiLeftTitle">Chưa phân công</span>
       <button class="kpi-left-close" onclick="kpiCloseLeft()">✕</button>
     </div>
     <div class="kpi-left-body" id="kpiLeftBody">
-      <div class="kpi-left-empty">Click vào 1 node trên sơ đồ</div>
+      <div class="kpi-left-empty">Đang tải...</div>
     </div>
   </div>
   <div class="kpi-content">
@@ -153,7 +162,7 @@ function getSelectedKbcs(){return window._kpiSelectedKbcs||[]}
 window.kpiSwitchView=function(v){document.querySelectorAll('.kpi-view-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view===v)});document.querySelectorAll('.kpi-view').forEach(function(el){el.classList.toggle('active',el.id==='kpiView'+(v==='table'?'Table':'Graph'))});if(v==='graph'&&typeof window.kpiRenderGraph==='function')window.kpiRenderGraph();if(v==='table'&&typeof window.kpiRenderTable==='function')window.kpiRenderTable()};
 function renderBoth(){if(typeof window.kpiRenderTable==='function')window.kpiRenderTable();if(typeof window.kpiRenderGraph==='function')window.kpiRenderGraph()}
 /* Load data */
-window.kpiLoad=function(){var kbcs=getSelectedKbcs(),mbp=window._kpi.getBp();if(!kbcs.length)return;var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');if(mbp)qp+='&ma_bp='+encodeURIComponent(mbp);fetch('/admin/kpi/data?'+qp).then(function(r){return r.json()}).then(function(d){if(!d.ok){if(d.error)alert('Lỗi: '+d.error);return}assignments=d.assignments||[];kpiData=d.kpi||{};detailData=d.detail||{};buildTree();if(typeof window._kpiResetExpand==='function')window._kpiResetExpand(!!mbp);renderBoth();var roots=byParent['__ROOT__'];if(roots&&roots.length){var firstMa=roots[0].ma_nvkd;if(typeof window.kpiShowDetail==='function')window.kpiShowDetail(firstMa)}})};
+window.kpiLoad=function(){var kbcs=getSelectedKbcs(),mbp=window._kpi.getBp();if(!kbcs.length)return;var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');if(mbp)qp+='&ma_bp='+encodeURIComponent(mbp);fetch('/admin/kpi/data?'+qp).then(function(r){return r.json()}).then(function(d){if(!d.ok){if(d.error)alert('Lỗi: '+d.error);return}assignments=d.assignments||[];kpiData=d.kpi||{};detailData=d.detail||{};buildTree();if(typeof window._kpiResetExpand==='function')window._kpiResetExpand(!!mbp);renderBoth();kpiShowUnassigned()})};
 /* Left panel */
 window.kpiShowDetail=function(ma){
     var a=nodeMap[ma];if(!a)return;
@@ -221,7 +230,52 @@ function kpiLeftEdit(el){
     inp.addEventListener('blur',save);
     inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();inp.blur()}if(e.key==='Escape'){saved=true;el.textContent=oldText}});
 }
-window.kpiCloseLeft=function(){document.getElementById('kpiLeftPanel').classList.add('hidden')};
+window.kpiCloseLeft=function(){kpiShowUnassigned()};
+/* Unassigned panel: NVKDs not in KPI for this period */
+var _uaData=[];
+window.kpiShowUnassigned=function(){
+    var panel=document.getElementById('kpiLeftPanel');
+    panel.classList.remove('hidden');
+    document.getElementById('kpiLeftTitle').textContent='Chưa phân công';
+    var kbcs=getSelectedKbcs(),mbp=window._kpi.getBp();
+    if(!kbcs.length){document.getElementById('kpiLeftBody').innerHTML='<div class="kpi-left-empty">Chọn kỳ trước</div>';return}
+    document.getElementById('kpiLeftBody').innerHTML='<div class="kpi-left-empty">Đang tải...</div>';
+    var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');
+    if(mbp)qp+='&ma_bp='+encodeURIComponent(mbp);
+    fetch('/admin/kpi/unassigned?'+qp).then(function(r){return r.json()}).then(function(d){
+        if(!d.ok){document.getElementById('kpiLeftBody').innerHTML='<div class="kpi-left-empty">Lỗi: '+(d.error||'')+'</div>';return}
+        _uaData=d.data||[];
+        renderUnassigned('');
+    });
+};
+function renderUnassigned(q){
+    q=(q||'').toLowerCase().trim();
+    var filtered=q?_uaData.filter(function(nv){return(nv.ten_nvkd+' '+nv.ma_nvkd).toLowerCase().indexOf(q)>=0}):_uaData;
+    var h='<input class="kpi-left-search" type="text" placeholder="Tìm NV..." oninput="renderUnassigned(this.value)" value="'+esc(q)+'">';
+    h+='<div class="kpi-ua-count">'+filtered.length+'/'+_uaData.length+' NV chưa có KPI</div>';
+    if(!filtered.length){h+='<div class="kpi-left-empty">Không có NV nào</div>'}
+    filtered.forEach(function(nv){
+        h+='<div class="kpi-ua-item" draggable="true" data-ma="'+esc(nv.ma_nvkd)+'" data-ten="'+esc(nv.ten_nvkd)+'" data-ql="'+esc(nv.ma_ql)+'" data-bp="'+esc(nv.ma_bp)+'">';
+        h+='<span class="kpi-ua-drag">☰</span>';
+        h+='<div class="kpi-ua-info"><div class="kpi-ua-name">'+esc(nv.ten_nvkd)+'</div><div class="kpi-ua-meta">'+esc(nv.ma_nvkd)+' · QL: '+esc(nv.ma_ql||'—')+' · '+esc(nv.ma_bp)+'</div></div>';
+        h+='</div>';
+    });
+    document.getElementById('kpiLeftBody').innerHTML=h;
+    // Bind drag start
+    document.querySelectorAll('.kpi-ua-item').forEach(function(el){
+        el.addEventListener('dragstart',function(e){
+            e.dataTransfer.effectAllowed='copy';
+            e.dataTransfer.setData('application/json',JSON.stringify({
+                ma_nvkd:this.dataset.ma,ten_nvkd:this.dataset.ten,
+                ma_ql:this.dataset.ql,ma_bp:this.dataset.bp
+            }));
+            e.dataTransfer.setData('text/plain',this.dataset.ma);
+            this.style.opacity='0.4';
+        });
+        el.addEventListener('dragend',function(){this.style.opacity=''});
+    });
+}
+window.renderUnassigned=renderUnassigned;
 /* Actions */
 window.kpiCopyPeriod=function(){var sK=getSelectedKbcs();var to=sK.length===1?sK[0]:'';if(!to){alert('Chọn đúng 1 kỳ tháng đích');return}var fr=prompt('Copy từ kỳ nào?');if(!fr)return;if(!confirm('Copy '+fr+' → '+to+'?'))return;fetch('/admin/kpi/copy-period',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from_kbc:fr,to_kbc:to,ma_bp:window._kpi.getBp()})}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}})};
 window.kpiImportSystem=function(){var sK=getSelectedKbcs();var kbc=sK.length===1?sK[0]:'';if(!kbc){alert('Chọn đúng 1 kỳ tháng');return}if(!confirm('Import NV vào '+kbc+'?'))return;fetch('/admin/kpi/import-system',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:kbc,ma_bp:window._kpi.getBp()})}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}})};

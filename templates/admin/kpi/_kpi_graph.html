@@ -408,6 +408,22 @@ function delEdge(){
     });
 }
 
+/* ═══ Delete selected nodes ═══ */
+function delSelectedNodes(){
+    if(!selected.size)return;
+    var names=[];selected.forEach(function(ma){var a=K.nodeMap[ma];if(a)names.push(a.ten_nvkd+' ('+ma+')')});
+    if(!confirm('Xóa '+selected.size+' NV khỏi KPI?\n'+names.join('\n')+'\n\nCon trực tiếp sẽ được gán lên QL cha.'))return;
+    var kbcs=K.getKbcs();
+    var delList=Array.from(selected);
+    var promises=delList.map(function(ma){
+        return fetch('/admin/kpi/delete-nvkd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:kbcs,ma_nvkd:ma})}).then(function(r){return r.json()});
+    });
+    Promise.all(promises).then(function(){
+        selected.clear();resetPos();
+        if(typeof window.kpiLoad==='function')window.kpiLoad();
+    });
+}
+
 /* ═══ KPI inline edit ═══ */
 function openKpiEdit(ma,txtEl){
     var f=getField(),kpi=K.kpiData[ma]||{},ov=kpi[f]||0;
@@ -448,6 +464,29 @@ graphEl.addEventListener('mousedown',function(e){
     if(e.target.closest('.gn')||e.target.closest('.gport')||e.target.closest('.gedge-hit')||e.target.closest('.graph-controls')||e.target.closest('.graph-slicers')||e.target.closest('.graph-undo'))return;
     isPan=true;panSX=e.clientX;panSY=e.clientY;panTX=tx;panTY=ty;graphEl.classList.add('panning');
     selected.clear();_selEdge=null;render();
+    // Show unassigned panel when clicking empty canvas
+    if(typeof window.kpiShowUnassigned==='function')window.kpiShowUnassigned();
+});
+/* Drop from unassigned panel → add NVKD to canvas */
+graphEl.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='copy'});
+graphEl.addEventListener('drop',function(e){
+    e.preventDefault();
+    var jsonStr=e.dataTransfer.getData('application/json');
+    if(!jsonStr)return;
+    try{var nv=JSON.parse(jsonStr)}catch(x){return}
+    if(!nv.ma_nvkd)return;
+    var kbcs=K.getKbcs();var firstKbc=kbcs[0]||'';
+    if(!firstKbc)return;
+    // Add to each selected kbc
+    var promises=kbcs.map(function(kbc){
+        return fetch('/admin/kpi/add-nvkd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+            ma_kbc:kbc,ma_nvkd:nv.ma_nvkd,ten_nvkd:nv.ten_nvkd,ma_ql:nv.ma_ql,ma_bp:nv.ma_bp
+        })}).then(function(r){return r.json()})
+    });
+    Promise.all(promises).then(function(){
+        // Reload data
+        if(typeof window.kpiLoad==='function')window.kpiLoad();
+    });
 });
 document.addEventListener('mousemove',function(e){if(!isPan)return;tx=panTX+(e.clientX-panSX)/scale;ty=panTY+(e.clientY-panSY)/scale;var g=document.getElementById('graphG');if(g)g.setAttribute('transform','translate('+tx+','+ty+') scale('+scale+')')});
 document.addEventListener('mouseup',function(){if(isPan){isPan=false;graphEl.classList.remove('panning')}});
@@ -458,7 +497,11 @@ graphEl.addEventListener('keydown',function(e){
     var act=document.activeElement;if(act&&(act.tagName==='INPUT'||act.tagName==='TEXTAREA'))return;
     if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();kpiUndo();return}
     if((e.ctrlKey||e.metaKey)&&e.key==='a'){e.preventDefault();K.assignments.forEach(function(a){if(visibleNodes.has(a.ma_nvkd))selected.add(a.ma_nvkd)});render();return}
-    if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(_selEdge)delEdge();return}
+    if(e.key==='Delete'||e.key==='Backspace'){
+        e.preventDefault();
+        if(_selEdge){delEdge();return}
+        if(selected.size>0){delSelectedNodes();return}
+    }
 });
 graphEl.addEventListener('mousedown',function(){graphEl.focus()});
 
