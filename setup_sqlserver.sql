@@ -172,3 +172,29 @@ GO
 
 PRINT N'kpi_targets OK';
 GO
+
+
+IF OBJECT_ID('dbo.kpi_ratios', 'U') IS NOT NULL DROP TABLE dbo.kpi_ratios;
+GO
+ 
+CREATE TABLE kpi_ratios (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    ma_bp NVARCHAR(50) NOT NULL,
+    ma_kbc NVARCHAR(50) NOT NULL,       -- T01-2026
+    nam INT NOT NULL,
+    thang INT NOT NULL,
+    ratio_dt_cty DECIMAL(10,6) DEFAULT 1,    -- DT công ty = DT nội bộ × ratio
+    ratio_ds_nb DECIMAL(10,6) DEFAULT 1,     -- DS nội bộ  = DT nội bộ × ratio
+    ratio_ds_cty DECIMAL(10,6) DEFAULT 1,    -- DS công ty = DT nội bộ × ratio
+    note NVARCHAR(200) DEFAULT '',
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT uq_ratio_bp_kbc UNIQUE(ma_bp, ma_kbc)
+);
+GO
+ 
+CREATE INDEX idx_ratio_bp ON kpi_ratios(ma_bp);
+CREATE INDEX idx_ratio_kbc ON kpi_ratios(ma_kbc);
+GO
+ 
+PRINT N'kpi_ratios OK';
+GO

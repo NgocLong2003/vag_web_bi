@@ -35,6 +35,7 @@
 <script>
 (function(){
 var K=window._kpi;
+var graphEl=document.getElementById('kpiGraph');
 var gMetric='dt',gType='nb';
 var scale=1,tx=0,ty=0;
 var pos={};
@@ -164,43 +165,53 @@ function layoutTree(){
         return(K.byParent[ma]||[]).filter(function(c){return visibleNodes.has(c.ma_nvkd)});
     }
 
-    // Subtree width: leaves stack vertically → width = max leaf width
-    // Managers spread horizontally → width = sum of children widths
-    function stW(ma){
+    var LEAF_MAX_COL=5;// max leaves per column (except depth 1 = unlimited)
+
+    function stW(ma,depth){
         var vk=visKids(ma);
         var s=sizes[ma]||{w:110};
         if(!vk.length)return s.w+SIB_GAP;
-        // Check if ALL visible children are leaves
         var allLeaves=vk.every(function(c){return isLeaf(c.ma_nvkd)});
         if(allLeaves){
-            // Vertical stack: width = max child width + parent width side by side? No — below parent
+            // depth 1 (children of root) → single column, no split
+            var maxPerCol=(depth===1)?vk.length:LEAF_MAX_COL;
+            var nCols=Math.ceil(vk.length/maxPerCol);
             var maxCW=0;vk.forEach(function(c){var cs=sizes[c.ma_nvkd]||{w:110};maxCW=Math.max(maxCW,cs.w)});
-            return Math.max(s.w,maxCW)+SIB_GAP;
+            var colsW=nCols*(maxCW+SIB_GAP);
+            return Math.max(s.w+SIB_GAP,colsW);
         }
-        var w=0;vk.forEach(function(c){w+=stW(c.ma_nvkd)});
+        var w=0;vk.forEach(function(c){w+=stW(c.ma_nvkd,(depth||0)+1)});
         return Math.max(s.w+SIB_GAP,w);
     }
 
-    var totalW=stW('__ROOT__')||800;
+    var totalW=stW('__ROOT__',0)||800;
 
     function assign(pid,d,xs,xe){
         var vk=visKids(pid);if(!vk.length)return;
         var allLeaves=vk.every(function(c){return isLeaf(c.ma_nvkd)});
 
         if(allLeaves){
-            // Stack leaves vertically under parent
             var parentP=pos[pid];
-            var startX=parentP?parentP.x:(xs+xe)/2;
+            // depth 1 → single column (no split)
+            var maxPerCol=(d===1)?vk.length:LEAF_MAX_COL;
+            var nCols=Math.ceil(vk.length/maxPerCol);
+            var maxCW=0;vk.forEach(function(c){var cs=sizes[c.ma_nvkd]||{w:110};maxCW=Math.max(maxCW,cs.w)});
+            var colW=maxCW+SIB_GAP;
+            var totalColsW=nCols*colW;
+            var centerX=parentP?parentP.x:(xs+xe)/2;
+            var startX=centerX-totalColsW/2+colW/2;
             var startY=50+d*LEVEL_GAP;
             vk.forEach(function(c,i){
+                var col=Math.floor(i/maxPerCol);
+                var row=i%maxPerCol;
                 var s=sizes[c.ma_nvkd]||{w:110,h:NODE_H};
                 if(!pos[c.ma_nvkd]||!pos[c.ma_nvkd]._moved){
-                    pos[c.ma_nvkd]={x:startX,y:startY+i*(s.h+LEAF_VGAP),w:s.w,h:s.h,_moved:false};
+                    pos[c.ma_nvkd]={x:startX+col*colW,y:startY+row*(s.h+LEAF_VGAP),w:s.w,h:s.h,_moved:false};
                 }else{pos[c.ma_nvkd].w=s.w;pos[c.ma_nvkd].h=s.h}
             });
         }else{
             // Horizontal spread (normal tree layout)
-            var cw=vk.map(function(c){return Math.max((sizes[c.ma_nvkd]||{w:110}).w+SIB_GAP,stW(c.ma_nvkd))});
+            var cw=vk.map(function(c){return Math.max((sizes[c.ma_nvkd]||{w:110}).w+SIB_GAP,stW(c.ma_nvkd,d+1))});
             var tcw=0;cw.forEach(function(w){tcw+=w});
             var x=xs+(xe-xs-tcw)/2;
             vk.forEach(function(c,i){
@@ -323,6 +334,7 @@ function bindAll(){
             else if(e.ctrlKey||e.metaKey){if(selected.has(ma))selected.delete(ma);else selected.add(ma)}
             else{selected.clear();selected.add(ma);if(typeof window.kpiShowDetail==='function')window.kpiShowDetail(ma)}
             lastClickedMa=ma;_selEdge=null;render();
+            graphEl.focus();// ensure keyboard events work
         });
     });
     document.querySelectorAll('#kpiSvg .gport').forEach(function(port){
@@ -459,13 +471,15 @@ window.kpiGraphSearch=function(){
 };
 
 /* ═══ Canvas pan ═══ */
-var graphEl=document.getElementById('kpiGraph');
 graphEl.addEventListener('mousedown',function(e){
     if(e.target.closest('.gn')||e.target.closest('.gport')||e.target.closest('.gedge-hit')||e.target.closest('.graph-controls')||e.target.closest('.graph-slicers')||e.target.closest('.graph-undo'))return;
     isPan=true;panSX=e.clientX;panSY=e.clientY;panTX=tx;panTY=ty;graphEl.classList.add('panning');
-    selected.clear();_selEdge=null;render();
-    // Show unassigned panel when clicking empty canvas
-    if(typeof window.kpiShowUnassigned==='function')window.kpiShowUnassigned();
+    var hadSel=selected.size>0||_selEdge;
+    selected.clear();_selEdge=null;
+    if(hadSel)render();// only re-render if selection actually changed
+    // Switch to unassigned panel (only if currently showing detail)
+    var title=document.getElementById('kpiLeftTitle');
+    if(title&&title.textContent!=='Chưa phân công'&&typeof window.kpiShowUnassigned==='function')window.kpiShowUnassigned();
 });
 /* Drop from unassigned panel → add NVKD to canvas */
 graphEl.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='copy'});
@@ -493,8 +507,11 @@ document.addEventListener('mouseup',function(){if(isPan){isPan=false;graphEl.cla
 graphEl.addEventListener('wheel',function(e){e.preventDefault();scale*=(e.deltaY<0?1.1:0.9);scale=Math.max(0.15,Math.min(4,scale));var g=document.getElementById('graphG');if(g)g.setAttribute('transform','translate('+tx+','+ty+') scale('+scale+')')},{passive:false});
 
 /* ═══ Keyboard ═══ */
-graphEl.addEventListener('keydown',function(e){
-    var act=document.activeElement;if(act&&(act.tagName==='INPUT'||act.tagName==='TEXTAREA'))return;
+document.addEventListener('keydown',function(e){
+    // Only handle when graph view is active
+    var graphView=document.getElementById('kpiViewGraph');
+    if(!graphView||!graphView.classList.contains('active'))return;
+    var act=document.activeElement;if(act&&(act.tagName==='INPUT'||act.tagName==='TEXTAREA'||act.tagName==='SELECT'))return;
     if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();kpiUndo();return}
     if((e.ctrlKey||e.metaKey)&&e.key==='a'){e.preventDefault();K.assignments.forEach(function(a){if(visibleNodes.has(a.ma_nvkd))selected.add(a.ma_nvkd)});render();return}
     if(e.key==='Delete'||e.key==='Backspace'){

@@ -127,7 +127,7 @@ populateKBC();
 /* ═══ Shared KPI state — MUST run before sub-modules ═══ */
 (function(){
 var assignments=[], kpiData={}, nodeMap={}, byParent={}, expanded={};
-var detailData={};
+var detailData={}, ratiosData={};
 var FMT=new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0});
 function fN(v){return v==null||isNaN(v)?'—':FMT.format(Math.round(v))}
 function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
@@ -162,106 +162,163 @@ function getSelectedKbcs(){return window._kpiSelectedKbcs||[]}
 window.kpiSwitchView=function(v){document.querySelectorAll('.kpi-view-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view===v)});document.querySelectorAll('.kpi-view').forEach(function(el){el.classList.toggle('active',el.id==='kpiView'+(v==='table'?'Table':'Graph'))});if(v==='graph'&&typeof window.kpiRenderGraph==='function')window.kpiRenderGraph();if(v==='table'&&typeof window.kpiRenderTable==='function')window.kpiRenderTable()};
 function renderBoth(){if(typeof window.kpiRenderTable==='function')window.kpiRenderTable();if(typeof window.kpiRenderGraph==='function')window.kpiRenderGraph()}
 /* Load data */
-window.kpiLoad=function(){var kbcs=getSelectedKbcs(),mbp=window._kpi.getBp();if(!kbcs.length)return;var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');if(mbp)qp+='&ma_bp='+encodeURIComponent(mbp);fetch('/admin/kpi/data?'+qp).then(function(r){return r.json()}).then(function(d){if(!d.ok){if(d.error)alert('Lỗi: '+d.error);return}assignments=d.assignments||[];kpiData=d.kpi||{};detailData=d.detail||{};buildTree();if(typeof window._kpiResetExpand==='function')window._kpiResetExpand(!!mbp);renderBoth();kpiShowUnassigned()})};
+window.kpiLoad=function(){var kbcs=getSelectedKbcs(),mbp=window._kpi.getBp();if(!kbcs.length)return;var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');if(mbp)qp+='&ma_bp='+encodeURIComponent(mbp);fetch('/admin/kpi/data?'+qp).then(function(r){return r.json()}).then(function(d){if(!d.ok){if(d.error)alert('Lỗi: '+d.error);return}assignments=d.assignments||[];kpiData=d.kpi||{};detailData=d.detail||{};ratiosData=d.ratios||{};_uaData=d.unassigned||[];_uaLoaded=true;buildTree();if(typeof window._kpiResetExpand==='function')window._kpiResetExpand(!!mbp);renderBoth();kpiShowUnassigned()})};
 /* Left panel */
+/* Parse ratio: supports fraction like 72/68.5 */
+function parseRatio(s){s=String(s||'').trim();if(s.indexOf('/')>=0){var p=s.split('/');var n=parseFloat(p[0]),d=parseFloat(p[1]);if(d&&!isNaN(n))return n/d}return parseFloat(s)||1}
+function fR(v){return v?v.toFixed(4):'—'}
+
 window.kpiShowDetail=function(ma){
     var a=nodeMap[ma];if(!a)return;
     document.getElementById('kpiLeftPanel').classList.remove('hidden');
     document.getElementById('kpiLeftTitle').textContent='Chi tiết';
-    var fs=['kpi','kpi_cong_ty','kpi_ds','kpi_ds_cong_ty'];
-    var fn={'kpi':'DT Nội bộ','kpi_cong_ty':'DT Công ty','kpi_ds':'DS Nội bộ','kpi_ds_cong_ty':'DS Công ty'};
     var det=detailData[ma]||{};
     var mons=Object.keys(det).sort(function(a,b){return parseInt(b.replace(/[^\d]/g,''))-parseInt(a.replace(/[^\d]/g,''))});
-    var h='<div class="kpi-left-name">'+esc(a.ten_nvkd)+'</div><div class="kpi-left-code">'+esc(ma)+' · QL: '+esc(a.ma_ql||'(gốc)')+'</div>';
-    fs.forEach(function(f){
-        h+='<div class="kpi-left-section">'+fn[f]+'</div>';
-        if(!mons.length){h+='<div class="kpi-left-row"><span class="lbl">Chưa có dữ liệu</span></div>';return}
-        var tot=0;mons.forEach(function(m){tot+=(det[m]||{})[f]||0});
-        h+='<div class="kpi-left-row" style="background:var(--blue-lt)"><span class="lbl" style="font-weight:700">Tổng</span><span class="val" style="font-weight:700">'+fN(tot)+'</span></div>';
+    var nvBp=a.ma_bp||'';
+    var parentNode=nodeMap[a.ma_ql];
+    var isBpRoot=!a.ma_ql||a.ma_ql===''||!parentNode||(parentNode&&!parentNode.ma_ql);
+    var isCompanyRoot=!a.ma_ql||a.ma_ql==='';
+    var bpRatios=ratiosData[nvBp]||{};
+    var RF=[{key:'ratio_dt_cty',kf:'kpi_cong_ty',label:'DT Công ty'},{key:'ratio_ds_nb',kf:'kpi_ds',label:'DS Nội bộ'},{key:'ratio_ds_cty',kf:'kpi_ds_cong_ty',label:'DS Công ty'}];
+
+    var h='<div class="kpi-left-name">'+esc(a.ten_nvkd)+'</div>';
+    h+='<div class="kpi-left-code">'+esc(ma)+' · QL: '+esc(a.ma_ql||'(gốc)')+' · BP: '+esc(nvBp)+'</div>';
+
+    // DT Nội bộ — merged title+total
+    var totKpi=0;mons.forEach(function(m){totKpi+=(det[m]||{}).kpi||0});
+    h+='<div class="kpi-left-row" style="background:var(--blue-lt);margin-top:8px"><span class="lbl" style="font-weight:800">DT Nội bộ</span><span class="val" style="font-weight:800">'+fN(totKpi)+'</span></div>';
+    mons.forEach(function(m){
+        var v=(det[m]||{}).kpi||0;
+        h+='<div class="kpi-left-row"><span class="lbl">'+esc(m)+'</span>';
+        h+='<span class="val kpi-left-editable'+(v?'':' zero')+'" data-ma="'+esc(ma)+'" data-kbc="'+esc(m)+'" data-field="kpi" style="cursor:pointer" title="Click để sửa">'+fN(v)+'</span></div>';
+    });
+
+    // DT Công ty / DS NB / DS Cty — merged title+total, 3-column rows: kỳ | tỷ lệ | giá trị
+    RF.forEach(function(rf){
+        var totF=0;mons.forEach(function(m){totF+=(det[m]||{})[rf.kf]||0});
+        h+='<div class="kpi-left-row" style="background:var(--blue-lt);margin-top:8px"><span class="lbl" style="font-weight:800">'+rf.label+'</span><span class="val" style="font-weight:800">'+fN(totF)+'</span></div>';
         mons.forEach(function(m){
-            var v=(det[m]||{})[f]||0;
-            h+='<div class="kpi-left-row"><span class="lbl">'+esc(m)+'</span><span class="val kpi-left-editable'+(v?'':' zero')+'" data-ma="'+esc(ma)+'" data-kbc="'+esc(m)+'" data-field="'+f+'" style="cursor:pointer" title="Click để sửa">'+fN(v)+'</span></div>';
+            var v=(det[m]||{})[rf.kf]||0;
+            var baseV=(det[m]||{}).kpi||0;
+            var r=(bpRatios[m]||{})[rf.key]||0;
+            var canEdit=isBpRoot&&!isCompanyRoot;
+            h+='<div class="kpi-left-row" style="display:flex;gap:2px;align-items:center">';
+            h+='<span class="lbl" style="min-width:56px">'+esc(m)+'</span>';
+            if(canEdit){
+                h+='<span class="val kpi-ratio-edit" data-bp="'+esc(nvBp)+'" data-kbc="'+esc(m)+'" data-rkey="'+rf.key+'" style="cursor:pointer;color:var(--blue);min-width:50px;text-align:center;font-size:9px" title="Tỷ lệ (hỗ trợ phân số: 72/68.5)">'+fR(r)+'</span>';
+                h+='<span class="val kpi-val-edit'+(v?'':' zero')+'" data-ma="'+esc(ma)+'" data-kbc="'+esc(m)+'" data-field="'+rf.kf+'" data-rkey="'+rf.key+'" data-bp="'+esc(nvBp)+'" style="cursor:pointer;flex:1" title="Sửa giá trị → tỷ lệ tự tính">'+fN(v)+'</span>';
+            }else{
+                h+='<span style="font-family:var(--mono);font-size:9px;color:var(--g3);min-width:50px;text-align:center">'+fR(r)+'</span>';
+                h+='<span class="val'+(v?'':' zero')+'" style="flex:1">'+fN(v)+'</span>';
+            }
+            h+='</div>';
         });
     });
+
     document.getElementById('kpiLeftBody').innerHTML=h;
-    // Bind click-to-edit on values
-    document.querySelectorAll('.kpi-left-editable').forEach(function(el){
-        el.addEventListener('click',function(){kpiLeftEdit(this)});
-    });
+    document.querySelectorAll('.kpi-left-editable').forEach(function(el){el.addEventListener('click',function(){kpiLeftEdit(this)})});
+    document.querySelectorAll('.kpi-ratio-edit').forEach(function(el){el.addEventListener('click',function(){kpiRatioEdit(this)})});
+    document.querySelectorAll('.kpi-val-edit').forEach(function(el){el.addEventListener('click',function(){kpiValEdit(this)})});
 };
+
+/* Edit DT Nội bộ */
 function kpiLeftEdit(el){
     var ma=el.dataset.ma,kbc=el.dataset.kbc,field=el.dataset.field;
-    var det=detailData[ma]||{};var cur=(det[kbc]||{})[field]||0;
-    var oldText=el.textContent;
-    var inp=document.createElement('input');
-    inp.type='text';inp.value=cur?FMT.format(Math.round(cur)):'';
+    var cur=(detailData[ma]||{})[kbc]||{};var curVal=cur[field]||0;var oldText=el.textContent;
+    var inp=document.createElement('input');inp.type='text';inp.value=curVal?FMT.format(Math.round(curVal)):'';
     inp.style.cssText='width:100%;height:22px;padding:0 4px;border:1.5px solid var(--blue);border-radius:3px;font-family:var(--mono);font-size:11px;text-align:right;outline:none;background:#fff;color:var(--g6);';
     el.textContent='';el.appendChild(inp);inp.focus();inp.select();
-    // Live thousand separator
-    inp.addEventListener('input',function(){
-        var c=this.selectionStart,ol=this.value.length,raw=this.value.replace(/[^\d]/g,'');
-        this.value=raw?FMT.format(parseInt(raw)):'';
-        this.setSelectionRange(Math.max(0,c+(this.value.length-ol)),Math.max(0,c+(this.value.length-ol)));
-    });
+    inp.addEventListener('input',function(){var c=this.selectionStart,ol=this.value.length,raw=this.value.replace(/[^\d]/g,'');this.value=raw?FMT.format(parseInt(raw)):'';this.setSelectionRange(Math.max(0,c+(this.value.length-ol)),Math.max(0,c+(this.value.length-ol)))});
     var saved=false;
-    function save(){
-        if(saved)return;saved=true;
+    function save(){if(saved)return;saved=true;
         var nv=parseFloat(inp.value.replace(/[^\d]/g,''))||0;
-        // Update detailData
-        if(!detailData[ma])detailData[ma]={};
-        if(!detailData[ma][kbc])detailData[ma][kbc]={kpi:0,kpi_cong_ty:0,kpi_ds:0,kpi_ds_cong_ty:0};
+        if(!detailData[ma])detailData[ma]={};if(!detailData[ma][kbc])detailData[ma][kbc]={kpi:0,kpi_cong_ty:0,kpi_ds:0,kpi_ds_cong_ty:0};
         detailData[ma][kbc][field]=nv;
-        // Update kpiData (SUM across selected kbcs)
         var total=0;Object.keys(detailData[ma]||{}).forEach(function(k){total+=(detailData[ma][k]||{})[field]||0});
-        if(!kpiData[ma])kpiData[ma]={kpi:0,kpi_cong_ty:0,kpi_ds:0,kpi_ds_cong_ty:0};
-        kpiData[ma][field]=total;
-        // Save to server
-        fetch('/admin/kpi/save-cell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:kbc,ma_nvkd:ma,field:field,value:nv})});
-        // Re-render
-        el.textContent=fN(nv);el.classList.toggle('zero',!nv);
-        // Update totals row
-        var section=el.closest('.kpi-left-row').parentElement;
-        var totalRow=section.querySelector('.kpi-left-row[style*="blue-lt"] .val');
-        if(totalRow){var t=0;Object.keys(detailData[ma]||{}).forEach(function(k){t+=(detailData[ma][k]||{})[field]||0});totalRow.textContent=fN(t)}
-        // Re-render graph + table
-        if(typeof window.kpiRenderGraph==='function')window.kpiRenderGraph();
-        if(typeof window.kpiRenderTable==='function')window.kpiRenderTable();
+        if(!kpiData[ma])kpiData[ma]={kpi:0,kpi_cong_ty:0,kpi_ds:0,kpi_ds_cong_ty:0};kpiData[ma][field]=total;
+        fetch('/admin/kpi/save-cell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:kbc,ma_nvkd:ma,field:field,value:nv})}).then(function(r){return r.json()}).then(function(d){
+            if(d.calc){if(!detailData[ma][kbc])detailData[ma][kbc]={};['kpi_cong_ty','kpi_ds','kpi_ds_cong_ty'].forEach(function(f){if(d.calc[f]!==undefined){detailData[ma][kbc][f]=d.calc[f];var t=0;Object.keys(detailData[ma]).forEach(function(k){t+=(detailData[ma][k]||{})[f]||0});kpiData[ma][f]=t}});kpiShowDetail(ma)}
+            if(typeof window.kpiRenderGraph==='function')window.kpiRenderGraph();if(typeof window.kpiRenderTable==='function')window.kpiRenderTable();
+        });el.textContent=fN(nv);
     }
-    inp.addEventListener('blur',save);
-    inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();inp.blur()}if(e.key==='Escape'){saved=true;el.textContent=oldText}});
+    inp.addEventListener('blur',save);inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();inp.blur()}if(e.key==='Escape'){saved=true;el.textContent=oldText}});
+}
+
+/* Edit ratio — supports fraction like 72/68.5 */
+function kpiRatioEdit(el){
+    var bp=el.dataset.bp,kbc=el.dataset.kbc,rkey=el.dataset.rkey;
+    var curR=(ratiosData[bp]||{})[kbc]||{};var curVal=curR[rkey]||1;var oldText=el.textContent;
+    var inp=document.createElement('input');inp.type='text';inp.value=curVal.toFixed(4);inp.placeholder='1.04 or 72/68.5';
+    inp.style.cssText='width:58px;height:20px;padding:0 3px;border:1.5px solid var(--blue);border-radius:3px;font-family:var(--mono);font-size:10px;text-align:center;outline:none;background:#fff;color:var(--blue);';
+    el.textContent='';el.appendChild(inp);inp.focus();inp.select();
+    var saved=false;
+    function save(){if(saved)return;saved=true;
+        var nv=parseRatio(inp.value);
+        if(!ratiosData[bp])ratiosData[bp]={};if(!ratiosData[bp][kbc])ratiosData[bp][kbc]={ratio_dt_cty:1,ratio_ds_nb:1,ratio_ds_cty:1};
+        ratiosData[bp][kbc][rkey]=nv;
+        var pl={ma_bp:bp,ma_kbc:kbc,ratio_dt_cty:ratiosData[bp][kbc].ratio_dt_cty,ratio_ds_nb:ratiosData[bp][kbc].ratio_ds_nb,ratio_ds_cty:ratiosData[bp][kbc].ratio_ds_cty};
+        fetch('/admin/kpi/ratios/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pl)}).then(function(r){return r.json()}).then(function(d){if(d.ok)kpiLoad();else alert('Lỗi: '+(d.error||''))});
+        el.textContent=fR(nv);
+    }
+    inp.addEventListener('blur',save);inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();inp.blur()}if(e.key==='Escape'){saved=true;el.textContent=oldText}});
+}
+
+/* Edit result value (DT Cty/DS) → reverse-calc ratio */
+function kpiValEdit(el){
+    var ma=el.dataset.ma,kbc=el.dataset.kbc,field=el.dataset.field,rkey=el.dataset.rkey,bp=el.dataset.bp;
+    var cur=(detailData[ma]||{})[kbc]||{};var curVal=cur[field]||0;var baseVal=cur.kpi||0;var oldText=el.textContent;
+    var inp=document.createElement('input');inp.type='text';inp.value=curVal?FMT.format(Math.round(curVal)):'';
+    inp.style.cssText='width:100%;height:22px;padding:0 4px;border:1.5px solid var(--blue);border-radius:3px;font-family:var(--mono);font-size:11px;text-align:right;outline:none;background:#fff;color:var(--g6);';
+    el.textContent='';el.appendChild(inp);inp.focus();inp.select();
+    inp.addEventListener('input',function(){var c=this.selectionStart,ol=this.value.length,raw=this.value.replace(/[^\d]/g,'');this.value=raw?FMT.format(parseInt(raw)):'';this.setSelectionRange(Math.max(0,c+(this.value.length-ol)),Math.max(0,c+(this.value.length-ol)))});
+    var saved=false;
+    function save(){if(saved)return;saved=true;
+        var nv=parseFloat(inp.value.replace(/[^\d]/g,''))||0;
+        if(baseVal>0&&nv>0){
+            // Reverse-calc ratio = result / base
+            var newR=nv/baseVal;
+            if(!ratiosData[bp])ratiosData[bp]={};if(!ratiosData[bp][kbc])ratiosData[bp][kbc]={ratio_dt_cty:1,ratio_ds_nb:1,ratio_ds_cty:1};
+            ratiosData[bp][kbc][rkey]=newR;
+            var pl={ma_bp:bp,ma_kbc:kbc,ratio_dt_cty:ratiosData[bp][kbc].ratio_dt_cty,ratio_ds_nb:ratiosData[bp][kbc].ratio_ds_nb,ratio_ds_cty:ratiosData[bp][kbc].ratio_ds_cty};
+            fetch('/admin/kpi/ratios/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pl)}).then(function(r){return r.json()}).then(function(d){if(d.ok)kpiLoad();else alert('Lỗi: '+(d.error||''))});
+        }else{
+            // No base KPI → save cell directly
+            fetch('/admin/kpi/save-cell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:kbc,ma_nvkd:ma,field:field,value:nv})});
+        }
+        el.textContent=fN(nv);
+    }
+    inp.addEventListener('blur',save);inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();inp.blur()}if(e.key==='Escape'){saved=true;el.textContent=oldText}});
 }
 window.kpiCloseLeft=function(){kpiShowUnassigned()};
-/* Unassigned panel: NVKDs not in KPI for this period */
-var _uaData=[];
+/* Unassigned panel: cached data, render-only */
+var _uaData=[];var _uaLoaded=false;
 window.kpiShowUnassigned=function(){
-    var panel=document.getElementById('kpiLeftPanel');
-    panel.classList.remove('hidden');
+    document.getElementById('kpiLeftPanel').classList.remove('hidden');
     document.getElementById('kpiLeftTitle').textContent='Chưa phân công';
-    var kbcs=getSelectedKbcs(),mbp=window._kpi.getBp();
-    if(!kbcs.length){document.getElementById('kpiLeftBody').innerHTML='<div class="kpi-left-empty">Chọn kỳ trước</div>';return}
-    document.getElementById('kpiLeftBody').innerHTML='<div class="kpi-left-empty">Đang tải...</div>';
-    var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');
-    if(mbp)qp+='&ma_bp='+encodeURIComponent(mbp);
-    fetch('/admin/kpi/unassigned?'+qp).then(function(r){return r.json()}).then(function(d){
-        if(!d.ok){document.getElementById('kpiLeftBody').innerHTML='<div class="kpi-left-empty">Lỗi: '+(d.error||'')+'</div>';return}
-        _uaData=d.data||[];
-        renderUnassigned('');
-    });
+    // Build structure: search input (persistent) + list container (re-rendered on filter)
+    var body=document.getElementById('kpiLeftBody');
+    body.innerHTML='<input class="kpi-left-search" type="text" id="uaSearchInput" placeholder="Tìm NV..." oninput="filterUnassigned()">'
+        +'<div class="kpi-ua-count" id="uaCount"></div>'
+        +'<div id="uaList"></div>';
+    filterUnassigned();
 };
-function renderUnassigned(q){
-    q=(q||'').toLowerCase().trim();
-    var filtered=q?_uaData.filter(function(nv){return(nv.ten_nvkd+' '+nv.ma_nvkd).toLowerCase().indexOf(q)>=0}):_uaData;
-    var h='<input class="kpi-left-search" type="text" placeholder="Tìm NV..." oninput="renderUnassigned(this.value)" value="'+esc(q)+'">';
-    h+='<div class="kpi-ua-count">'+filtered.length+'/'+_uaData.length+' NV chưa có KPI</div>';
-    if(!filtered.length){h+='<div class="kpi-left-empty">Không có NV nào</div>'}
+function filterUnassigned(){
+    var inp=document.getElementById('uaSearchInput');
+    var q=inp?(inp.value||'').toLowerCase().trim():'';
+    var filtered=q?_uaData.filter(function(nv){return(nv.ten_nvkd+' '+nv.ma_nvkd+' '+nv.ma_bp).toLowerCase().indexOf(q)>=0}):_uaData;
+    var countEl=document.getElementById('uaCount');
+    if(countEl)countEl.textContent=filtered.length+'/'+_uaData.length+' NV chưa có KPI';
+    var h='';
+    if(!filtered.length){h='<div class="kpi-left-empty">Không có NV nào</div>'}
     filtered.forEach(function(nv){
         h+='<div class="kpi-ua-item" draggable="true" data-ma="'+esc(nv.ma_nvkd)+'" data-ten="'+esc(nv.ten_nvkd)+'" data-ql="'+esc(nv.ma_ql)+'" data-bp="'+esc(nv.ma_bp)+'">';
         h+='<span class="kpi-ua-drag">☰</span>';
         h+='<div class="kpi-ua-info"><div class="kpi-ua-name">'+esc(nv.ten_nvkd)+'</div><div class="kpi-ua-meta">'+esc(nv.ma_nvkd)+' · QL: '+esc(nv.ma_ql||'—')+' · '+esc(nv.ma_bp)+'</div></div>';
         h+='</div>';
     });
-    document.getElementById('kpiLeftBody').innerHTML=h;
-    // Bind drag start
+    var listEl=document.getElementById('uaList');
+    if(listEl)listEl.innerHTML=h;
+    // Bind drag
     document.querySelectorAll('.kpi-ua-item').forEach(function(el){
         el.addEventListener('dragstart',function(e){
             e.dataTransfer.effectAllowed='copy';
@@ -275,9 +332,9 @@ function renderUnassigned(q){
         el.addEventListener('dragend',function(){this.style.opacity=''});
     });
 }
-window.renderUnassigned=renderUnassigned;
+window.filterUnassigned=filterUnassigned;
 /* Actions */
-window.kpiCopyPeriod=function(){var sK=getSelectedKbcs();var to=sK.length===1?sK[0]:'';if(!to){alert('Chọn đúng 1 kỳ tháng đích');return}var fr=prompt('Copy từ kỳ nào?');if(!fr)return;if(!confirm('Copy '+fr+' → '+to+'?'))return;fetch('/admin/kpi/copy-period',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from_kbc:fr,to_kbc:to,ma_bp:window._kpi.getBp()})}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}})};
+window.kpiCopyPeriod=function(){var sK=getSelectedKbcs();var to=sK.length===1?sK[0]:'';if(!to){alert('Chọn đúng 1 kỳ tháng đích');return}var fr=prompt('Copy kiến trúc (phân công) từ kỳ nào?\n(Chỉ copy cây phân công, KPI = 0)\n\nVí dụ: T03-2026');if(!fr)return;if(!confirm('Copy cấu trúc '+fr+' → '+to+'?\n\n• NV mới: thêm vào với KPI = 0\n• NV đã có: chỉ cập nhật QL, giữ nguyên KPI'))return;fetch('/admin/kpi/copy-period',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from_kbc:fr,to_kbc:to,ma_bp:window._kpi.getBp()})}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}})};
 window.kpiImportSystem=function(){var sK=getSelectedKbcs();var kbc=sK.length===1?sK[0]:'';if(!kbc){alert('Chọn đúng 1 kỳ tháng');return}if(!confirm('Import NV vào '+kbc+'?'))return;fetch('/admin/kpi/import-system',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ma_kbc:kbc,ma_bp:window._kpi.getBp()})}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}})};
 window.kpiExport=function(){var kbc=getSelectedKbcs().join(',');if(!kbc){alert('Chọn kỳ trước');return}window.open('/admin/kpi/export?ma_kbc='+encodeURIComponent(kbc)+'&ma_bp='+encodeURIComponent(window._kpi.getBp()),'_blank')};
 window.kpiImportExcel=function(inp){if(!inp.files||!inp.files[0])return;if(!confirm('Import "'+inp.files[0].name+'"?'))return;var fd=new FormData();fd.append('file',inp.files[0]);fd.append('mode','upsert');fetch('/admin/kpi/import-excel',{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert(d.message||'OK');kpiLoad()}else{alert('Lỗi: '+(d.error||''))}}).catch(function(e){alert('Lỗi: '+e.message)});inp.value=''};
