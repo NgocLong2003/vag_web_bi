@@ -1,18 +1,32 @@
-from waitress import serve
-from datetime import timedelta
-from flask import Flask, jsonify
-from config import SECRET_KEY, SESSION_TIMEOUT_MINUTES, SQLSERVER_CONFIG
-from database import init_db, close_db
+"""
+app.py — VietAnh BI Web Application
+Chạy trên Máy B (web server). Không sync dữ liệu.
 
-# ─── Pre-compute: DataSync + DuckDB ───
-from data_sync import DataSync
+Dữ liệu Parquet được sync bởi sync_worker.py (Máy A).
+App tự detect thay đổi Parquet → reload DuckDB.
+
+Cấu trúc thư mục data/:
+  data/current/*.parquet    ← DuckDB đọc từ đây
+  data/sync_status.json     ← sync_worker ghi, app đọc để hiển thị trạng thái
+"""
+
+from waitress import serve
+from datetime import timedelta, datetime
+from flask import Flask, jsonify
+from config import SECRET_KEY, SESSION_TIMEOUT_MINUTES
+from database import init_db, close_db
 from duckdb_store import DuckDBStore
 import logging
+import threading
+import time
+import json
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(name)s] %(levelname)s %(message)s'
 )
+logger = logging.getLogger('app')
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -23,32 +37,79 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 app.teardown_appcontext(close_db)
 
-# ─── Khởi tạo DuckDB Store + DataSync ───
-store = DuckDBStore(data_dir='data/current')
+# ─── DuckDB Store (đọc Parquet, không sync) ───
+DATA_DIR = Path('data')
+CURRENT_DIR = DATA_DIR / 'current'
 
-sync = DataSync(
-    sqlserver_config=SQLSERVER_CONFIG,
-    data_dir='data',
-    interval=1800,              # 30 phút
-    on_success=store.reload,    # tự reload DuckDB sau mỗi sync
-)
+store = DuckDBStore(data_dir=str(CURRENT_DIR))
 
-# Sync lần đầu (blocking), load DuckDB, rồi start background
-print('  Đang sync dữ liệu từ SQL Server...')
-sync.run_once()     # pull data → Parquet (lần đầu)
-store.load()        # load Parquet → DuckDB
-sync.start_background()  # background scheduler mỗi 30 phút
+# Load DuckDB lần đầu
+if any(CURRENT_DIR.glob('*.parquet')):
+    print('  Loading DuckDB từ Parquet...')
+    store.load()
+else:
+    print('  ⚠ Chưa có data Parquet. Chờ sync_worker chạy.')
 
-# Truyền store vào app để blueprints truy cập:
-#   from flask import current_app
-#   store = current_app.config['DUCKDB_STORE']
 app.config['DUCKDB_STORE'] = store
+
+
+# ─── File Watcher: detect Parquet changes → reload DuckDB ───
+class ParquetWatcher:
+    """Theo dõi thư mục Parquet, reload DuckDB khi có thay đổi."""
+
+    def __init__(self, data_dir, store, check_interval=30):
+        self.data_dir = Path(data_dir)
+        self.store = store
+        self.check_interval = check_interval
+        self._last_mtime = self._get_max_mtime()
+        self._stop = threading.Event()
+        self._thread = None
+
+    def _get_max_mtime(self):
+        """Lấy mtime lớn nhất của các file Parquet."""
+        try:
+            files = list(self.data_dir.glob('*.parquet'))
+            if not files:
+                return 0
+            return max(f.stat().st_mtime for f in files)
+        except:
+            return 0
+
+    def _loop(self):
+        while not self._stop.is_set():
+            self._stop.wait(self.check_interval)
+            if self._stop.is_set():
+                break
+            try:
+                current_mtime = self._get_max_mtime()
+                if current_mtime > self._last_mtime:
+                    logger.info("[Watcher] Parquet files changed, reloading DuckDB...")
+                    self.store.reload()
+                    self._last_mtime = current_mtime
+                    logger.info("[Watcher] DuckDB reloaded OK")
+            except Exception as e:
+                logger.error(f"[Watcher] Error: {e}")
+
+    def start(self):
+        self._thread = threading.Thread(target=self._loop, daemon=True, name='parquet-watcher')
+        self._thread.start()
+        logger.info(f"[Watcher] Started, checking every {self.check_interval}s")
+
+    def stop(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=5)
+
+
+watcher = ParquetWatcher(CURRENT_DIR, store, check_interval=30)
+watcher.start()
 
 
 # ─── Jinja filters ───
 @app.template_filter('fmtd')
 def fmtd_filter(d):
-    if d is None: return ''
+    if d is None:
+        return ''
     s = str(d)[:10]
     if '-' in s:
         p = s.split('-')
@@ -57,10 +118,11 @@ def fmtd_filter(d):
 
 app.jinja_env.globals['fmtd'] = fmtd_filter
 
+
 @app.template_filter('fmtiso')
 def fmtiso_filter(d):
-    """Format date → yyyy-mm-dd for <input type=date>"""
-    if d is None: return ''
+    if d is None:
+        return ''
     return str(d)[:10]
 
 app.jinja_env.globals['fmtiso'] = fmtiso_filter
@@ -85,24 +147,39 @@ for slug, report_bp in get_all_blueprints():
     app.register_blueprint(report_bp)
 
 
-# ─── API: monitoring sync + store ───
+# ─── API: monitoring ───
 @app.route('/api/data-status')
 def api_data_status():
+    # Đọc sync status từ file (ghi bởi sync_worker)
+    sync_status = {}
+    status_path = DATA_DIR / 'sync_status.json'
+    try:
+        if status_path.exists():
+            with open(status_path) as f:
+                sync_status = json.load(f)
+    except:
+        pass
+
     return jsonify({
-        'sync': sync.status(),
+        'sync': sync_status,
         'store': store.status(),
+        'mode': 'web-only (sync_worker separate)',
     })
 
 
 init_db()
 
 if __name__ == '__main__':
-    print('=' * 50)
-    print('  VietAnh BI Dashboard')
+    print('=' * 55)
+    print('  VietAnh BI Dashboard (Web Only)')
     print('  http://localhost:5000')
-    print('=' * 50)
+    print()
+    print('  Data: ' + str(CURRENT_DIR.resolve()))
+    print('  DuckDB tables: ' + str(len(store.table_stats)))
+    print('  Parquet watcher: every 30s')
+    print('=' * 55)
     try:
         serve(app, host='0.0.0.0', port=5000, threads=8)
     finally:
-        sync.stop()
+        watcher.stop()
         store.close()

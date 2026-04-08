@@ -483,6 +483,12 @@ def kpi_import_system():
             nv_ten = (r[1] or '').strip()
             nv_ql = (r[2] or '').strip()
             nv_bp = bp_map.get(nv_ma, ma_bp or '')
+            # Fallback: no BP → XX
+            if not nv_bp:
+                nv_bp = 'XX'
+            # Fallback: has BP but no ma_ql → ma_ql = BP + "99"
+            if nv_bp and not nv_ql:
+                nv_ql = nv_bp + '99'
 
             if ma_bp and nv_bp != ma_bp:
                 continue  # filter by BP

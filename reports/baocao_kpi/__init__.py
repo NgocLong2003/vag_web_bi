@@ -1,0 +1,446 @@
+"""
+Báo cáo KPI — Blueprint
+So sánh doanh thu/doanh số thực tế vs KPI đăng ký, hiển thị dạng tree graph.
+API prefix: /reports/bao-cao-kpi/api/...
+"""
+from flask import Blueprint, jsonify, request, render_template, current_app
+import logging
+
+logger = logging.getLogger(__name__)
+
+bp = Blueprint('bckpi', __name__,
+               url_prefix='/reports/bao-cao-kpi',
+               template_folder='templates')
+
+from query_loader import load_sql
+
+try:
+    from config import SQLSERVER_CONFIG
+except ImportError:
+    SQLSERVER_CONFIG = None
+
+
+def get_store():
+    return current_app.config['DUCKDB_STORE']
+
+
+def _ss_conn():
+    import pyodbc
+    c = SQLSERVER_CONFIG
+    return pyodbc.connect(
+        f"DRIVER={{{c['driver']}}};SERVER={c['server']},{c['port']};"
+        f"DATABASE={c['database']};UID={c['username']};PWD={c['password']};"
+        "TrustServerCertificate=yes;Connect Timeout=30;",
+        autocommit=True
+    )
+
+
+@bp.route('/')
+def index():
+    from database import get_db
+    db = get_db()
+    kbc = db.execute('SELECT * FROM ky_bao_cao ORDER BY sort_order, id').fetchall()
+    kbc_list = [dict(r) for r in kbc]
+    return render_template('baocao_kpi.html', ky_bao_cao=kbc_list)
+
+
+@bp.route('/api/kbc')
+def api_kbc():
+    """Trả về danh sách kỳ báo cáo."""
+    from database import get_db
+    db = get_db()
+    kbc = db.execute('SELECT * FROM ky_bao_cao ORDER BY sort_order, id').fetchall()
+    return jsonify({'data': [dict(r) for r in kbc]})
+
+
+@bp.route('/api/data')
+def api_data():
+    """Trả về: KPI targets (tree) + doanh thu thực tế + tháng làm việc."""
+    ma_kbc_list = request.args.getlist('ma_kbc')
+    ma_bp = request.args.get('ma_bp', '').strip()
+    metric = request.args.get('metric', 'dt')   # dt or ds
+    scope = request.args.get('scope', 'nb')      # nb or cty
+
+    kbcs = []
+    for k in ma_kbc_list:
+        for part in k.split(','):
+            part = part.strip()
+            if part:
+                kbcs.append(part)
+
+    if not kbcs:
+        return jsonify({'ok': True, 'nodes': []})
+
+    try:
+        # 1. Load KPI targets from SQL Server
+        conn = _ss_conn()
+        cur = conn.cursor()
+        ph = ','.join(['?'] * len(kbcs))
+        sql_kpi = f"""SELECT ma_kbc, ma_nvkd, ten_nvkd, ma_ql, ma_bp, stt_nhom,
+                             kpi, kpi_cong_ty, kpi_ds, kpi_ds_cong_ty
+                      FROM kpi_targets WHERE ma_kbc IN ({ph})"""
+        params = list(kbcs)
+        if ma_bp:
+            sql_kpi += ' AND ma_bp = ?'
+            params.append(ma_bp)
+        sql_kpi += ' ORDER BY stt_nhom, ma_nvkd'
+        cur.execute(sql_kpi, params)
+        cols = [d[0] for d in cur.description]
+        rows = cur.fetchall()
+
+        # Build tree + sum KPI
+        kpi_fields = {'dt': {'nb': 'kpi', 'cty': 'kpi_cong_ty'},
+                      'ds': {'nb': 'kpi_ds', 'cty': 'kpi_ds_cong_ty'}}
+        kpi_field = kpi_fields.get(metric, {}).get(scope, 'kpi')
+
+        seen = {}
+        kpi_sum = {}
+        for r in rows:
+            rd = {cols[i]: r[i] for i in range(len(cols))}
+            ma = rd['ma_nvkd'] or ''
+            if not ma:
+                continue
+            if ma not in seen:
+                nv_bp = rd['ma_bp'] or ''
+                nv_ql = rd['ma_ql'] or ''
+                if not nv_bp:
+                    nv_bp = 'XX'
+                if nv_bp and not nv_ql:
+                    nv_ql = nv_bp + '99'
+                seen[ma] = {
+                    'ma_nvkd': ma, 'ten_nvkd': rd['ten_nvkd'] or '',
+                    'ma_ql': nv_ql, 'ma_bp': nv_bp,
+                    'stt_nhom': rd['stt_nhom'] or '',
+                }
+            if ma not in kpi_sum:
+                kpi_sum[ma] = 0
+            kpi_sum[ma] += float(rd[kpi_field] or 0)
+
+        # 2. Load cdate (ngày tạo nhân viên) for "new employee" badge
+        cdate_map = {}
+        try:
+            cur.execute("SELECT ma_nvkd, cdate FROM DMNHANVIENKD_VIEW WHERE ma_nvkd IS NOT NULL")
+            for r in cur.fetchall():
+                if r[0] and r[1]:
+                    cdate_map[(r[0] or '').strip()] = r[1]
+        except:
+            pass
+
+        conn.close()
+
+        # 3. Load actual revenue from DuckDB using standard queries (same as bckh)
+        store = get_store()
+        actual_per_nvkd = {}
+        actual_per_bp = {}
+
+        try:
+            from database import get_db
+            db = get_db()
+            ph_kbc = ','.join(['?' for _ in kbcs])
+            kbc_rows = db.execute(
+                f'''SELECT ma_kbc, ngay_bd_xuat_ban, ngay_kt_xuat_ban,
+                           ngay_bd_thu_tien, ngay_kt_thu_tien
+                    FROM ky_bao_cao WHERE ma_kbc IN ({ph_kbc})''',
+                kbcs
+            ).fetchall()
+
+            # Date ranges depend on metric:
+            # DT: group A (VA/VB/SF) = ngay_bd_thu_tien → ngay_kt_thu_tien
+            #     group B (others)   = ngay_bd_xuat_ban → ngay_kt_xuat_ban
+            # DS: all groups         = ngay_bd_xuat_ban → ngay_kt_xuat_ban
+            dates_a, dates_b = [], []  # a = group A, b = group B
+            dates_ds = []  # for doanh so (all groups same range)
+            for kr in kbc_rows:
+                bd_xb = str(kr['ngay_bd_xuat_ban'] or '')[:10]
+                kt_xb = str(kr['ngay_kt_xuat_ban'] or '')[:10]
+                bd_tt = str(kr['ngay_bd_thu_tien'] or '')[:10]
+                kt_tt = str(kr['ngay_kt_thu_tien'] or '')[:10]
+                if bd_tt and kt_tt:
+                    dates_a.append((bd_tt, kt_tt))  # DT group A: thu tien
+                if bd_xb and kt_xb:
+                    dates_b.append((bd_xb, kt_xb))  # DT group B: xuat ban
+                    dates_ds.append((bd_xb, kt_xb))  # DS: all = xuat ban
+
+            has_dates = dates_a or dates_b or dates_ds
+            if has_dates:
+                # DT dates
+                min_a = min(d[0] for d in dates_a) if dates_a else None  # thu_tien for VA/VB/SF
+                max_a = max(d[1] for d in dates_a) if dates_a else None
+                min_b = min(d[0] for d in dates_b) if dates_b else None  # xuat_ban for others
+                max_b = max(d[1] for d in dates_b) if dates_b else None
+                # DS dates (all = xuat_ban)
+                min_ds = min(d[0] for d in dates_ds) if dates_ds else None
+                max_ds = max(d[1] for d in dates_ds) if dates_ds else None
+
+                if metric == 'dt' and min_a:
+                    # Per-NVKD: dùng query chuẩn (join BKHDBANHANG để resolve ma_nvkd)
+                    sql = load_sql('DOANHTHU_BCKPI_DUCK')
+                    rows_actual = store.query(sql, [min_a, max_a, min_b, max_b, ''])
+                    for r in rows_actual:
+                        ma_nv = (r.get('ma_nvkd') or '').strip()
+                        val = float(r.get('doanhthu', 0) or 0)
+                        if ma_nv:
+                            actual_per_nvkd[ma_nv] = actual_per_nvkd.get(ma_nv, 0) + val
+
+                    # Per-BP total trực tiếp từ PTHUBAOCO (FACT level, cho Manager)
+                    bp_date_cond = f"(ma_bp IN ('VA','VB','SF') AND ngay_ct >= '{min_a}' AND ngay_ct <= '{max_a}')"
+                    if min_b:
+                        bp_date_cond += f" OR (ma_bp NOT IN ('VA','VB','SF') AND ngay_ct >= '{min_b}' AND ngay_ct <= '{max_b}')"
+                    sql_bp = f"""
+                        SELECT ma_bp, SUM(ps_co) as total
+                        FROM PTHUBAOCO
+                        WHERE tk_co = '131' AND ma_bp != 'TN'
+                          AND (
+                            (ngay_ct >= '2026-01-01' AND tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
+                            OR (ngay_ct < '2026-01-01' AND ma_ct = 'CA1')
+                          )
+                          AND ({bp_date_cond})
+                        GROUP BY ma_bp
+                    """
+                    for r in store.query(sql_bp):
+                        bp_c = (r.get('ma_bp') or '').strip()
+                        if bp_c:
+                            actual_per_bp[bp_c] = float(r.get('total', 0) or 0)
+
+                elif metric == 'ds' and min_ds:
+                    # Doanh số: all groups use ngay_bd_xuat_ban → ngay_kt_xuat_ban
+                    sql = load_sql('DOANHSO_BCKPI_DUCK')
+                    rows_actual = store.query(sql, [min_ds, max_ds, ''])
+                    for r in rows_actual:
+                        ma_nv = (r.get('ma_nvkd') or '').strip()
+                        bp_c = (r.get('ma_bp') or '').strip()
+                        val = float(r.get('doanhso', 0) or 0)
+                        if ma_nv:
+                            actual_per_nvkd[ma_nv] = actual_per_nvkd.get(ma_nv, 0) + val
+                        if bp_c:
+                            actual_per_bp[bp_c] = actual_per_bp.get(bp_c, 0) + val
+
+        except Exception as e:
+            logger.warning(f'Could not load actual revenue: {e}')
+
+        # 4a. Add NVKDs that have actual revenue but are NOT in kpi_targets
+        missing_nvkds = set(actual_per_nvkd.keys()) - set(seen.keys())
+        if missing_nvkds:
+            try:
+                conn2 = _ss_conn()
+                cur2 = conn2.cursor()
+                ph_m = ','.join(['?' for _ in missing_nvkds])
+                cur2.execute(
+                    f"SELECT ma_nvkd, ten_nvkd, ma_ql FROM DMNHANVIENKD_VIEW WHERE ma_nvkd IN ({ph_m})",
+                    list(missing_nvkds))
+                nv_info_rows = cur2.fetchall()
+                cur2.execute(
+                    f"""SELECT DISTINCT ma_nvkd, ma_bp FROM DMKHACHHANG_VIEW
+                        WHERE ma_nvkd IN ({ph_m})
+                          AND ma_bp IS NOT NULL AND ma_bp != '' AND ma_bp != 'TN'""",
+                    list(missing_nvkds))
+                bp_extra = {}
+                for r in cur2.fetchall():
+                    bp_extra[(r[0] or '').strip()] = (r[1] or '').strip()
+                conn2.close()
+                for r in nv_info_rows:
+                    mx = (r[0] or '').strip()
+                    if not mx or mx in seen:
+                        continue
+                    nv_bp = bp_extra.get(mx, '')
+                    nv_ql = (r[2] or '').strip()
+                    if not nv_bp:
+                        nv_bp = 'XX'
+                    if nv_bp and not nv_ql:
+                        nv_ql = nv_bp + '99'
+                    if ma_bp and nv_bp != ma_bp:
+                        continue
+                    seen[mx] = {'ma_nvkd': mx, 'ten_nvkd': (r[1] or '').strip(),
+                                'ma_ql': nv_ql, 'ma_bp': nv_bp, 'stt_nhom': ''}
+                    kpi_sum[mx] = 0
+            except Exception as e:
+                logger.warning(f'Could not load missing NVKDs: {e}')
+
+        # 4b. Calculate actual per node using tree walk (bottom-up)
+        tree_ch = {}
+        for mv, info in seen.items():
+            pid = info.get('ma_ql', '')
+            if not pid or pid not in seen:
+                pid = '__ROOT__'
+            if pid not in tree_ch:
+                tree_ch[pid] = []
+            tree_ch[pid].append(mv)
+
+        actual_node = {}
+
+        def calc_actual(mv):
+            if mv in actual_node:
+                return actual_node[mv]
+            info = seen.get(mv, {})
+            children = tree_ch.get(mv, [])
+            is_company = mv == 'VAG' or (not info.get('ma_ql'))
+
+            if not children:
+                # Leaf = own revenue
+                actual_node[mv] = actual_per_nvkd.get(mv, 0)
+            else:
+                # Has children: first calc all children
+                child_sum = 0
+                for c in children:
+                    child_sum += calc_actual(c)
+
+                if is_company:
+                    # Company = total from FACT
+                    t = sum(actual_per_bp.values())
+                    actual_node[mv] = t if not ma_bp else actual_per_bp.get(ma_bp, 0)
+                elif mv.endswith('00'):
+                    # Manager = total BP from FACT
+                    actual_node[mv] = actual_per_bp.get(info.get('ma_bp', ''), 0)
+                else:
+                    # Mid-level = own + sum children
+                    actual_node[mv] = actual_per_nvkd.get(mv, 0) + child_sum
+
+            return actual_node[mv]
+
+        # Trigger calc for all nodes (start from roots, recurse down)
+        for mv in tree_ch.get('__ROOT__', []):
+            calc_actual(mv)
+        # Also calc any orphan nodes not reached from __ROOT__
+        for mv in seen:
+            if mv not in actual_node:
+                calc_actual(mv)
+
+        # 5. Calculate months worked for new employees
+        from datetime import datetime, date
+        # Determine report month from first kbc
+        report_month = None
+        for kbc in kbcs:
+            try:
+                parts = kbc.replace('T', '').split('-')
+                report_month = date(int(parts[1]), int(parts[0]), 1)
+                break
+            except:
+                pass
+
+        # 5. Build node list with KPI, actual, completion %, months
+        nodes = []
+        for ma, info in seen.items():
+            kpi_val = kpi_sum.get(ma, 0)
+            actual_val = actual_node.get(ma, 0)
+
+            # For managers: actual = sum of children actual
+            # (will be recalculated on frontend for tree sum)
+
+            # Months worked
+            months_worked = None
+            cdt = cdate_map.get(ma)
+            if cdt and report_month:
+                try:
+                    if hasattr(cdt, 'year'):
+                        cd = cdt
+                    else:
+                        cd = datetime.strptime(str(cdt)[:10], '%Y-%m-%d').date()
+                    diff = (report_month.year - cd.year) * 12 + (report_month.month - cd.month)
+                    if diff <= 6:
+                        months_worked = max(diff, 0)
+                except:
+                    pass
+
+            nodes.append({
+                'ma_nvkd': ma,
+                'ten_nvkd': info['ten_nvkd'],
+                'ma_ql': info['ma_ql'],
+                'ma_bp': info['ma_bp'],
+                'stt_nhom': info['stt_nhom'],
+                'kpi': kpi_val,
+                'actual': actual_val,
+                'months': months_worked,  # None = not new, int = months since start
+            })
+
+        return jsonify({'ok': True, 'nodes': nodes})
+
+    except Exception as e:
+        logger.error(f'bckpi data error: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@bp.route('/api/detail')
+def api_detail():
+    """Chi tiết doanh thu/doanh số cho 1 hoặc nhiều NV (quản lý = all children)."""
+    ma_kbc_list = request.args.getlist('ma_kbc')
+    ma_nvkd = request.args.get('ma_nvkd', '').strip()
+    metric = request.args.get('metric', 'dt')
+    # ds_nvkd: comma-separated list of NVKDs to include (for manager = all subtree)
+    ds_nvkd = request.args.get('ds_nvkd', '').strip()
+
+    kbcs = []
+    for k in ma_kbc_list:
+        for p in k.split(','):
+            p = p.strip()
+            if p: kbcs.append(p)
+
+    if not kbcs or not ds_nvkd:
+        return jsonify({'ok': True, 'rows': []})
+
+    try:
+        from database import get_db
+        db = get_db()
+        ph_kbc = ','.join(['?' for _ in kbcs])
+        kbc_rows = db.execute(
+            f'''SELECT ma_kbc, ngay_bd_thu_tien, ngay_kt_thu_tien,
+                       ngay_bd_xuat_ban, ngay_kt_xuat_ban
+                FROM ky_bao_cao WHERE ma_kbc IN ({ph_kbc})''', kbcs
+        ).fetchall()
+
+        dates_a, dates_b, dates_ds = [], [], []
+        for kr in kbc_rows:
+            bd_tt = str(kr['ngay_bd_thu_tien'] or '')[:10]
+            kt_tt = str(kr['ngay_kt_thu_tien'] or '')[:10]
+            bd_xb = str(kr['ngay_bd_xuat_ban'] or '')[:10]
+            kt_xb = str(kr['ngay_kt_xuat_ban'] or '')[:10]
+            if bd_tt and kt_tt: dates_a.append((bd_tt, kt_tt))
+            if bd_xb and kt_xb: dates_b.append((bd_xb, kt_xb))
+            dates_ds.append((bd_xb, kt_xb))
+
+        store = get_store()
+        rows = []
+
+        if metric == 'dt':
+            if not dates_a:
+                return jsonify({'ok': True, 'rows': []})
+            min_a = min(d[0] for d in dates_a)
+            max_a = max(d[1] for d in dates_a)
+            min_b = min(d[0] for d in dates_b) if dates_b else None
+            max_b = max(d[1] for d in dates_b) if dates_b else None
+
+            sql = load_sql('DOANHTHU_BCKH_DUCK')
+            result = store.query(sql, [min_a, max_a, min_b, max_b, '', ds_nvkd, ''])
+            for r in result:
+                rows.append({
+                    'ngay_ct': str(r.get('ngay_ct', ''))[:10],
+                    'ma_kh': r.get('ma_kh', ''),
+                    'ma_bp': r.get('ma_bp', ''),
+                    'ma_nvkd': r.get('ma_nvkd', ''),
+                    'doanhthu': float(r.get('doanhthu', 0) or 0),
+                })
+        else:
+            if not dates_ds:
+                return jsonify({'ok': True, 'rows': []})
+            min_ds = min(d[0] for d in dates_ds)
+            max_ds = max(d[1] for d in dates_ds)
+
+            sql = load_sql('DOANHSO_CHITIET_BCCT_DUCK')
+            result = store.query(sql, [min_ds, max_ds, '', ds_nvkd, ''])
+            for r in result:
+                rows.append({
+                    'ngay_ct': str(r.get('ngay_ct', ''))[:10],
+                    'ma_kh': r.get('ma_kh', ''),
+                    'ma_vt': r.get('ma_vt', ''),
+                    'ten_vt': r.get('ten_vt', ''),
+                    'dvt': r.get('dvt', ''),
+                    'so_luong': float(r.get('so_luong', 0) or 0),
+                    'doanhso': float(r.get('doanhso', 0) or 0),
+                    'ma_nvkd': r.get('ma_nvkd', ''),
+                    'ma_bp': r.get('ma_bp', ''),
+                })
+
+        return jsonify({'ok': True, 'rows': rows, 'count': len(rows)})
+
+    except Exception as e:
+        logger.error(f'bckpi detail error: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500

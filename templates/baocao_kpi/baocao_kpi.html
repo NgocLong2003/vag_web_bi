@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Báo cáo KPI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--sans:'Inter',system-ui,sans-serif;--mono:'DM Mono',monospace;
+--white:#fff;--g0:#f7f8fa;--g1:#eef0f4;--g2:#d8dce6;--g3:#b0b8c9;--g4:#8b95aa;--g5:#5a6478;--g6:#3d4a63;--g7:#1e2a3a;
+--blue:#1a46c4;--blue-lt:#eef2ff;--blue-md:#4a78df;
+--green:#0a7c50;--green-lt:#eafaf4;
+--red:#c0392b;--red-lt:#fef2f2;--orange:#d4740a;--orange-lt:#fff7ed;--purple:#7c3aed;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--g0);color:var(--g7);min-height:100vh}
+
+/* Toolbar */
+.rpt-toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--white);border-bottom:1px solid var(--g2);flex-wrap:wrap}
+.rpt-toolbar select{height:32px;padding:0 8px;border:1.5px solid var(--g2);border-radius:6px;font-size:12px;font-family:var(--sans);outline:none;background:var(--white)}
+.rpt-toolbar select:focus{border-color:var(--blue)}
+.rpt-title{font-size:14px;font-weight:800;color:var(--g6)}
+.rpt-slicer{display:flex;border:1.5px solid var(--g2);border-radius:6px;overflow:hidden;height:30px}
+.rpt-slicer button{padding:0 10px;border:none;background:var(--white);font-size:10px;font-weight:700;color:var(--g4);cursor:pointer;font-family:var(--sans);border-right:1px solid var(--g2);transition:.1s}
+.rpt-slicer button:last-child{border-right:none}
+.rpt-slicer button:hover{background:var(--g1)}
+.rpt-slicer button.active{background:var(--blue);color:#fff}
+
+/* Canvas */
+.kpi-canvas{flex:1;position:relative;overflow:hidden;cursor:grab;background:#fafbfd}
+.kpi-canvas.panning{cursor:grabbing}
+.kpi-canvas svg{width:100%;height:100%;position:absolute;top:0;left:0;user-select:none}
+
+/* Controls */
+.kpi-controls{position:absolute;top:10px;right:10px;display:flex;gap:4px;z-index:5}
+.kpi-controls button{width:28px;height:28px;border:1px solid var(--g2);border-radius:5px;background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--g5);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.kpi-controls button:hover{background:var(--g1)}
+
+/* Main layout */
+.rpt-main{display:flex;flex-direction:column;height:calc(100vh - 54px)}
+.rpt-body{display:flex;flex:1;overflow:hidden}
+.kpi-right{width:360px;min-width:360px;border-left:1px solid var(--g2);background:var(--white);display:none;flex-direction:column;flex-shrink:0}
+.kpi-right.open{display:flex}
+.kpi-right-header{padding:10px 12px;border-bottom:1px solid var(--g1);display:flex;justify-content:space-between;align-items:center}
+.kpi-right-title{font-size:13px;font-weight:700;color:var(--g6)}
+.kpi-right-sub{font-size:10px;color:var(--g4);font-family:var(--mono)}
+.kpi-right-close{background:none;border:none;font-size:16px;color:var(--g4);cursor:pointer;padding:0 4px}.kpi-right-close:hover{color:var(--g6)}
+.kpi-right-body{flex:1;overflow-y:auto;font-size:11px}
+.kpi-right-summary{padding:8px 12px;background:var(--g0);border-bottom:1px solid var(--g1);display:flex;gap:12px;flex-wrap:wrap}
+.kpi-right-stat{display:flex;flex-direction:column;gap:1px}
+.kpi-right-stat .stat-label{font-size:9px;color:var(--g4);text-transform:uppercase;font-weight:600}
+.kpi-right-stat .stat-val{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--g6)}
+.kpi-right-table{width:100%;border-collapse:collapse}
+.kpi-right-table th{position:sticky;top:0;background:var(--g0);padding:6px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--g4);border-bottom:1px solid var(--g2);white-space:nowrap}
+.kpi-right-table td{padding:5px 8px;border-bottom:1px solid var(--g1);font-size:11px;color:var(--g6);white-space:nowrap}
+.kpi-right-table tr:hover td{background:var(--g0)}
+.kpi-right-table .num{text-align:right;font-family:var(--mono);font-size:10px}
+.kpi-right-loading{padding:40px 12px;text-align:center;color:var(--g4)}
+</style>
+</head>
+<body>
+
+<div class="rpt-toolbar">
+  <span class="rpt-title">Báo cáo KPI</span>
+  <div class="kbc-wrap">
+    <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()">
+      <svg viewBox="0 0 16 16" stroke-width="2" style="width:13px;height:13px;stroke:var(--g4);fill:none"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4m6-4v4"/><line x1="2" y1="7" x2="14" y2="7"/></svg>
+      <span class="kbc-lbl" id="kbc-lbl">Chọn kỳ...</span>
+    </div>
+  </div>
+  <select id="rptBp" onchange="loadReport()">
+    <option value="">— Tất cả BP —</option>
+  </select>
+  <div class="rpt-slicer" id="slicerMetric">
+    <button class="active" onclick="setMetric('dt',this)">Doanh thu</button>
+    <button onclick="setMetric('ds',this)">Doanh số</button>
+  </div>
+  <div class="rpt-slicer" id="slicerScope">
+    <button class="active" onclick="setScope('nb',this)">Nội bộ</button>
+    <button onclick="setScope('cty',this)">Công ty</button>
+  </div>
+</div>
+
+<div class="rpt-main">
+  <div class="rpt-body">
+    <div class="kpi-canvas" id="kpiCanvas" style="flex:1">
+      <div class="kpi-controls">
+        <button onclick="zoomCanvas(1.3)">+</button>
+        <button onclick="zoomCanvas(0.7)">−</button>
+        <button onclick="fitCanvas()">⊡</button>
+      </div>
+      <svg id="kpiSvg"></svg>
+    </div>
+    <div class="kpi-right" id="kpiRight">
+      <div class="kpi-right-header">
+        <div>
+          <div class="kpi-right-title" id="rightTitle">Chi tiết</div>
+          <div class="kpi-right-sub" id="rightSub"></div>
+        </div>
+        <button class="kpi-right-close" onclick="closeRight()">✕</button>
+      </div>
+      <div class="kpi-right-body" id="rightBody">
+        <div class="kpi-right-loading">Click vào 1 node</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KBC Picker dependencies -->
+<script>
+var kbcList=[];
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function iso(d){if(!d)return null;return String(d).substring(0,10)}
+function isMobile(){return window.innerWidth<=768}
+function isLandscapePhone(){return window.innerWidth<=900&&window.innerHeight<500&&window.matchMedia('(hover:none)').matches}
+function onKBCSelected(){loadReport()}
+// Load kbc list via API then init picker
+fetch('/reports/bao-cao-kpi/api/kbc').then(function(r){return r.json()}).then(function(d){
+    kbcList=d.data||d||[];
+    populateKBC();
+    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
+    if(months.length)setTimeout(loadReport,100);
+});
+</script>
+{% include "_kbc_picker.html" %}
+
+<script>
+(function(){
+
+var metric='dt',scope='nb';
+var nodes=[],nodeMap={},byParent={};
+var pos={},expanded=new Set();
+var scale=1,tx=0,ty=0;
+var isPan=false,panSX=0,panSY=0,panTX=0,panTY=0;
+var dragMa=null,dragOX=0,dragOY=0;
+var hasBpFilter=false;
+
+var NODE_W=190,NODE_H=58,DONUT_R=24,LEVEL_GAP=110,SIB_GAP=28,LEAF_VGAP=8,LEAF_MAX=10,PORT_R=8;
+var FMT=new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0});
+function fN(v){return v==null||isNaN(v)?'—':FMT.format(Math.round(v))}
+function fS(v){if(!v&&v!==0)return'—';var a=Math.abs(v);if(a>=1e9)return(v/1e9).toFixed(1)+'B';if(a>=1e6)return(v/1e6).toFixed(0)+'M';if(a>=1e3)return(v/1e3).toFixed(0)+'K';return String(Math.round(v))}
+
+/* ═══ Color: 4 levels at 0/25/50/75 ═══ */
+function pctColor(pct){
+    if(pct>=75)return{ring:'#0a7c50',bg:'#eafaf4',border:'#0a7c50',text:'#0a7c50'};
+    if(pct>=50)return{ring:'#d4740a',bg:'#fff7ed',border:'#d4740a',text:'#d4740a'};
+    if(pct>=25)return{ring:'#c0392b',bg:'#fef2f2',border:'#c0392b',text:'#c0392b'};
+    return{ring:'#8b95aa',bg:'#f7f8fa',border:'#b0b8c9',text:'#8b95aa'};
+}
+
+/* ═══ Build tree ═══ */
+function buildTree(){
+    nodeMap={};byParent={};
+    nodes.forEach(function(n){nodeMap[n.ma_nvkd]=n});
+    nodes.forEach(function(n){
+        var pid=n.ma_ql||'__ROOT__';
+        if(pid&&pid!=='__ROOT__'&&!nodeMap[pid])pid='__ROOT__';
+        if(!byParent[pid])byParent[pid]=[];
+        byParent[pid].push(n);
+    });
+    // Expand: if BP filter → expand all, else expand only roots
+    expanded=new Set();
+    if(hasBpFilter){
+        function expandAll(pid){var kids=byParent[pid];if(!kids)return;kids.forEach(function(c){var ck=byParent[c.ma_nvkd];if(ck&&ck.length)expanded.add(c.ma_nvkd);expandAll(c.ma_nvkd)})}
+        expandAll('__ROOT__');
+    }else{
+        var roots=byParent['__ROOT__']||[];
+        roots.forEach(function(r){expanded.add(r.ma_nvkd)});
+    }
+}
+
+/* ═══ Visible ═══ */
+function getVisible(){
+    var vis=new Set();
+    function walk(pid){var kids=byParent[pid];if(!kids)return;kids.forEach(function(c){vis.add(c.ma_nvkd);if(expanded.has(c.ma_nvkd))walk(c.ma_nvkd)})}
+    walk('__ROOT__');return vis;
+}
+
+/* ═══ Layout ═══ */
+function layoutTree(){
+    var vis=getVisible();
+    function isLeaf(ma){var k=byParent[ma];if(!k)return true;return!k.some(function(c){return vis.has(c.ma_nvkd)})}
+    function visKids(ma){return(byParent[ma]||[]).filter(function(c){return vis.has(c.ma_nvkd)})}
+    function stW(ma,d){
+        var vk=visKids(ma);if(!vk.length)return NODE_W+DONUT_R+SIB_GAP;
+        var allL=vk.every(function(c){return isLeaf(c.ma_nvkd)});
+        if(allL){var mpc=(d===1)?vk.length:LEAF_MAX;var nc=Math.ceil(vk.length/mpc);return Math.max(NODE_W+DONUT_R+SIB_GAP,nc*(NODE_W+DONUT_R+SIB_GAP))}
+        var w=0;vk.forEach(function(c){w+=stW(c.ma_nvkd,d+1)});return Math.max(NODE_W+DONUT_R+SIB_GAP,w);
+    }
+    var totalW=stW('__ROOT__',0)||800;
+    function assign(pid,d,xs,xe){
+        var vk=visKids(pid);if(!vk.length)return;
+        var allL=vk.every(function(c){return isLeaf(c.ma_nvkd)});
+        var unit=NODE_W+DONUT_R+SIB_GAP;
+        if(allL){
+            var pp=pos[pid];var mpc=(d===1)?vk.length:LEAF_MAX;var nc=Math.ceil(vk.length/mpc);
+            var totalCW=nc*unit;var cx=pp?pp.x:(xs+xe)/2;var sx=cx-totalCW/2+unit/2;var sy=d*LEVEL_GAP+60;
+            vk.forEach(function(c,i){var col=Math.floor(i/mpc),row=i%mpc;if(!pos[c.ma_nvkd]||!pos[c.ma_nvkd]._m)pos[c.ma_nvkd]={x:sx+col*unit,y:sy+row*(NODE_H+LEAF_VGAP),_m:false}});
+        }else{
+            var cw=vk.map(function(c){return Math.max(unit,stW(c.ma_nvkd,d+1))});
+            var tcw=0;cw.forEach(function(w){tcw+=w});var x=xs+(xe-xs-tcw)/2;
+            vk.forEach(function(c,i){if(!pos[c.ma_nvkd]||!pos[c.ma_nvkd]._m)pos[c.ma_nvkd]={x:x+cw[i]/2,y:d*LEVEL_GAP+60,_m:false};assign(c.ma_nvkd,d+1,x,x+cw[i]);x+=cw[i]});
+        }
+    }
+    assign('__ROOT__',0,0,Math.max(totalW,800));
+}
+
+/* ═══ Donut arc ═══ */
+function donutArc(cx,cy,r,pct,sw){
+    pct=Math.min(Math.max(pct,0),100);
+    if(pct<=0)return'';
+    if(pct>=100)return'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke-width="'+sw+'"/>';
+    var a=pct/100*2*Math.PI-Math.PI/2;
+    var x2=cx+r*Math.cos(a),y2=cy+r*Math.sin(a);
+    return'<path d="M'+cx+' '+(cy-r)+' A'+r+' '+r+' 0 '+(pct>50?1:0)+' 1 '+x2+' '+y2+'" fill="none" stroke-width="'+sw+'" stroke-linecap="round"/>';
+}
+
+/* ═══ Render ═══ */
+function render(){
+    if(!nodes.length)return;
+    layoutTree();
+    var vis=getVisible();
+    var svg=document.getElementById('kpiSvg');
+    var ct=document.getElementById('kpiCanvas');
+    svg.setAttribute('viewBox','0 0 '+ct.clientWidth+' '+ct.clientHeight);
+    var edges='',html='';
+
+    nodes.forEach(function(n){
+        if(!vis.has(n.ma_nvkd))return;
+        var p=pos[n.ma_nvkd];if(!p)return;
+        var actual=n.actual||0;
+        var kpi=n.kpi||0;
+        var pct=kpi>0?Math.round(actual/kpi*100):0;
+        var col=pctColor(pct);
+        var hasAllKids=byParent[n.ma_nvkd]&&byParent[n.ma_nvkd].length>0;
+        var isExp=expanded.has(n.ma_nvkd);
+
+        // Node rect position (donut protrudes left)
+        var nx=p.x-NODE_W/2+DONUT_R/2, ny=p.y-NODE_H/2;
+        var donutCx=nx, donutCy=p.y; // center of left edge
+
+        // Edge to parent
+        if(n.ma_ql&&pos[n.ma_ql]&&vis.has(n.ma_ql)){
+            var pp=pos[n.ma_ql];
+            var x1=pp.x,y1=pp.y+NODE_H/2,x2=p.x,y2=p.y-NODE_H/2,my=(y1+y2)/2;
+            edges+='<path d="M'+x1+' '+y1+' C'+x1+' '+my+' '+x2+' '+my+' '+x2+' '+y2+'" stroke="#c0c8dc" stroke-width="1.5" fill="none"/>';
+        }
+
+        html+='<g class="kn" data-ma="'+n.ma_nvkd+'">';
+
+        // Card
+        html+='<rect x="'+nx+'" y="'+ny+'" width="'+NODE_W+'" height="'+NODE_H+'" rx="8" fill="'+col.bg+'" stroke="'+col.border+'" stroke-width="2" style="cursor:grab"/>';
+
+        // Donut (center = left edge midpoint, radius > half NODE_H)
+        var dR=DONUT_R, dSw=4;
+        html+='<circle cx="'+donutCx+'" cy="'+donutCy+'" r="'+dR+'" fill="'+col.bg+'" stroke="#e4e7ed" stroke-width="'+dSw+'"/>';
+        html+='<g stroke="'+col.ring+'">'+donutArc(donutCx,donutCy,dR,pct,dSw)+'</g>';
+        html+='<circle cx="'+donutCx+'" cy="'+donutCy+'" r="'+(dR-dSw)+'" fill="'+col.bg+'"/>';
+        html+='<text x="'+donutCx+'" y="'+(donutCy+5)+'" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="800" fill="'+col.text+'">'+pct+'%</text>';
+
+        // Text block (right of donut)
+        var textX=nx+DONUT_R+10;
+        html+='<text x="'+textX+'" y="'+(ny+16)+'" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#1e2a3a">'+esc(n.ten_nvkd)+'</text>';
+        html+='<text x="'+textX+'" y="'+(ny+32)+'" font-family="DM Mono,monospace" font-size="14" font-weight="700" fill="'+col.text+'">'+fN(actual)+'</text>';
+        html+='<text x="'+textX+'" y="'+(ny+46)+'" font-family="Inter,sans-serif" font-size="8" fill="#8b95aa">KPI nội bộ: '+fS(kpi)+'</text>';
+
+        // Months badge (new employee, top-right pink circle)
+        if(n.months!==null&&n.months!==undefined){
+            var bx=nx+NODE_W-12,by=ny-2;
+            html+='<circle cx="'+bx+'" cy="'+by+'" r="9" fill="#e84393"/>';
+            html+='<text x="'+bx+'" y="'+(by+3.5)+'" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="800" fill="#fff">'+n.months+'</text>';
+        }
+
+        html+='</g>';
+
+        // Expand/collapse
+        if(hasAllKids){
+            var btnY=ny+NODE_H;
+            html+='<g class="kn-expand" data-ma="'+n.ma_nvkd+'" style="cursor:pointer">';
+            html+='<circle cx="'+p.x+'" cy="'+btnY+'" r="'+PORT_R+'" fill="'+(isExp?'#1a46c4':'#fff')+'" stroke="#1a46c4" stroke-width="1.5"/>';
+            html+='<text x="'+p.x+'" y="'+(btnY+3.5)+'" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="'+(isExp?'#fff':'#1a46c4')+'" pointer-events="none">'+(isExp?'−':'+'  )+'</text>';
+            html+='</g>';
+        }
+    });
+
+    svg.innerHTML='<g id="graphG" transform="translate('+tx+','+ty+') scale('+scale+')">'+edges+html+'</g>';
+    bindEvents();
+}
+
+/* ═══ Events ═══ */
+function bindEvents(){
+    document.querySelectorAll('#kpiSvg .kn').forEach(function(g){
+        var _dragStartX=0,_dragStartY=0,_didDrag=false;
+        g.addEventListener('mousedown',function(e){
+            if(e.target.closest('.kn-expand'))return;
+            e.stopPropagation();e.preventDefault();
+            dragMa=this.dataset.ma;dragOX=e.clientX;dragOY=e.clientY;
+            _dragStartX=e.clientX;_dragStartY=e.clientY;_didDrag=false;
+            document.addEventListener('mousemove',onDrag);document.addEventListener('mouseup',offDrag);
+        });
+        g.addEventListener('click',function(e){
+            if(e.target.closest('.kn-expand'))return;
+            e.stopPropagation();
+            // Only open detail if not dragged
+            if(_didDrag)return;
+            showDetail(this.dataset.ma);
+        });
+        g.addEventListener('mousemove',function(){
+            if(dragMa&&(Math.abs(dragOX-_dragStartX)>3||Math.abs(dragOY-_dragStartY)>3))_didDrag=true;
+        });
+    });
+    document.querySelectorAll('#kpiSvg .kn-expand').forEach(function(btn){
+        btn.addEventListener('click',function(e){
+            e.stopPropagation();var ma=this.dataset.ma;
+            if(expanded.has(ma))expanded.delete(ma);else expanded.add(ma);
+            resetPos();render();
+        });
+        btn.addEventListener('mousedown',function(e){e.stopPropagation()});
+    });
+}
+function onDrag(e){
+    if(!dragMa||!pos[dragMa])return;
+    var dx=(e.clientX-dragOX)/scale,dy=(e.clientY-dragOY)/scale;
+    pos[dragMa].x+=dx;pos[dragMa].y+=dy;pos[dragMa]._m=true;
+    dragOX=e.clientX;dragOY=e.clientY;render();
+}
+function offDrag(){dragMa=null;document.removeEventListener('mousemove',onDrag);document.removeEventListener('mouseup',offDrag)}
+function resetPos(){Object.keys(pos).forEach(function(k){pos[k]._m=false})}
+
+/* ═══ Right Panel: Detail ═══ */
+function getSubtreeNvkds(ma){
+    // Get this NV + all descendants (for manager view)
+    var result=[];
+    function walk(m){result.push(m);var kids=byParent[m];if(kids)kids.forEach(function(c){walk(c.ma_nvkd)})}
+    walk(ma);
+    return result;
+}
+
+function showDetail(ma){
+    var n=nodeMap[ma];if(!n)return;
+    var panel=document.getElementById('kpiRight');
+    panel.classList.add('open');
+    document.getElementById('rightTitle').textContent=n.ten_nvkd;
+    var hasKids=byParent[ma]&&byParent[ma].length>0;
+    document.getElementById('rightSub').textContent=ma+(hasKids?' (quản lý — xem tất cả cấp dưới)':'');
+    document.getElementById('rightBody').innerHTML='<div class="kpi-right-loading">Đang tải...</div>';
+
+    // Get list of NVKDs to query
+    var nvkdList=getSubtreeNvkds(ma);
+    var kbcs=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)}).map(function(k){return k.ma_kbc});
+    if(!kbcs.length)return;
+
+    var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');
+    qp+='&metric='+metric+'&ds_nvkd='+encodeURIComponent(nvkdList.join(','));
+
+    fetch('/reports/bao-cao-kpi/api/detail?'+qp).then(function(r){return r.json()}).then(function(d){
+        if(!d.ok){document.getElementById('rightBody').innerHTML='<div class="kpi-right-loading">Lỗi: '+(d.error||'')+'</div>';return}
+        var rows=d.rows||[];
+        renderDetailPanel(n,rows,d.count||0);
+    });
+}
+
+function renderDetailPanel(n,rows,count){
+    var body=document.getElementById('rightBody');
+    var total=0;rows.forEach(function(r){total+=(r.doanhthu||r.doanhso||0)});
+
+    var h='<div class="kpi-right-summary">';
+    h+='<div class="kpi-right-stat"><span class="stat-label">Thực tế</span><span class="stat-val">'+fN(n.actual)+'</span></div>';
+    h+='<div class="kpi-right-stat"><span class="stat-label">KPI</span><span class="stat-val">'+fN(n.kpi)+'</span></div>';
+    var pct=n.kpi>0?Math.round(n.actual/n.kpi*100):0;
+    h+='<div class="kpi-right-stat"><span class="stat-label">% HT</span><span class="stat-val" style="color:'+pctColor(pct).text+'">'+pct+'%</span></div>';
+    h+='<div class="kpi-right-stat"><span class="stat-label">Dòng</span><span class="stat-val">'+count+'</span></div>';
+    h+='</div>';
+
+    if(metric==='dt'){
+        // Doanh thu: group by ma_kh → sum
+        var byKh={};
+        rows.forEach(function(r){
+            var k=r.ma_kh||'?';
+            if(!byKh[k])byKh[k]={ma_kh:k,ma_nvkd:r.ma_nvkd||'',total:0,cnt:0};
+            byKh[k].total+=r.doanhthu||0;byKh[k].cnt++;
+        });
+        var sorted=Object.values(byKh).sort(function(a,b){return b.total-a.total});
+        h+='<table class="kpi-right-table"><thead><tr><th>Khách hàng</th><th>NVKD</th><th class="num">Doanh thu</th><th class="num">#</th></tr></thead><tbody>';
+        sorted.forEach(function(r){
+            h+='<tr><td>'+esc(r.ma_kh)+'</td><td>'+esc(r.ma_nvkd)+'</td><td class="num">'+fN(r.total)+'</td><td class="num">'+r.cnt+'</td></tr>';
+        });
+        h+='</tbody></table>';
+    }else{
+        // Doanh số: show detail rows
+        h+='<table class="kpi-right-table"><thead><tr><th>Ngày</th><th>KH</th><th>SP</th><th>NVKD</th><th class="num">SL</th><th class="num">Doanh số</th></tr></thead><tbody>';
+        rows.forEach(function(r){
+            h+='<tr><td>'+esc(r.ngay_ct)+'</td><td>'+esc(r.ma_kh)+'</td><td title="'+esc(r.ten_vt)+'">'+esc((r.ma_vt||'').substring(0,12))+'</td><td>'+esc(r.ma_nvkd)+'</td><td class="num">'+fN(r.so_luong)+'</td><td class="num">'+fN(r.doanhso)+'</td></tr>';
+        });
+        h+='</tbody></table>';
+    }
+
+    body.innerHTML=h;
+}
+
+window.closeRight=function(){document.getElementById('kpiRight').classList.remove('open')};
+
+/* ═══ Canvas pan/zoom ═══ */
+var canvas=document.getElementById('kpiCanvas');
+canvas.addEventListener('mousedown',function(e){
+    if(e.target.closest('.kn')||e.target.closest('.kn-expand')||e.target.closest('.kpi-controls'))return;
+    isPan=true;panSX=e.clientX;panSY=e.clientY;panTX=tx;panTY=ty;canvas.classList.add('panning');
+});
+document.addEventListener('mousemove',function(e){
+    if(!isPan)return;
+    tx=panTX+(e.clientX-panSX);ty=panTY+(e.clientY-panSY);
+    var g=document.getElementById('graphG');if(g)g.setAttribute('transform','translate('+tx+','+ty+') scale('+scale+')');
+});
+document.addEventListener('mouseup',function(){if(isPan){isPan=false;canvas.classList.remove('panning')}});
+canvas.addEventListener('wheel',function(e){
+    e.preventDefault();scale*=(e.deltaY<0?1.1:0.9);scale=Math.max(0.15,Math.min(4,scale));
+    var g=document.getElementById('graphG');if(g)g.setAttribute('transform','translate('+tx+','+ty+') scale('+scale+')');
+},{passive:false});
+
+window.zoomCanvas=function(f){scale*=f;scale=Math.max(0.15,Math.min(4,scale));var g=document.getElementById('graphG');if(g)g.setAttribute('transform','translate('+tx+','+ty+') scale('+scale+')')};
+window.fitCanvas=function(){
+    // Calculate bounding box of all visible nodes, then center
+    var vis=getVisible();
+    var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    vis.forEach(function(ma){var p=pos[ma];if(!p)return;
+        minX=Math.min(minX,p.x-NODE_W/2-DONUT_R);maxX=Math.max(maxX,p.x+NODE_W/2+DONUT_R);
+        minY=Math.min(minY,p.y-NODE_H/2-DONUT_R);maxY=Math.max(maxY,p.y+NODE_H/2+20);
+    });
+    if(minX===Infinity){scale=1;tx=0;ty=0;return}
+    var ct=document.getElementById('kpiCanvas');
+    var cw=ct.clientWidth,ch=ct.clientHeight;
+    var tw=maxX-minX+60,th=maxY-minY+60;
+    scale=Math.min(cw/tw,ch/th,1.5);scale=Math.max(0.2,Math.min(scale,1.5));
+    var cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+    tx=cw/2-cx*scale;ty=ch/2-cy*scale;
+    resetPos();render();
+};
+
+/* ═══ Slicers ═══ */
+window.setMetric=function(v,btn){metric=v;btn.parentElement.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');loadReport()};
+window.setScope=function(v,btn){scope=v;btn.parentElement.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');loadReport()};
+
+/* ═══ Load ═══ */
+window.loadReport=function(){
+    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
+    var kbcs=months.map(function(k){return k.ma_kbc});
+    if(!kbcs.length)return;
+    var bp=document.getElementById('rptBp').value;
+    var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');
+    qp+='&metric='+metric+'&scope='+scope;
+    if(bp)qp+='&ma_bp='+encodeURIComponent(bp);
+    fetch('/reports/bao-cao-kpi/api/data?'+qp).then(function(r){return r.json()}).then(function(d){
+        if(!d.ok){if(d.error)alert(d.error);return}
+        nodes=d.nodes||[];
+        var bps={};nodes.forEach(function(n){if(n.ma_bp)bps[n.ma_bp]=true});
+        var sel=document.getElementById('rptBp');var curVal=sel.value;
+        sel.innerHTML='<option value="">— Tất cả BP —</option>';
+        Object.keys(bps).sort().forEach(function(b){sel.innerHTML+='<option value="'+b+'"'+(b===curVal?' selected':'')+'>'+b+'</option>'});
+        hasBpFilter=!!bp;
+        pos={};expanded=new Set();
+        buildTree();
+        render();
+        setTimeout(fitCanvas,50);
+    });
+};
+
+})();
+</script>
+</body>
+</html>

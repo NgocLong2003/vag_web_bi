@@ -140,6 +140,63 @@ class DataSync:
                 col_data[col].append(val)
         return pa.table(col_data)
 
+    def _transform(self, name, table):
+        """Áp dụng business transforms sau khi pull, trước khi ghi parquet.
+        Matching Power Query logic."""
+        import pyarrow.compute as pc
+
+        if name == 'PTHUBAOCO':
+            # 1. XKCTWFC01 → ma_bp = 'XK'
+            ma_kh = table.column('ma_kh_ct')
+            ma_bp = table.column('ma_bp')
+            new_bp = pc.if_else(pc.equal(ma_kh, 'XKCTWFC01'), 'XK', ma_bp)
+            table = table.set_column(table.schema.get_field_index('ma_bp'), 'ma_bp', new_bp)
+
+            # 2. GCPHAVETCO + Feb 2026 → ps_co = 0
+            ngay_ct = table.column('ngay_ct')
+            ps_co = table.column('ps_co')
+            # Build mask: ma_kh='GCPHAVETCO' AND year=2026 AND month=2
+            is_gc = pc.equal(table.column('ma_kh_ct'), 'GCPHAVETCO')
+            # ngay_ct might be date or datetime
+            try:
+                yr = pc.year(ngay_ct)
+                mn = pc.month(ngay_ct)
+                is_feb26 = pc.and_(pc.equal(yr, 2026), pc.equal(mn, 2))
+                mask = pc.and_(is_gc, is_feb26)
+                new_ps = pc.if_else(mask, 0.0, pc.cast(ps_co, pa.float64()))
+                table = table.set_column(table.schema.get_field_index('ps_co'), 'ps_co', new_ps)
+            except:
+                pass  # If ngay_ct is string, skip this transform
+
+            logger.info(f"    [Transform] PTHUBAOCO: XKCTWFC01→XK, GCPHAVETCO zero")
+
+        elif name == 'BKHDBANHANG':
+            # 1. NVQ02 + ma_bp=VB → ma_nvkd = NVQ03
+            ma_nvkd = table.column('ma_nvkd')
+            ma_bp = table.column('ma_bp')
+            is_nvq02_vb = pc.and_(pc.equal(ma_nvkd, 'NVQ02'), pc.equal(ma_bp, 'VB'))
+            new_nvkd = pc.if_else(is_nvq02_vb, 'NVQ03', ma_nvkd)
+            table = table.set_column(table.schema.get_field_index('ma_nvkd'), 'ma_nvkd', new_nvkd)
+
+            # 2. NVQ03 → ma_bp = VB (covers both original NVQ03 and transformed NVQ02)
+            new_nvkd2 = table.column('ma_nvkd')
+            new_bp = pc.if_else(pc.equal(new_nvkd2, 'NVQ03'), 'VB', ma_bp)
+            table = table.set_column(table.schema.get_field_index('ma_bp'), 'ma_bp', new_bp)
+
+            # 3. ma_kh = XKCTWFC01 → ma_bp = XK
+            ma_kh = table.column('ma_kh')
+            new_bp2 = pc.if_else(pc.equal(ma_kh, 'XKCTWFC01'), 'XK', table.column('ma_bp'))
+            table = table.set_column(table.schema.get_field_index('ma_bp'), 'ma_bp', new_bp2)
+
+            logger.info(f"    [Transform] BKHDBANHANG: NVQ02→NVQ03, NVQ03→VB, XKCTWFC01→XK")
+
+        elif name == 'DMNHANVIENKD':
+            # ma_bp fallback: no BP → XX (need BP from DMKHACHHANG, done at query time)
+            # ma_ql fallback: has BP but no ma_ql → BP + "99" (done at query time)
+            pass
+
+        return table
+
     def run_once(self):
         """Chạy 1 lần sync. Return True nếu thành công."""
         started = datetime.now()
@@ -160,6 +217,7 @@ class DataSync:
                 name = vc['name']
                 try:
                     table = self._pull_view(conn, vc)
+                    table = self._transform(name, table)
                     out_path = self.staging_dir / f'{name}.parquet'
                     pq.write_table(table, out_path, compression='snappy')
                     logger.info(f"  ✓ {name}: {table.num_rows} rows → {out_path.name}")

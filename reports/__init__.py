@@ -53,6 +53,9 @@ register_report('bao-cao-chi-tiet', bcct_bp, 'baocao_chitiet/baocao_ct.html')
 from reports.bao_cao_ban_ra import bp as bcbr_bp
 register_report('bao-cao-ban-ra', bcbr_bp, 'baocao_banra/baocao_banra.html')
 
+from reports.baocao_kpi import bp as bckpi_bp
+register_report('bao-cao-kpi', bckpi_bp, 'baocao_kpi/baocao_kpi.html')
+
 # Thêm báo cáo mới:
 # from reports.baocao_tonkho import bp as bctonkho_bp
 # register_report('ton-kho', bctonkho_bp, 'baocao_tonkho/tonkho.html')
