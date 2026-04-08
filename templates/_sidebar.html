@@ -1,0 +1,49 @@
+{# _sidebar.html — Sidebar navigation (slide từ trái) #}
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+<nav class="sb-menu" id="sbMenu">
+    <div class="sb-head">
+        <span class="sb-user">{{ username }}</span>
+        <button class="sb-close" onclick="closeSidebar()">✕</button>
+    </div>
+
+    <div class="sb-body">
+        <div class="sb-section">
+            <div class="sb-section-label">Dashboard</div>
+            {% for d in dashboards %}
+            <a href="/d/{{ d.slug }}" class="sb-item{{ ' active' if d.slug == current_slug else '' }}">
+                <svg viewBox="0 0 20 20" stroke-width="1.5">
+                    <rect x="3" y="3" width="14" height="14" rx="2"/>
+                    <line x1="3" y1="8" x2="17" y2="8"/>
+                    <line x1="8" y1="8" x2="8" y2="17"/>
+                </svg>
+                <div>
+                    {{ d.name }}
+                    {% if d.description %}<div class="sb-desc">{{ d.description }}</div>{% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="sb-footer">
+        <div class="sb-section-label">Thao tác</div>
+        <a href="javascript:void(0)" class="sb-item" onclick="document.documentElement.requestFullscreen?document.documentElement.requestFullscreen():0;closeSidebar()">
+            <svg viewBox="0 0 20 20" stroke-width="1.5"><polyline points="6,3 3,3 3,6"/><polyline points="14,3 17,3 17,6"/><polyline points="6,17 3,17 3,14"/><polyline points="14,17 17,17 17,14"/></svg>
+            Toàn màn hình
+        </a>
+        {% if role == 'admin' %}
+        <a href="/admin" class="sb-item">
+            <svg viewBox="0 0 20 20" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2m0 12v2m-5.66-2.34l1.42-1.42m8.48-8.48l1.42-1.42M2 10h2m12 0h2m-2.34 5.66l-1.42-1.42M5.76 5.76L4.34 4.34"/></svg>
+            Quản trị
+        </a>
+        {% endif %}
+        <a href="/settings" class="sb-item">
+            <svg viewBox="0 0 20 20" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2m0 12v2m-5.66-2.34l1.42-1.42m8.48-8.48l1.42-1.42M2 10h2m12 0h2m-2.34 5.66l-1.42-1.42M5.76 5.76L4.34 4.34"/></svg>
+            Cài đặt
+        </a>
+        <a href="/logout" class="sb-item sb-logout">
+            <svg viewBox="0 0 20 20" stroke-width="1.5"><path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3"/><path d="M13 14l4-4-4-4"/><line x1="17" y1="10" x2="7" y2="10"/></svg>
+            Đăng xuất
+        </a>
+    </div>
+</nav>  

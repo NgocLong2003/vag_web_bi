@@ -1,0 +1,9 @@
+<!-- _sidebar_js.html -->
+<script>
+(function(){
+    window.openSidebar=function(){document.getElementById('sbMenu').classList.add('open');document.getElementById('sbOverlay').classList.add('open');document.body.style.overflow='hidden'};
+    window.closeSidebar=function(){document.getElementById('sbMenu').classList.remove('open');document.getElementById('sbOverlay').classList.remove('open');document.body.style.overflow=''};
+    window.toggleSidebar=function(){document.getElementById('sbMenu').classList.contains('open')?closeSidebar():openSidebar()};
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSidebar()});
+})();
+</script>
