@@ -5,6 +5,7 @@
 <title>Báo cáo KPI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include "_sidebar_css.html" %}
 <style>
 :root{--sans:'Inter',system-ui,sans-serif;--mono:'DM Mono',monospace;
 --white:#fff;--g0:#f7f8fa;--g1:#eef0f4;--g2:#d8dce6;--g3:#b0b8c9;--g4:#8b95aa;--g5:#5a6478;--g6:#3d4a63;--g7:#1e2a3a;
@@ -15,16 +16,13 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--sans);background:var(--g0);color:var(--g7);min-height:100vh}
 
-/* Toolbar */
-.rpt-toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--white);border-bottom:1px solid var(--g2);flex-wrap:wrap}
-.rpt-toolbar select{height:32px;padding:0 8px;border:1.5px solid var(--g2);border-radius:6px;font-size:12px;font-family:var(--sans);outline:none;background:var(--white)}
-.rpt-toolbar select:focus{border-color:var(--blue)}
-.rpt-title{font-size:14px;font-weight:800;color:var(--g6)}
+/* Slicer pills */
 .rpt-slicer{display:flex;border:1.5px solid var(--g2);border-radius:6px;overflow:hidden;height:30px}
 .rpt-slicer button{padding:0 10px;border:none;background:var(--white);font-size:10px;font-weight:700;color:var(--g4);cursor:pointer;font-family:var(--sans);border-right:1px solid var(--g2);transition:.1s}
 .rpt-slicer button:last-child{border-right:none}
 .rpt-slicer button:hover{background:var(--g1)}
 .rpt-slicer button.active{background:var(--blue);color:#fff}
+.v-div{width:1px;height:20px;background:var(--g2)}
 
 /* Canvas */
 .kpi-canvas{flex:1;position:relative;overflow:hidden;cursor:grab;background:#fafbfd}
@@ -37,7 +35,9 @@ body{font-family:var(--sans);background:var(--g0);color:var(--g7);min-height:100
 .kpi-controls button:hover{background:var(--g1)}
 
 /* Main layout */
-.rpt-main{display:flex;flex-direction:column;height:calc(100vh - 54px)}
+.rpt-main{display:flex;flex-direction:column;height:calc(100vh - 42px)}
+@supports(height:100dvh){.rpt-main{height:calc(100dvh - 42px)}}
+@media(max-width:768px){.rpt-main{height:100vh}@supports(height:100dvh){.rpt-main{height:100dvh}}}
 .rpt-body{display:flex;flex:1;overflow:hidden}
 .kpi-right{width:360px;min-width:360px;border-left:1px solid var(--g2);background:var(--white);display:none;flex-direction:column;flex-shrink:0}
 .kpi-right.open{display:flex}
@@ -59,16 +59,20 @@ body{font-family:var(--sans);background:var(--g0);color:var(--g7);min-height:100
 </style>
 </head>
 <body>
+{% include "_sidebar.html" %}
 
-<div class="rpt-toolbar">
-  <span class="rpt-title">Báo cáo KPI</span>
+<div class="toolbar-slim">
+  <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+  <div class="v-div"></div>
+  <span class="toolbar-title">{{ dashboard_name }}</span>
+  <div class="v-div"></div>
   <div class="kbc-wrap">
     <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()">
       <svg viewBox="0 0 16 16" stroke-width="2" style="width:13px;height:13px;stroke:var(--g4);fill:none"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4m6-4v4"/><line x1="2" y1="7" x2="14" y2="7"/></svg>
       <span class="kbc-lbl" id="kbc-lbl">Chọn kỳ...</span>
     </div>
   </div>
-  <select id="rptBp" onchange="loadReport()">
+  <select id="rptBp" onchange="loadReport()" style="height:30px;padding:0 8px;border:1.5px solid var(--g2);border-radius:6px;font-size:12px;font-family:var(--sans);outline:none;background:var(--white)">
     <option value="">— Tất cả BP —</option>
   </select>
   <div class="rpt-slicer" id="slicerMetric">
@@ -466,5 +470,6 @@ window.loadReport=function(){
 
 })();
 </script>
+{% include "_sidebar_js.html" %}
 </body>
 </html>

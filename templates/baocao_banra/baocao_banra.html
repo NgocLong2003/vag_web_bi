@@ -6,12 +6,13 @@
 <title>Báo Cáo Bán Ra</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 {% include "_header_css.html" %}
+{% include "_sidebar_css.html" %}
 <style>
 :root{--white:#fff;--g0:#f7f8fa;--g1:#eef0f4;--g2:#d8dce6;--g3:#a8b0c5;--g4:#6b7898;--g5:#414e6a;--g6:#28334d;--g7:#0f1623;--blue:#1a46c4;--blue-lt:#eef2ff;--emr:#056944;--emr-lt:#eafaf4;--red:#aa1c1c;--amber:#964a06;--sans:'Nunito Sans',sans-serif;--mono:'JetBrains Mono',monospace}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:13px;overflow:hidden}
-.app{display:flex;flex-direction:column;height:calc(100vh - 40px)}
-@supports(height:100dvh){.app{height:calc(100dvh - 40px)}}
+.app{display:flex;flex-direction:column;height:100vh}
+@supports(height:100dvh){.app{height:100dvh}}
 
 /* TOPBAR */
 .topbar{height:46px;background:var(--white);border-bottom:1px solid var(--g2);display:flex;align-items:center;padding:0 12px;gap:8px;flex-shrink:0;z-index:50}
@@ -112,11 +113,14 @@ td.date{font-family:var(--mono);font-size:11px;color:var(--g4)}
 </style>
 </head>
 <body>
-{% include "_header.html" %}
+{% include "_sidebar.html" %}
 {% include "_loading_overlay.html" %}
 <div class="app">
-<div class="topbar">
-  <div class="brand"><div class="brand-mark"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="6" y1="6" x2="6" y2="14"/></svg></div><div class="brand-name">Bán Ra</div></div>
+<div class="toolbar-slim">
+  <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+  <div class="v-div"></div>
+  <span class="toolbar-title">{{ dashboard_name }}</span>
+  <div class="v-div"></div>
   <input class="t-input" type="date" id="dateA">
   <span style="color:var(--g3);font-size:11px">→</span>
   <input class="t-input" type="date" id="dateB">
@@ -124,8 +128,7 @@ td.date{font-family:var(--mono);font-size:11px;color:var(--g4)}
   <div class="sep"></div>
   <button class="tbtn accent" id="btnCols" onclick="toggleColPanel()"><svg viewBox="0 0 16 16" stroke-width="2"><rect x="2" y="2" width="4" height="12" rx="1"/><rect x="10" y="2" width="4" height="12" rx="1"/></svg>Cột</button>
   <button class="tbtn green" onclick="exportExcel()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
-  <span class="spacer"></span>
-  <div class="chip"><div class="s-dot" id="sDot"></div><span id="sTxt">—</span></div>
+  <div class="s-dot" id="sDot" style="display:none"></div><span id="sTxt" style="display:none"></span>
 </div>
 <div class="filter-bar" id="filterBar">
   <div class="fb-group" data-filter="kh"><span class="fb-label">KH</span><input class="fb-input" id="fbKH" placeholder="Tất cả" oninput="acShow('kh',this.value)" onfocus="acShow('kh',this.value)"><button class="fb-clear" onclick="fbClear('kh')">✕</button><span id="fbKHChips"></span><div class="ac-panel" id="acKH"></div></div>
@@ -160,6 +163,7 @@ td.date{font-family:var(--mono);font-size:11px;color:var(--g4)}
 
 <div id="toasts"></div>
 {% include "_header_js.html" %}
+{% include "_sidebar_js.html" %}
 <script>
 const API='/reports/bao-cao-ban-ra';
 
