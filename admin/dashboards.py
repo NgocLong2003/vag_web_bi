@@ -13,6 +13,7 @@ def dashboard_add():
     powerbi_url = request.form.get('powerbi_url', '').strip()
     description = request.form.get('description', '').strip()
     dashboard_type = request.form.get('dashboard_type', 'powerbi')
+    category = request.form.get('category', '').strip()
     sort_order = request.form.get('sort_order', 0, type=int)
     if not name or not slug:
         flash('Tên và slug không được để trống', 'error')
@@ -22,8 +23,8 @@ def dashboard_add():
         return redirect(url_for('admin.admin_index') + '#dashboards')
     db = get_db()
     try:
-        db.execute('INSERT INTO dashboards (slug, name, powerbi_url, description, dashboard_type, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
-                   (slug, name, powerbi_url or '', description, dashboard_type, sort_order))
+        db.execute('INSERT INTO dashboards (slug, name, powerbi_url, description, dashboard_type, sort_order, category) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                   (slug, name, powerbi_url or '', description, dashboard_type, sort_order, category))
         db.commit()
         flash(f'Đã tạo dashboard "{name}"', 'success')
     except Exception as e:
@@ -43,13 +44,14 @@ def dashboard_edit(dash_id):
     powerbi_url = request.form.get('powerbi_url', '').strip()
     description = request.form.get('description', '').strip()
     dashboard_type = request.form.get('dashboard_type', 'powerbi')
+    category = request.form.get('category', '').strip()
     sort_order = request.form.get('sort_order', 0, type=int)
     is_active = 1 if request.form.get('is_active') else 0
     db = get_db()
     try:
-        db.execute(f'''UPDATE dashboards SET name=?, slug=?, powerbi_url=?, description=?, dashboard_type=?, sort_order=?, is_active=?,
+        db.execute(f'''UPDATE dashboards SET name=?, slug=?, powerbi_url=?, description=?, dashboard_type=?, sort_order=?, is_active=?, category=?,
                       updated_at={sql_now()} WHERE id=?''',
-                   (name, slug, powerbi_url or '', description, dashboard_type, sort_order, is_active, dash_id))
+                   (name, slug, powerbi_url or '', description, dashboard_type, sort_order, is_active, category, dash_id))
         db.commit()
         flash('Đã cập nhật dashboard', 'success')
     except Exception as e:

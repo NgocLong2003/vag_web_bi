@@ -7,14 +7,67 @@ bp = Blueprint('dashboard', __name__)
 
 
 def _get_user_dashboards(user):
-    """Lấy danh sách dashboard user có quyền xem"""
+    """Lấy danh sách dashboard user có quyền xem.
+    Logic: admin = tất cả, user = manual (user_dashboards) UNION auto (by khoi)."""
     db = get_db()
     if user['role'] == 'admin':
-        return db.execute('SELECT * FROM dashboards WHERE is_active = 1 ORDER BY sort_order, name').fetchall()
-    return db.execute('''
+        return db.execute('SELECT * FROM dashboards WHERE is_active = 1 ORDER BY category, sort_order, name').fetchall()
+
+    # Manual: assigned in user_dashboards
+    manual = db.execute('''
         SELECT d.* FROM dashboards d JOIN user_dashboards ud ON d.id = ud.dashboard_id
-        WHERE ud.user_id = ? AND d.is_active = 1 ORDER BY d.sort_order, d.name
+        WHERE ud.user_id = ? AND d.is_active = 1
     ''', (user['id'],)).fetchall()
+
+    # Auto: by khoi (user.khoi matches dashboard.category)
+    user_khoi = (user.get('khoi') or '').strip() if 'khoi' in user.keys() else ''
+    if user_khoi:
+        auto = db.execute(
+            'SELECT * FROM dashboards WHERE is_active = 1 AND category = ?',
+            (user_khoi,)
+        ).fetchall()
+    else:
+        auto = []
+
+    # Union + deduplicate by id, maintain order
+    seen_ids = set()
+    result = []
+    for row in list(manual) + list(auto):
+        rid = row['id']
+        if rid not in seen_ids:
+            seen_ids.add(rid)
+            result.append(row)
+    result.sort(key=lambda d: (d.get('category') or '', d.get('sort_order') or 0, d.get('name') or ''))
+    return result
+
+
+def _group_dashboards(dashboards):
+    """Group dashboards by category for sidebar/dashboard_list display."""
+    groups = {}
+    for d in dashboards:
+        cat = (d.get('category') or '').strip() or 'Khác'
+        if cat not in groups:
+            groups[cat] = []
+        groups[cat].append(d)
+    return groups
+
+
+def _user_can_view(user, dashboard_id):
+    """Kiểm tra user có quyền xem dashboard không (manual hoặc auto by khoi)."""
+    if user['role'] == 'admin':
+        return True
+    db = get_db()
+    # Manual check
+    if db.execute('SELECT 1 FROM user_dashboards WHERE user_id=? AND dashboard_id=?',
+                  (user['id'], dashboard_id)).fetchone():
+        return True
+    # Auto check by khoi
+    user_khoi = (user.get('khoi') or '').strip() if 'khoi' in user.keys() else ''
+    if user_khoi:
+        dash = db.execute('SELECT category FROM dashboards WHERE id=? AND is_active=1', (dashboard_id,)).fetchone()
+        if dash and (dash['category'] or '').strip() == user_khoi:
+            return True
+    return False
 
 
 @bp.route('/dashboards')
@@ -23,7 +76,9 @@ def dashboard_list():
     dashboards = _get_user_dashboards(g.current_user)
     if len(dashboards) == 1:
         return redirect(url_for('dashboard.dashboard_view', slug=dashboards[0]['slug']))
+    grouped = _group_dashboards(dashboards)
     return render_template('dashboard_list.html', dashboards=dashboards,
+        grouped_dashboards=grouped,
         username=g.current_user['display_name'] or g.current_user['username'],
         role=g.current_user['role'])
 
@@ -37,13 +92,12 @@ def dashboard_view(slug):
     if not dashboard:
         abort(404)
 
-    # Kiểm tra quyền
-    if user['role'] != 'admin':
-        if not db.execute('SELECT 1 FROM user_dashboards WHERE user_id=? AND dashboard_id=?',
-                          (user['id'], dashboard['id'])).fetchone():
-            abort(403)
+    # Kiểm tra quyền (manual + auto by khoi)
+    if not _user_can_view(user, dashboard['id']):
+        abort(403)
 
     all_dashboards = _get_user_dashboards(user)
+    grouped = _group_dashboards(all_dashboards)
     dash_type = dashboard['dashboard_type'] if 'dashboard_type' in dashboard.keys() else 'powerbi'
 
     # Chọn template theo loại dashboard
@@ -57,6 +111,7 @@ def dashboard_view(slug):
         user_ma_bp=(user['ma_bp'] or '') if 'ma_bp' in user.keys() else '',
         # Sidebar context
         dashboards=all_dashboards,
+        grouped_dashboards=grouped,
         current_slug=slug,
         user=dict(user),
     )

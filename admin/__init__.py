@@ -155,10 +155,18 @@ def admin_index():
     for uid, dids in user_dash_map.items():
         perm_map[uid] = dids
 
+    # Collect unique khoi values for category datalist
+    all_khoi = []
+    try:
+        khoi_rows = db.execute("SELECT DISTINCT khoi FROM users WHERE khoi IS NOT NULL AND khoi != '' ORDER BY khoi").fetchall()
+        all_khoi = [r['khoi'] for r in khoi_rows]
+    except:
+        pass
+
     return render_template('admin/admin.html', users=users, dashboards=dashboards,
         dash_user_counts=dash_user_counts, user_dash_map=user_dash_map, all_bp=all_bp,
         ky_bao_cao=ky_bao_cao, perm_users=perm_users, perm_map=perm_map,
-        admin_bps=admin_bps,
+        admin_bps=admin_bps, all_khoi=all_khoi,
         username=g.current_user['display_name'] or g.current_user['username'])
 
 
