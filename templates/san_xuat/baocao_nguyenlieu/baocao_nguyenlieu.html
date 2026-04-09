@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Báo Cáo Nguyên Liệu</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include "_sidebar_css.html" %}
+<style>
+:root{--white:#fff;--g0:#f7f8fa;--g1:#eef0f4;--g2:#d8dce6;--g3:#b0b8c9;--g4:#8b95aa;--g5:#5a6478;--g6:#3d4a63;--g7:#1e2a3a;
+--blue:#1a46c4;--blue-lt:#eef2ff;--emr:#056944;--emr-lt:#eafaf4;--red:#c0392b;--amber:#964a06;
+--sans:'Nunito Sans',sans-serif;--mono:'JetBrains Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:13px;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+@supports(height:100dvh){.app{height:100dvh}}
+.content{flex:1;overflow:auto;padding:20px}
+
+/* Filter */
+.filter-row{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.vt-wrap{position:relative}
+.vt-input{height:32px;min-width:400px;width:auto;padding:0 30px 0 10px;border:1.5px solid var(--g2);border-radius:7px;font-size:12px;font-family:var(--sans);color:var(--g6);outline:none;background:var(--white)}
+.vt-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,70,196,.06)}
+.vt-input::placeholder{color:var(--g3)}
+.vt-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:none;background:none;color:var(--g3);font-size:13px;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:3px}
+.vt-clear:hover{background:var(--g1);color:var(--red)}
+.vt-input:not(:placeholder-shown)~.vt-clear{display:flex}
+.vt-suggest{position:absolute;top:100%;left:0;margin-top:3px;min-width:100%;width:max-content;max-width:600px;max-height:260px;overflow-y:auto;background:var(--white);border:1px solid var(--g2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:100;display:none;padding:3px 0}
+.vt-suggest.open{display:block}
+.vt-item{padding:6px 12px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;gap:10px}
+.vt-item:hover{background:var(--g1)}
+.vt-item .vt-code{font-family:var(--mono);font-size:10px;color:var(--g4);flex-shrink:0}
+.vt-item .vt-name{white-space:nowrap}
+.filter-btn{height:32px;padding:0 14px;border-radius:7px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px}
+.filter-btn:hover{opacity:.9}
+.filter-btn svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-linecap:round}
+
+/* Info */
+.info-fields{margin-bottom:20px;display:none;line-height:1.8;font-size:13px;color:var(--g5)}
+.info-fields .lbl{font-weight:700;color:var(--g4);font-size:11px;text-transform:uppercase;letter-spacing:.02em;margin-right:6px}
+.info-fields .val{font-weight:600;color:var(--g7)}
+
+/* Tables layout */
+.tables-row{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.tbl-block{display:inline-flex;flex-direction:column}
+.tbl-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--g2);border-bottom:none;border-radius:10px 10px 0 0}
+.tbl-header.nhap{background:#f0f4ff}
+.tbl-header.xuat{background:#f0faf5}
+.tbl-header.cuoiki{background:#fdf8ef}
+.tbl-label{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.tbl-label.nhap{color:var(--blue)}
+.tbl-label.xuat{color:var(--emr)}
+.tbl-label.cuoiki{color:var(--amber)}
+.tbl-excel{height:24px;padding:0 8px;border-radius:5px;border:1px solid var(--g2);background:var(--white);font-family:var(--sans);font-size:10px;font-weight:700;color:var(--g5);cursor:pointer;display:flex;align-items:center;gap:3px}
+.tbl-excel:hover{background:var(--g1)}
+.tbl-excel svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-linecap:round}
+.tbl-card{background:var(--white);border:1px solid var(--g2);border-top:none;border-radius:0 0 10px 10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+
+table{border-collapse:collapse;font-size:13px;font-family:var(--sans)}
+thead th{background:var(--g0);border-bottom:2px solid var(--g2);padding:8px 14px;text-align:right;font-size:11px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+thead th:first-child{text-align:left}
+tbody td{padding:6px 14px;white-space:nowrap;font-size:13px}
+tbody td:first-child{font-weight:600;color:var(--g6)}
+tbody td.num{text-align:right;font-weight:500;color:var(--g6)}
+tbody tr:nth-child(odd) td{background:var(--white)}
+tbody tr:nth-child(even) td{background:#fafbfc}
+tbody tr:hover td{background:var(--blue-lt)}
+tfoot td{padding:7px 14px;font-weight:800;white-space:nowrap}
+tfoot td.num{text-align:right}
+tfoot tr.row-total td{background:#f6faf8;color:var(--emr);border-top:2px solid var(--g2)}
+tfoot tr.row-avg td{background:#fdfaf5;color:var(--amber)}
+
+.empty{padding:60px 20px;text-align:center;color:var(--g3);font-size:14px}
+.v-div{width:1px;height:20px;background:var(--g2)}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g2);border-radius:3px}
+</style>
+</head>
+<body>
+{% include "_sidebar.html" %}
+<div class="app">
+<div class="toolbar-slim">
+  <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+  <div class="v-div"></div>
+  <span class="toolbar-title">{{ dashboard_name }}</span>
+</div>
+
+<div class="content">
+  <div class="filter-row">
+    <div class="vt-wrap">
+      <input class="vt-input" type="text" id="vtInput" placeholder="Tìm nguyên liệu (mã hoặc tên)..." oninput="onVtInput(this.value)" onfocus="onVtInput(this.value)" autocomplete="off">
+      <button class="vt-clear" onclick="clearVt()">✕</button>
+      <div class="vt-suggest" id="vtSuggest"></div>
+    </div>
+    <button class="filter-btn" onclick="loadData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải dữ liệu</button>
+  </div>
+
+  <div class="info-fields" id="infoFields">
+    <div><span class="lbl">Mã nguyên liệu:</span> <span class="val" id="infoMa">—</span></div>
+    <div><span class="lbl">Tên nguyên liệu:</span> <span class="val" id="infoTen">—</span></div>
+    <div><span class="lbl">Đơn vị tính:</span> <span class="val" id="infoDvt">—</span></div>
+  </div>
+
+  <div id="emptyState" class="empty">Chọn nguyên liệu và nhấn Tải dữ liệu</div>
+
+  <div class="tables-row" id="tablesRow" style="display:none">
+    <!-- NHẬP -->
+    <div class="tbl-block">
+      <div class="tbl-header nhap">
+        <span class="tbl-label nhap">Nhập</span>
+        <button class="tbl-excel" onclick="exportTbl('tblNhap','Nhap')"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
+      </div>
+      <div class="tbl-card"><table id="tblNhap"><thead><tr id="theadNhap"></tr></thead><tbody id="tbodyNhap"></tbody><tfoot id="tfootNhap"></tfoot></table></div>
+    </div>
+    <!-- XUẤT -->
+    <div class="tbl-block">
+      <div class="tbl-header xuat">
+        <span class="tbl-label xuat">Xuất</span>
+        <button class="tbl-excel" onclick="exportTbl('tblXuat','Xuat')"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
+      </div>
+      <div class="tbl-card"><table id="tblXuat"><thead><tr id="theadXuat"></tr></thead><tbody id="tbodyXuat"></tbody><tfoot id="tfootXuat"></tfoot></table></div>
+    </div>
+    <!-- CUỐI KỲ -->
+    <div class="tbl-block">
+      <div class="tbl-header cuoiki">
+        <span class="tbl-label cuoiki">Cuối kỳ</span>
+        <button class="tbl-excel" onclick="exportTbl('tblCuoiki','CuoiKy')"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
+      </div>
+      <div class="tbl-card"><table id="tblCuoiki"><thead><tr id="theadCuoiki"></tr></thead><tbody id="tbodyCuoiki"></tbody><tfoot id="tfootCuoiki"></tfoot></table></div>
+    </div>
+  </div>
+</div>
+</div>
+
+{% include "_sidebar_js.html" %}
+<script>
+(function(){
+var API='/reports/bao-cao-nguyen-lieu';
+var vtList=[],selectedVt='',selectedInfo={};
+var FMT=new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0});
+function fN(v){return v==null||isNaN(v)||v===0?'':FMT.format(Math.round(v))}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+
+fetch(API+'/api/vattu').then(function(r){return r.json()}).then(function(d){if(d.ok)vtList=d.items||[]});
+
+window.onVtInput=function(q){
+    q=(q||'').toLowerCase();var box=document.getElementById('vtSuggest');
+    if(!q){box.classList.remove('open');return}
+    var f=vtList.filter(function(v){return(v.ma_vt||'').toLowerCase().indexOf(q)>=0||(v.ten_vt||'').toLowerCase().indexOf(q)>=0}).slice(0,30);
+    if(!f.length){box.innerHTML='<div style="padding:12px;color:var(--g3);text-align:center;font-size:12px">Không tìm thấy</div>';box.classList.add('open');return}
+    box.innerHTML=f.map(function(v){return'<div class="vt-item" onclick="selectVt(\''+v.ma_vt.replace(/'/g,"\\'")+'\',\''+v.ten_vt.replace(/'/g,"\\'")+'\',\''+(v.dvt||'').replace(/'/g,"\\'")+'\')">'+'<span class="vt-name">'+esc(v.ten_vt)+'</span><span class="vt-code">'+esc(v.ma_vt)+'</span></div>'}).join('');
+    box.classList.add('open');
+};
+window.selectVt=function(ma,ten,dvt){selectedVt=ma;selectedInfo={ten_vt:ten,dvt:dvt};var inp=document.getElementById('vtInput');inp.value=ten+' ('+ma+')';inp.style.width=Math.max(400,(inp.value.length*7.5+50))+'px';document.getElementById('vtSuggest').classList.remove('open');loadData()};
+window.clearVt=function(){selectedVt='';selectedInfo={};var inp=document.getElementById('vtInput');inp.value='';inp.style.width='400px';document.getElementById('vtSuggest').classList.remove('open')};
+document.addEventListener('click',function(e){if(!e.target.closest('.vt-wrap'))document.getElementById('vtSuggest').classList.remove('open')});
+
+window.loadData=function(){
+    if(!selectedVt){document.getElementById('emptyState').textContent='Chọn nguyên liệu trước';document.getElementById('emptyState').style.display='';document.getElementById('tablesRow').style.display='none';return}
+    document.getElementById('emptyState').textContent='Đang tải...';document.getElementById('emptyState').style.display='';
+    document.getElementById('tablesRow').style.display='none';document.getElementById('infoFields').style.display='none';
+    fetch(API+'/api/data?ma_vt='+encodeURIComponent(selectedVt)).then(function(r){return r.json()}).then(function(d){
+        if(!d.ok){document.getElementById('emptyState').textContent='Lỗi: '+(d.error||'');return}
+        if(!d.rows||!d.rows.length){document.getElementById('emptyState').textContent='Không có dữ liệu';return}
+        renderTables(d.rows);
+    });
+};
+
+function renderTables(rows){
+    var ys={};rows.forEach(function(r){ys[r.nam]=true});
+    var years=Object.keys(ys).map(Number).sort(function(a,b){return a-b});
+
+    // Build month→year→{nhap, xuat, cuoiki}
+    var data={};
+    var info={ten_vt:selectedInfo.ten_vt||'',dvt:selectedInfo.dvt||''};
+    rows.forEach(function(r){
+        var m=r.thang;if(!data[m])data[m]={};
+        if(!data[m][r.nam])data[m][r.nam]={nhap:0,xuat:0,cuoiki:0};
+        data[m][r.nam].nhap+=parseFloat(r.NHAP||0);
+        data[m][r.nam].xuat+=parseFloat(r.XUAT||0);
+        data[m][r.nam].cuoiki=parseFloat(r.CUOI_KI||0);
+        if(r.ten_vt)info.ten_vt=r.ten_vt;
+        if(r.dvt)info.dvt=r.dvt;
+    });
+
+    document.getElementById('infoMa').textContent=selectedVt;
+    document.getElementById('infoTen').textContent=info.ten_vt;
+    document.getElementById('infoDvt').textContent=info.dvt;
+    document.getElementById('infoFields').style.display='';
+
+    renderOneTable('Nhap',years,data,'nhap');
+    renderOneTable('Xuat',years,data,'xuat');
+    renderOneTable('Cuoiki',years,data,'cuoiki');
+
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('tablesRow').style.display='';
+}
+
+function renderOneTable(suffix,years,data,field){
+    var th='<th>Tháng</th>';
+    years.forEach(function(y){th+='<th>'+y+'</th>'});
+    document.getElementById('thead'+suffix).innerHTML=th;
+
+    var html='',totals={},counts={};
+    years.forEach(function(y){totals[y]=0;counts[y]=0});
+
+    for(var m=1;m<=12;m++){
+        html+='<tr><td>Tháng '+m+'</td>';
+        years.forEach(function(y){
+            var v=(data[m]&&data[m][y])?data[m][y][field]:0;
+            totals[y]+=v;if(v)counts[y]++;
+            html+='<td class="num">'+fN(v)+'</td>';
+        });
+        html+='</tr>';
+    }
+    document.getElementById('tbody'+suffix).innerHTML=html;
+
+    var ft='<tr class="row-total"><td>Tổng cộng</td>';
+    years.forEach(function(y){ft+='<td class="num">'+fN(totals[y])+'</td>'});
+    ft+='</tr><tr class="row-avg"><td>Trung bình</td>';
+    years.forEach(function(y){var avg=counts[y]>0?Math.round(totals[y]/counts[y]):0;ft+='<td class="num">'+fN(avg)+'</td>'});
+    ft+='</tr>';
+    document.getElementById('tfoot'+suffix).innerHTML=ft;
+}
+
+window.exportTbl=function(id,name){
+    var tbl=document.getElementById(id);if(!tbl)return;
+    var blob=new Blob(['\ufeff'+tbl.outerHTML],{type:'application/vnd.ms-excel;charset=utf-8'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='NguyenLieu_'+name+'_'+(selectedVt||'TatCa')+'.xls';a.click();URL.revokeObjectURL(a.href);
+};
+})();
+</script>
+</body>
+</html>

@@ -52,6 +52,17 @@ else:
 
 app.config['DUCKDB_STORE'] = store
 
+# ─── [MỚI] Init DataSource registry ───
+try:
+    from config import DATASOURCES
+    from datasource import init_datasources
+    init_datasources(DATASOURCES, duckdb_store=store)
+    print('  ✓ DataSources initialized')
+except ImportError:
+    print('  ⚠ DATASOURCES not in config.py, skip (chỉ dùng DuckDB qua get_store())')
+except Exception as e:
+    print(f'  ✗ DataSource init error: {e}')
+
 
 # ─── File Watcher: detect Parquet changes → reload DuckDB ───
 class ParquetWatcher:
@@ -160,9 +171,18 @@ def api_data_status():
     except:
         pass
 
+    # [MỚI] Datasource status
+    ds_status = {}
+    try:
+        from datasource import get_all_status
+        ds_status = get_all_status()
+    except:
+        pass
+
     return jsonify({
         'sync': sync_status,
         'store': store.status(),
+        'datasources': ds_status,
         'mode': 'web-only (sync_worker separate)',
     })
 
@@ -183,3 +203,9 @@ if __name__ == '__main__':
     finally:
         watcher.stop()
         store.close()
+        # [MỚI] Đóng datasources
+        try:
+            from datasource import close_all
+            close_all()
+        except:
+            pass
