@@ -41,13 +41,30 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 .filter-btn{height:32px;padding:0 14px;border-radius:7px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px}
 .filter-btn:hover{opacity:.9}
 .filter-btn svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-linecap:round}
+.trend-toggle{height:32px;width:36px;border-radius:7px;border:1.5px solid var(--g2);background:var(--g0);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.trend-toggle svg{width:18px;height:18px;stroke:var(--g3);stroke-linecap:round;stroke-linejoin:round}
+.trend-toggle:hover{border-color:var(--g3)}
+.trend-toggle.on{border-color:var(--blue);background:var(--blue-lt)}
+.trend-toggle.on svg{stroke:var(--blue)}
+.excel-btn{height:32px;padding:0 12px;border-radius:7px;border:1.5px solid var(--emr);background:var(--white);font-family:var(--sans);font-size:12px;font-weight:700;color:var(--emr);cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:.15s}
+.excel-btn:hover{background:var(--emr-lt)}
+.excel-btn svg{width:13px;height:13px;stroke:var(--emr);fill:none;stroke-linecap:round}
 
 /* Info — inline styles used instead */
 
 /* Tables layout — always 1 row, scroll ngang nếu không đủ chỗ */
 .tables-row{display:flex;justify-content:center;gap:20px;flex-wrap:nowrap;align-items:flex-start;min-width:max-content;padding-bottom:8px}
 .tbl-block{display:inline-flex;flex-direction:column}
-.tbl-header{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--g2);border-bottom:none;border-radius:10px 10px 0 0}
+/* Collapsed state */
+.tbl-block.collapsed .tbl-card,.tbl-block.collapsed .chart-strip{display:none!important}
+.tbl-block.collapsed .tbl-header{border-radius:10px;border-bottom:1px solid var(--g2);cursor:pointer;padding:8px 12px}
+.tbl-block.collapsed .tbl-header .tbl-toggle,.tbl-block.collapsed .tbl-header .tbl-spacer,.tbl-block.collapsed .tbl-header .tbl-excel{display:none}
+/* Expand arrow */
+.tbl-expand{font-size:9px;color:var(--g3);flex-shrink:0;transition:transform .15s}
+.tbl-block.collapsed .tbl-expand{transform:rotate(0deg)}
+.tbl-block:not(.collapsed) .tbl-expand{transform:rotate(90deg)}
+
+.tbl-header{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--g2);border-bottom:none;border-radius:10px 10px 0 0;transition:all .15s}
 .tbl-header.nhap{background:#f0f4ff}
 .tbl-header.xuat{background:#f0faf5}
 .tbl-header.cuoiki{background:#fdf8ef}
@@ -65,61 +82,91 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 .tbl-excel{height:24px;padding:0 8px;border-radius:5px;border:1px solid var(--g2);background:var(--white);font-family:var(--sans);font-size:10px;font-weight:700;color:var(--g5);cursor:pointer;display:flex;align-items:center;gap:3px}
 .tbl-excel:hover{background:var(--g1)}
 .tbl-excel svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-linecap:round}
-.tbl-card{background:var(--white);border:1px solid var(--g2);border-top:none;border-bottom:none;overflow:hidden;box-shadow:none}
+.tbl-card{background:var(--white);border:1px solid var(--g2);border-top:none;border-radius:0 0 10px 10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+/* When chart visible, remove tbl-card bottom radius, chart-strip takes over */
+.tbl-block.has-chart .tbl-card{border-radius:0;border-bottom:none;box-shadow:none}
 
-table{border-collapse:collapse;font-size:13px;font-family:var(--sans)}
-thead th{background:var(--g0);border-bottom:2px solid var(--g2);border-right:1px solid var(--g1);padding:8px 14px;text-align:right;font-size:11px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;transition:color .1s}
-thead th:first-child{text-align:left}
-thead th:last-child{border-right:none}
-tbody td{padding:6px 14px;white-space:nowrap;font-size:13px;border-right:1px solid var(--g1);border-bottom:1px solid var(--g1);transition:background .08s,font-weight .08s}
-tbody td:first-child{font-weight:600;color:var(--g6)}
-tbody td:last-child{border-right:none}
-tbody td.num{text-align:right;font-weight:500;color:var(--g6)}
-tbody tr:nth-child(odd) td{background:var(--white)}
-tbody tr:nth-child(even) td{background:#fafbfc}
-tfoot td{padding:7px 14px;font-weight:800;white-space:nowrap;border-right:1px solid var(--g1)}
-tfoot td:last-child{border-right:none}
-tfoot td.num{text-align:right}
-tfoot tr.row-total td{background:#f6faf8;color:var(--emr);border-top:2px solid var(--g2)}
-tfoot tr.row-avg td{background:#fdfaf5;color:var(--amber)}
+/* ═══ Shared Pivot Table styles ═══ */
+.pivot-tbl{border-collapse:collapse;font-size:13px;font-family:var(--sans)}
+.pivot-tbl thead th{background:var(--g0);border-bottom:2px solid var(--g2);border-right:1px solid var(--g1);padding:9px 16px;text-align:center;font-size:11px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;transition:color .1s}
+.pivot-tbl thead th:first-child{text-align:center}
+.pivot-tbl thead th:last-child{border-right:none}
+.pivot-tbl tbody td{padding:7px 16px;white-space:nowrap;font-size:13px;border-right:1px solid var(--g1);border-bottom:1px solid var(--g1);text-align:center;transition:background .08s,font-weight .08s}
+.pivot-tbl tbody td:first-child{font-weight:600;color:var(--g6);text-align:center}
+.pivot-tbl tbody td:last-child{border-right:none}
+.pivot-tbl tbody td.num{text-align:right;font-weight:500;color:var(--g6)}
+.pivot-tbl tbody tr:nth-child(odd) td{background:var(--white)}
+.pivot-tbl tbody tr:nth-child(even) td{background:#fafbfc}
+.pivot-tbl tfoot td{padding:8px 16px;font-weight:800;white-space:nowrap;border-right:1px solid var(--g1);text-align:center}
+.pivot-tbl tfoot td:last-child{border-right:none}
+.pivot-tbl tfoot td.num{text-align:right}
+.pivot-tbl tfoot tr.row-total td{background:#f6faf8;color:var(--emr);border-top:2px solid var(--g2)}
+.pivot-tbl tfoot tr.row-avg td{background:#fdfaf5;color:var(--amber)}
+/* Pivot highlight */
+.pivot-tbl td.hl-cell{font-weight:800!important;color:var(--g7)!important;background:#dbeafe!important}
+.pivot-tbl td.hl-row{background:#f1f5f9!important}
+.pivot-tbl td.hl-col{background:#f1f5f9!important}
+.pivot-tbl th.hl-head{font-weight:900!important;color:var(--g7)!important}
+.pivot-tbl td.hl-rowhead{font-weight:900!important;color:var(--g7)!important}
 
-/* Highlight — per table color */
-td.hl-cell{font-weight:800!important;color:var(--g7)!important}
-.tbl-block:nth-child(1) td.hl-cell{background:#dbeafe!important}
-.tbl-block:nth-child(2) td.hl-cell{background:#d1fae5!important}
-.tbl-block:nth-child(3) td.hl-cell{background:#fef3c7!important}
-td.hl-row{opacity:1}
-.tbl-block:nth-child(1) td.hl-row{background:#eff6ff!important}
-.tbl-block:nth-child(2) td.hl-row{background:#ecfdf5!important}
-.tbl-block:nth-child(3) td.hl-row{background:#fffbeb!important}
-td.hl-col{opacity:1}
-.tbl-block:nth-child(1) td.hl-col{background:#eff6ff!important}
-.tbl-block:nth-child(2) td.hl-col{background:#ecfdf5!important}
-.tbl-block:nth-child(3) td.hl-col{background:#fffbeb!important}
-th.hl-head{font-weight:900!important;color:var(--g7)!important}
-td.hl-rowhead{font-weight:900!important;color:var(--g7)!important}
-/* Current month/year permanent highlight — per table color */
-td.cur-cell{font-weight:800!important;color:var(--g7)!important}
-.tbl-block:nth-child(1) td.cur-cell{background:#bfdbfe!important;box-shadow:inset 0 0 0 1.5px var(--blue)}
-.tbl-block:nth-child(2) td.cur-cell{background:#a7f3d0!important;box-shadow:inset 0 0 0 1.5px var(--emr)}
-.tbl-block:nth-child(3) td.cur-cell{background:#fde68a!important;box-shadow:inset 0 0 0 1.5px var(--amber)}
-th.cur-col{font-weight:900!important}
-.tbl-block:nth-child(1) th.cur-col{color:var(--blue)!important}
-.tbl-block:nth-child(2) th.cur-col{color:var(--emr)!important}
-.tbl-block:nth-child(3) th.cur-col{color:var(--amber)!important}
-td.cur-row{font-weight:900!important}
-.tbl-block:nth-child(1) td.cur-row{color:var(--blue)!important}
-.tbl-block:nth-child(2) td.cur-row{color:var(--emr)!important}
-.tbl-block:nth-child(3) td.cur-row{color:var(--amber)!important}
+/* Per-table highlight colors (main tables) */
+.tbl-block:nth-child(1) .pivot-tbl td.hl-cell{background:#dbeafe!important}
+.tbl-block:nth-child(2) .pivot-tbl td.hl-cell{background:#d1fae5!important}
+.tbl-block:nth-child(3) .pivot-tbl td.hl-cell{background:#fef3c7!important}
+.tbl-block:nth-child(1) .pivot-tbl td.hl-row,.tbl-block:nth-child(1) .pivot-tbl td.hl-col{background:#eff6ff!important}
+.tbl-block:nth-child(2) .pivot-tbl td.hl-row,.tbl-block:nth-child(2) .pivot-tbl td.hl-col{background:#ecfdf5!important}
+.tbl-block:nth-child(3) .pivot-tbl td.hl-row,.tbl-block:nth-child(3) .pivot-tbl td.hl-col{background:#fffbeb!important}
+/* Current month */
+.pivot-tbl td.cur-cell{font-weight:800!important;color:var(--g7)!important;background:#fef9c3!important;box-shadow:inset 0 0 0 1.5px #eab308}
+.pivot-tbl th.cur-col{font-weight:900!important;color:var(--g7)!important}
+.pivot-tbl td.cur-row{font-weight:900!important;color:var(--g7)!important}
 
 .empty{padding:60px 20px;text-align:center;color:var(--g3);font-size:14px}
 .v-div{width:1px;height:20px;background:var(--g2)}
 /* ═══ Line Charts (strip under each table) ═══ */
-.chart-strip{border:1px solid var(--g2);border-top:none;border-radius:0 0 10px 10px;overflow:hidden;background:var(--white);height:80px;position:relative}
+.chart-strip{border:1px solid var(--g2);border-top:none;border-radius:0 0 10px 10px;overflow:hidden;background:var(--white);height:80px;position:relative;display:none}
 .chart-strip svg{display:block;width:100%;height:100%}
 .chart-line{fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .chart-grid{stroke:var(--g1);stroke-width:.5}
 .chart-hitarea{fill:transparent;cursor:crosshair}
+
+/* ═══ Sản phẩm table ═══ */
+.sp-table{border-collapse:collapse;font-size:13px;font-family:var(--sans);width:100%}
+.sp-table thead th{background:var(--g0);border-bottom:2px solid var(--g2);padding:10px 12px;font-size:10px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.sp-table tbody td{padding:0;vertical-align:top}
+.sp-row{cursor:pointer;transition:background .1s}
+.sp-row:hover{background:var(--blue-lt)}
+.sp-row td{padding:10px 12px;border-bottom:1px solid var(--g1);white-space:nowrap;vertical-align:middle}
+.sp-row:nth-child(4n+1) td{background:var(--white)}
+.sp-row:nth-child(4n+3) td{background:#fafbfc}
+.sp-row:hover td{background:var(--blue-lt)!important}
+.sp-name{font-weight:600;color:var(--g6);display:flex;align-items:center;gap:6px}
+.sp-badge-main{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:#d1fae5;color:var(--emr);white-space:nowrap}
+.sp-arrow{font-size:9px;color:var(--g3);transition:transform .15s}
+.sp-row.open .sp-arrow{transform:rotate(90deg)}
+.sp-num{text-align:right;font-weight:500;color:var(--g6)}
+.sp-ton-pos{color:var(--emr)}
+.sp-ton-neg{color:var(--red)}
+.sp-detail{display:none}
+.sp-row.open+.sp-detail{display:table-row}
+.sp-detail-inner{padding:16px;background:var(--g0);border-bottom:2px solid var(--g2)}
+/* Detail tables — fill width of parent row */
+.sp-detail-tables{display:flex;gap:16px;flex-wrap:nowrap;align-items:flex-start}
+.sp-dtbl{display:flex;flex-direction:column;flex:1;min-width:0}
+.sp-dtbl-header{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--g2);border-bottom:none;border-radius:8px 8px 0 0;cursor:pointer}
+.sp-dtbl-header.nhap{background:#f0f4ff}
+.sp-dtbl-header.xuat{background:#f0faf5}
+.sp-dtbl-header.cuoiki{background:#fdf8ef}
+.sp-dtbl-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+.sp-dtbl-label.nhap{color:var(--blue)}
+.sp-dtbl-label.xuat{color:var(--emr)}
+.sp-dtbl-label.cuoiki{color:var(--amber)}
+.sp-dtbl-arrow{font-size:8px;color:var(--g3);transition:transform .15s}
+.sp-dtbl:not(.collapsed) .sp-dtbl-arrow{transform:rotate(90deg)}
+.sp-dtbl-card{border:1px solid var(--g2);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;background:var(--white)}
+.sp-dtbl .pivot-tbl{width:100%}
+.sp-dtbl.collapsed .sp-dtbl-card{display:none}
+.sp-dtbl.collapsed .sp-dtbl-header{border-radius:8px;border-bottom:1px solid var(--g2)}
 
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g2);border-radius:3px}
 </style>
@@ -141,52 +188,76 @@ td.cur-row{font-weight:900!important}
       <div class="vt-suggest" id="vtSuggest"></div>
     </div>
     <button class="filter-btn" onclick="loadData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải dữ liệu</button>
+    <button class="trend-toggle" id="btnTrend" onclick="toggleTrend()"><svg viewBox="0 0 20 20" stroke-width="1.8" fill="none"><polyline points="2,15 6,10 10,12 14,6 18,3"/><polyline points="16,3 18,3 18,5"/></svg></button>
+    <button class="excel-btn" id="btnExcelXuat" onclick="exportXuatExcel()" style="display:none"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Xuất Excel</button>
   </div>
 
   <div id="infoFields" style="display:none;margin-bottom:20px;line-height:1.8;font-size:13px;color:var(--g5)">
     <div><span style="font-weight:700;color:var(--g4);font-size:11px;text-transform:uppercase;letter-spacing:.02em;margin-right:6px">Mã nguyên liệu:</span> <strong id="infoMa">—</strong></div>
     <div><span style="font-weight:700;color:var(--g4);font-size:11px;text-transform:uppercase;letter-spacing:.02em;margin-right:6px">Tên nguyên liệu:</span> <strong id="infoTen">—</strong></div>
     <div><span style="font-weight:700;color:var(--g4);font-size:11px;text-transform:uppercase;letter-spacing:.02em;margin-right:6px">Đơn vị tính:</span> <strong id="infoDvt">—</strong></div>
+    <div><span style="font-weight:700;color:var(--g4);font-size:11px;text-transform:uppercase;letter-spacing:.02em;margin-right:6px">Tồn kho:</span> <strong id="infoTon" style="font-size:14px">—</strong></div>
   </div>
 
   <div id="emptyState" class="empty">Chọn nguyên liệu và nhấn Tải dữ liệu</div>
 
   <div class="tables-scroll" id="tablesScroll" style="display:none">
   <div class="tables-row" id="tablesRow">
-    <!-- NHẬP -->
-    <div class="tbl-block">
-      <div class="tbl-header nhap">
+    <!-- NHẬP (collapsed by default) -->
+    <div class="tbl-block collapsed" id="blockNhap">
+      <div class="tbl-header nhap" onclick="toggleBlock('blockNhap')">
+        <span class="tbl-expand">▶</span>
         <span class="tbl-label nhap">Nhập</span>
-        <button class="tbl-toggle nhap" id="btnTralai" onclick="toggleBtn('btnTralai')">+ Trả lại</button>
+        <button class="tbl-toggle nhap" id="btnTralai" onclick="event.stopPropagation();toggleBtn('btnTralai')">+ Trả lại</button>
         <span class="tbl-spacer"></span>
-        <button class="tbl-excel" onclick="exportTbl('tblNhap','Nhap')"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
+        <button class="tbl-excel" onclick="event.stopPropagation();exportTbl('tblNhap','Nhap')"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
       </div>
-      <div class="tbl-card"><table id="tblNhap"><thead><tr id="theadNhap"></tr></thead><tbody id="tbodyNhap"></tbody><tfoot id="tfootNhap"></tfoot></table></div>
+      <div class="tbl-card"><table id="tblNhap" class="pivot-tbl"><thead><tr id="theadNhap"></tr></thead><tbody id="tbodyNhap"></tbody><tfoot id="tfootNhap"></tfoot></table></div>
       <div class="chart-strip"><svg id="svgNhap"></svg></div>
     </div>
-    <!-- XUẤT -->
-    <div class="tbl-block">
+    <!-- XUẤT (always expanded) -->
+    <div class="tbl-block" id="blockXuat">
       <div class="tbl-header xuat">
         <span class="tbl-label xuat">Xuất</span>
         <button class="tbl-toggle xuat on" id="btnXuatle" onclick="toggleBtn('btnXuatle')">+ Xuất lẻ</button>
         <span class="tbl-spacer"></span>
         <button class="tbl-excel" onclick="exportTbl('tblXuat','Xuat')"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
       </div>
-      <div class="tbl-card"><table id="tblXuat"><thead><tr id="theadXuat"></tr></thead><tbody id="tbodyXuat"></tbody><tfoot id="tfootXuat"></tfoot></table></div>
+      <div class="tbl-card"><table id="tblXuat" class="pivot-tbl"><thead><tr id="theadXuat"></tr></thead><tbody id="tbodyXuat"></tbody><tfoot id="tfootXuat"></tfoot></table></div>
       <div class="chart-strip"><svg id="svgXuat"></svg></div>
     </div>
-    <!-- CUỐI KỲ -->
-    <div class="tbl-block">
-      <div class="tbl-header cuoiki">
+    <!-- CUỐI KỲ (collapsed by default) -->
+    <div class="tbl-block collapsed" id="blockCuoiki">
+      <div class="tbl-header cuoiki" onclick="toggleBlock('blockCuoiki')">
+        <span class="tbl-expand">▶</span>
         <span class="tbl-label cuoiki">Cuối kỳ</span>
         <span class="tbl-spacer"></span>
-        <button class="tbl-excel" onclick="exportTbl('tblCuoiki','CuoiKy')"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
+        <button class="tbl-excel" onclick="event.stopPropagation();exportTbl('tblCuoiki','CuoiKy')"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
       </div>
-      <div class="tbl-card"><table id="tblCuoiki"><thead><tr id="theadCuoiki"></tr></thead><tbody id="tbodyCuoiki"></tbody><tfoot id="tfootCuoiki"></tfoot></table></div>
+      <div class="tbl-card"><table id="tblCuoiki" class="pivot-tbl"><thead><tr id="theadCuoiki"></tr></thead><tbody id="tbodyCuoiki"></tbody><tfoot id="tfootCuoiki"></tfoot></table></div>
       <div class="chart-strip"><svg id="svgCuoiki"></svg></div>
     </div>
   </div><!-- /tables-row -->
   </div><!-- /tables-scroll -->
+
+  <!-- ═══ SẢN PHẨM CHỨA NGUYÊN LIỆU ═══ -->
+  <div id="spSection" style="display:none;margin-top:24px">
+    <div style="font-size:14px;font-weight:800;color:var(--g6);margin-bottom:12px">Sản phẩm sử dụng nguyên liệu này</div>
+    <div id="spLoading" style="display:none;color:var(--g3);font-size:12px;padding:12px 0">Đang tải...</div>
+    <table class="sp-table" id="spTable" style="display:none">
+      <thead>
+        <tr>
+          <th style="text-align:left;min-width:220px">Sản phẩm</th>
+          <th style="text-align:left;width:50px">ĐVT</th>
+          <th style="text-align:right;width:70px">Định mức</th>
+          <th style="text-align:center;width:160px">Xu hướng xuất (24T)</th>
+          <th style="text-align:right;width:90px">Tồn hiện tại</th>
+          <th style="text-align:right;width:100px">Xuất 12T</th>
+        </tr>
+      </thead>
+      <tbody id="spBody"></tbody>
+    </table>
+  </div>
 
 </div><!-- /content -->
 </div>
@@ -233,6 +304,12 @@ window.toggleBtn=function(id){
     if(rawData)renderAllTables();
 };
 
+// Collapse/expand table blocks
+window.toggleBlock=function(id){
+    var block=document.getElementById(id);
+    block.classList.toggle('collapsed');
+};
+
 window.loadData=function(){
     if(!selectedVt){document.getElementById('emptyState').textContent='Chọn nguyên liệu trước';document.getElementById('emptyState').style.display='';document.getElementById('tablesScroll').style.display='none';return}
     document.getElementById('emptyState').textContent='Đang tải...';document.getElementById('emptyState').style.display='';
@@ -244,14 +321,32 @@ window.loadData=function(){
         detectDecimals(rawData);
         // Info
         var info={ten_vt:selectedInfo.ten_vt||'',dvt:selectedInfo.dvt||''};
-        d.rows.forEach(function(r){if(r.ten_vt)info.ten_vt=r.ten_vt;if(r.dvt)info.dvt=r.dvt});
+        var tonKho=0;
+        d.rows.forEach(function(r){
+            if(r.ten_vt)info.ten_vt=r.ten_vt;
+            if(r.dvt)info.dvt=r.dvt;
+        });
+        // Tồn kho = CUOI_KI of current or latest month
+        for(var ti=0;ti<6;ti++){
+            var td=new Date(NOW_Y,NOW_M-1-ti,1);
+            var tYm=td.getFullYear()*100+(td.getMonth()+1);
+            for(var ri=0;ri<d.rows.length;ri++){
+                var rr=d.rows[ri];
+                if(parseInt(rr.nam)*100+parseInt(rr.thang)===tYm){tonKho=parseFloat(rr.CUOI_KI||0);ti=99;break}
+            }
+        }
         document.getElementById('infoMa').textContent=selectedVt;
         document.getElementById('infoTen').textContent=info.ten_vt;
         document.getElementById('infoDvt').textContent=info.dvt;
+        var tonEl=document.getElementById('infoTon');
+        tonEl.textContent=fN(tonKho)+' '+info.dvt;
+        tonEl.style.color=tonKho>=0?'var(--emr)':'var(--red)';
         document.getElementById('infoFields').style.display='';
         document.getElementById('tablesScroll').style.display='';
         document.getElementById('emptyState').style.display='none';
+        document.getElementById('btnExcelXuat').style.display='';
         renderAllTables();
+        loadSanpham(selectedVt);
     });
 };
 
@@ -334,7 +429,7 @@ function applyCurrentHL(){
     });
 }
 
-// ═══ Cross-table hover highlight ═══
+// ═══ Cross-table hover (thin wrappers for chart JS compatibility) ═══
 var TBLS=['tblNhap','tblXuat','tblCuoiki'];
 function clearHoverHL(){
     TBLS.forEach(function(id){
@@ -346,21 +441,8 @@ function clearHoverHL(){
 }
 function applyHoverHL(row,col){
     clearHoverHL();
-    if(row==null||col==null||col==='0')return;
     TBLS.forEach(function(id){
-        var tbl=document.getElementById(id);if(!tbl)return;
-        var th=tbl.querySelector('thead th[data-col="'+col+'"]');
-        if(th)th.classList.add('hl-head');
-        var rowHead=tbl.querySelector('tbody td[data-row="'+row+'"][data-col="0"]');
-        if(rowHead)rowHead.classList.add('hl-rowhead');
-        var cell=tbl.querySelector('tbody td[data-row="'+row+'"][data-col="'+col+'"]');
-        if(cell)cell.classList.add('hl-cell');
-        tbl.querySelectorAll('tbody td[data-row="'+row+'"]').forEach(function(td){
-            if(!td.classList.contains('hl-cell'))td.classList.add('hl-row');
-        });
-        tbl.querySelectorAll('tbody td[data-col="'+col+'"]').forEach(function(td){
-            if(!td.classList.contains('hl-cell')&&!td.classList.contains('hl-row'))td.classList.add('hl-col');
-        });
+        var tbl=document.getElementById(id);if(tbl)pivotHL(tbl,row,col);
     });
 }
 
@@ -369,6 +451,239 @@ window.exportTbl=function(id,name){
     var blob=new Blob(['\ufeff'+tbl.outerHTML],{type:'application/vnd.ms-excel;charset=utf-8'});
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='NguyenLieu_'+name+'_'+(selectedVt||'TatCa')+'.xls';a.click();URL.revokeObjectURL(a.href);
 };
+
+window.exportXuatExcel=function(){
+    if(!selectedVt)return;
+    var xuatle=document.getElementById('btnXuatle').classList.contains('on')?'1':'0';
+    // Thu thập mã sản phẩm đang mở (có class "open")
+    var opened=[];
+    if(spArr){
+        document.querySelectorAll('.sp-row.open').forEach(function(row){
+            var idx=parseInt(row.getAttribute('data-sp'));
+            if(spArr[idx])opened.push(spArr[idx].ma_vt);
+        });
+    }
+    var url=API+'/api/export-xuat?ma_vt='+encodeURIComponent(selectedVt)+'&xuatle='+xuatle;
+    if(opened.length)url+='&sp='+encodeURIComponent(opened.join(','));
+    window.open(url,'_blank');
+};
+
+// ═══════════════════════════════════════════════════
+// SẢN PHẨM CHỨA NGUYÊN LIỆU — summary + expandable
+// ═══════════════════════════════════════════════════
+var spData=null;
+var spArr=null;
+
+function loadSanpham(maNvl){
+    var sec=document.getElementById('spSection');
+    var loading=document.getElementById('spLoading');
+    var tbl=document.getElementById('spTable');
+    sec.style.display='';loading.style.display='';tbl.style.display='none';
+
+    fetch(API+'/api/sanpham?ma_nvl='+encodeURIComponent(maNvl)).then(function(r){return r.json()}).then(function(d){
+        loading.style.display='none';
+        if(!d.ok||!d.rows||!d.rows.length){
+            sec.style.display='none';return;
+        }
+        spData=d.rows;
+        renderSanpham();
+    });
+}
+
+function renderSanpham(){
+    var rows=spData;
+    // Group by ma_vt
+    var map={};
+    rows.forEach(function(r){
+        var k=r.ma_vt;
+        if(!map[k])map[k]={ma_vt:k,ten_vt:r.ten_vt||'',dvt:r.dvt||'',dinh_muc:parseFloat(r.sl_dinh_muc||0),vt_chinh:parseInt(r.vt_chinh||0),data:{}};
+        var ym=r.nam*100+r.thang;
+        map[k].data[ym]={nhap:parseFloat(r.NHAP||0),xuat:parseFloat(r.XUAT||0),cuoiki:parseFloat(r.CUOI_KI||0),thang:r.thang,nam:r.nam};
+    });
+    var arr=Object.values(map);
+    spArr=arr;
+
+    // Build 24-month timeline ending at current month
+    var tl24=[];
+    for(var i=23;i>=0;i--){
+        var d=new Date(NOW_Y,NOW_M-1-i,1);
+        tl24.push({ym:d.getFullYear()*100+(d.getMonth()+1),m:d.getMonth()+1,y:d.getFullYear()});
+    }
+    // 12-month for sorting
+    var tl12=tl24.slice(12);
+
+    // Calc totals + current tồn
+    arr.forEach(function(sp){
+        sp.xuat12=0;sp.xuatTrend=[];sp.tonHienTai=0;
+        tl24.forEach(function(t){
+            var d=sp.data[t.ym];
+            sp.xuatTrend.push(d?d.xuat:0);
+        });
+        tl12.forEach(function(t){
+            var d=sp.data[t.ym];
+            if(d)sp.xuat12+=d.xuat;
+        });
+        // Tồn hiện tại = CUOI_KI of latest month with data
+        var curYm=NOW_Y*100+NOW_M;
+        for(var i=0;i<6;i++){
+            var d2=new Date(NOW_Y,NOW_M-1-i,1);
+            var ym2=d2.getFullYear()*100+(d2.getMonth()+1);
+            if(sp.data[ym2]){sp.tonHienTai=sp.data[ym2].cuoiki;break}
+        }
+    });
+
+    // Sort by xuat12 desc
+    arr.sort(function(a,b){return b.xuat12-a.xuat12});
+
+    // Get all years for detail tables — always 2020 to current year
+    var years=[];
+    for(var yy=2020;yy<=NOW_Y;yy++)years.push(yy);
+
+    // Render
+    var html='';
+    arr.forEach(function(sp,idx){
+        var tonCls=sp.tonHienTai>=0?'sp-ton-pos':'sp-ton-neg';
+        html+='<tr class="sp-row" data-sp="'+idx+'" onclick="toggleSp('+idx+')">';
+        html+='<td><div class="sp-name"><span class="sp-arrow">▶</span>'+esc(sp.ten_vt)+(sp.vt_chinh?'<span class="sp-badge-main">Nguyên liệu chính</span>':'')+'</div><div style="font-size:10px;color:var(--g4);font-family:var(--mono);margin-left:18px">'+esc(sp.ma_vt)+'</div></td>';
+        html+='<td>'+esc(sp.dvt)+'</td>';
+        html+='<td class="sp-num">'+sp.dinh_muc.toFixed(4).replace(/\.?0+$/,'')+'</td>';
+        html+='<td style="text-align:center">'+miniSparkline(sp.xuatTrend,'#056944')+'</td>';
+        html+='<td class="sp-num '+tonCls+'">'+fN(sp.tonHienTai)+'</td>';
+        html+='<td class="sp-num">'+fN(sp.xuat12)+'</td>';
+        html+='</tr>';
+        // Detail row
+        html+='<tr class="sp-detail" id="spDetail'+idx+'"><td colspan="6"><div class="sp-detail-inner">';
+        html+=buildSpDetailTables(sp,years);
+        html+='</div></td></tr>';
+    });
+    document.getElementById('spBody').innerHTML=html;
+    document.getElementById('spTable').style.display='';
+}
+
+function miniSparkline(vals,color){
+    var w=160,h=40,pad=4;
+    var max=0;vals.forEach(function(v){if(v>max)max=v});
+    if(max===0)max=1;
+    var n=vals.length;
+    var step=(w-pad*2)/(n-1||1);
+    var pts=[];
+    vals.forEach(function(v,i){
+        pts.push({x:pad+step*i,y:pad+(h-pad*2)*(1-v/max)});
+    });
+    // Catmull-Rom smooth
+    function smooth(cs){
+        if(cs.length<2)return'M'+cs[0].x+','+cs[0].y;
+        var d='M'+cs[0].x+','+cs[0].y;
+        if(cs.length===2)return d+'L'+cs[1].x+','+cs[1].y;
+        for(var i=0;i<cs.length-1;i++){
+            var p0=cs[i===0?0:i-1],p1=cs[i],p2=cs[i+1],p3=cs[i+2>=cs.length?cs.length-1:i+2];
+            var t=0.3;
+            d+='C'+(p1.x+(p2.x-p0.x)*t).toFixed(1)+','+(p1.y+(p2.y-p0.y)*t).toFixed(1)+' '+(p2.x-(p3.x-p1.x)*t).toFixed(1)+','+(p2.y-(p3.y-p1.y)*t).toFixed(1)+' '+p2.x.toFixed(1)+','+p2.y.toFixed(1);
+        }
+        return d;
+    }
+    var pathD=smooth(pts);
+    var last=pts[pts.length-1];
+    return'<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"><path d="'+pathD+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round"/><circle cx="'+last.x+'" cy="'+last.y+'" r="2.5" fill="'+color+'"/></svg>';
+}
+
+function buildSpDetailTables(sp,years){
+    var hasDec=false;
+    Object.values(sp.data).forEach(function(d){
+        ['nhap','xuat','cuoiki'].forEach(function(f){
+            var v=d[f]||0;if(v&&v!==Math.floor(v))hasDec=true;
+        });
+    });
+    var spFmt=hasDec?FMT_DEC:FMT_INT;
+    function spN(v){if(v==null||isNaN(v)||v===0)return'';return hasDec?spFmt.format(v):spFmt.format(Math.round(v))}
+
+    var fields=['nhap','xuat','cuoiki'];
+    var labels=['Nhập','Xuất','Cuối kỳ'];
+    var cls=['nhap','xuat','cuoiki'];
+    var html='<div class="sp-detail-tables">';
+    fields.forEach(function(field,fi){
+        var isCollapsed=(fi===0||fi===2); // Nhập + Cuối kỳ collapsed
+        html+='<div class="sp-dtbl'+(isCollapsed?' collapsed':'')+'">';
+        html+='<div class="sp-dtbl-header '+cls[fi]+'" onclick="event.stopPropagation();this.parentElement.classList.toggle(\'collapsed\')">';
+        html+='<span class="sp-dtbl-arrow">▶</span>';
+        html+='<span class="sp-dtbl-label '+cls[fi]+'">'+labels[fi]+'</span>';
+        html+='</div>';
+        html+='<div class="sp-dtbl-card"><table class="pivot-tbl"><thead><tr><th data-col="0">Tháng</th>';
+        years.forEach(function(y,yi){html+='<th data-col="'+(yi+1)+'">'+y+'</th>'});
+        html+='</tr></thead><tbody>';
+        var totals={},counts={};
+        years.forEach(function(y){totals[y]=0;counts[y]=0});
+        for(var m=1;m<=12;m++){
+            html+='<tr data-row="'+m+'"><td data-row="'+m+'" data-col="0">Tháng '+m+'</td>';
+            years.forEach(function(y,yi){
+                var ym=y*100+m;
+                var d=sp.data[ym];
+                var v=d?d[field]:0;
+                totals[y]+=v;if(v)counts[y]++;
+                html+='<td data-row="'+m+'" data-col="'+(yi+1)+'">'+(v?spN(v):'')+'</td>';
+            });
+            html+='</tr>';
+        }
+        html+='</tbody><tfoot><tr class="row-total"><td>Tổng cộng</td>';
+        years.forEach(function(y){html+='<td>'+spN(totals[y])+'</td>'});
+        html+='</tr><tr class="row-avg"><td>Trung bình</td>';
+        years.forEach(function(y){var avg=counts[y]>0?totals[y]/counts[y]:0;html+='<td>'+(avg?spN(avg):'')+'</td>'});
+        html+='</tr></tfoot></table></div></div>';
+    });
+    html+='</div>';
+    return html;
+}
+
+window.toggleSp=function(idx){
+    var row=document.querySelector('.sp-row[data-sp="'+idx+'"]');
+    if(row)row.classList.toggle('open');
+};
+
+// ═══ Shared pivot table hover (works on any .pivot-tbl) ═══
+function pivotHL(tbl,row,col){
+    // Clear
+    tbl.querySelectorAll('.hl-cell,.hl-row,.hl-col,.hl-head,.hl-rowhead').forEach(function(el){
+        el.classList.remove('hl-cell','hl-row','hl-col','hl-head','hl-rowhead');
+    });
+    if(!row||!col||col==='0')return;
+    var th=tbl.querySelector('thead th[data-col="'+col+'"]');
+    if(th)th.classList.add('hl-head');
+    var rh=tbl.querySelector('tbody td[data-row="'+row+'"][data-col="0"]');
+    if(rh)rh.classList.add('hl-rowhead');
+    var cell=tbl.querySelector('tbody td[data-row="'+row+'"][data-col="'+col+'"]');
+    if(cell)cell.classList.add('hl-cell');
+    tbl.querySelectorAll('tbody td[data-row="'+row+'"]').forEach(function(td){
+        if(!td.classList.contains('hl-cell'))td.classList.add('hl-row');
+    });
+    tbl.querySelectorAll('tbody td[data-col="'+col+'"]').forEach(function(td){
+        if(!td.classList.contains('hl-cell')&&!td.classList.contains('hl-row'))td.classList.add('hl-col');
+    });
+}
+// Delegated: any .pivot-tbl hover
+document.addEventListener('mouseover',function(e){
+    var td=e.target.closest('.pivot-tbl td[data-row][data-col]');
+    if(!td)return;
+    var tbl=td.closest('.pivot-tbl');
+    // Also highlight sibling tables in same .sp-detail-tables or .tables-row
+    var container=tbl.closest('.sp-detail-tables')||tbl.closest('.tables-row');
+    if(!container)container=tbl.parentElement;
+    var row=td.getAttribute('data-row'),col=td.getAttribute('data-col');
+    container.querySelectorAll('.pivot-tbl').forEach(function(t){pivotHL(t,row,col)});
+});
+document.addEventListener('mouseout',function(e){
+    var td=e.target.closest('.pivot-tbl td[data-row][data-col]');
+    if(!td)return;
+    var tbl=td.closest('.pivot-tbl');
+    var container=tbl.closest('.sp-detail-tables')||tbl.closest('.tables-row');
+    if(!container)container=tbl.parentElement;
+    var related=e.relatedTarget;
+    if(related&&related.closest&&related.closest('.pivot-tbl')&&container.contains(related))return;
+    container.querySelectorAll('.pivot-tbl').forEach(function(t){
+        t.querySelectorAll('.hl-cell,.hl-row,.hl-col,.hl-head,.hl-rowhead').forEach(function(el){
+            el.classList.remove('hl-cell','hl-row','hl-col','hl-head','hl-rowhead');
+        });
+    });
+});
 
 // ═══════════════════════════════════════
 // LINE CHARTS (SVG, synced scroll+hover)
@@ -381,7 +696,23 @@ var CHART_COLORS={Nhap:'#1a46c4',Xuat:'#056944',Cuoiki:'#b45309'};
 var CHART_IDS=['Nhap','Xuat','Cuoiki'];
 var CHART_FIELDS={Nhap:'nhap',Xuat:'xuat',Cuoiki:'cuoiki'};
 var allPts=[], allVals={};
-var activeChartIdx=-1; // currently centered index in timeline
+var activeChartIdx=-1;
+
+function isTrendOn(){return document.getElementById('btnTrend').classList.contains('on')}
+
+window.toggleTrend=function(){
+    var btn=document.getElementById('btnTrend');
+    btn.classList.toggle('on');
+    var blocks=document.querySelectorAll('.tbl-block');
+    if(isTrendOn()){
+        blocks.forEach(function(b){b.classList.add('has-chart')});
+        document.querySelectorAll('.chart-strip').forEach(function(el){el.style.display='block'});
+        if(rawData){buildTimeline();activeChartIdx=allPts.length-1;drawAllCharts(activeChartIdx,-1);}
+    }else{
+        blocks.forEach(function(b){b.classList.remove('has-chart')});
+        document.querySelectorAll('.chart-strip').forEach(function(el){el.style.display='none'});
+    }
+};
 
 function buildTimeline(){
     if(!rawData)return;
@@ -416,9 +747,12 @@ function buildTimeline(){
 
 function renderCharts(){
     buildTimeline();
-    // Default: center on last point (current month)
     activeChartIdx=allPts.length-1;
-    drawAllCharts(activeChartIdx,-1);
+    if(isTrendOn()){
+        document.querySelectorAll('.tbl-block').forEach(function(b){b.classList.add('has-chart')});
+        document.querySelectorAll('.chart-strip').forEach(function(el){el.style.display='block'});
+        drawAllCharts(activeChartIdx,-1);
+    }
 }
 
 var _prevCenter=-1;
@@ -504,24 +838,18 @@ function findTimelineIdx(row,col){
     return-1;
 }
 
-// Table hover → re-draw charts centered on hovered cell
+// Table hover → also trigger chart re-draw
 document.getElementById('tablesRow').addEventListener('mouseover',function(e){
     var td=e.target.closest('td[data-row][data-col]');
     if(!td)return;
-    var row=td.getAttribute('data-row'),col=td.getAttribute('data-col');
-    applyHoverHL(row,col);
-    if(col!=='0'){
+    var col=td.getAttribute('data-col'),row=td.getAttribute('data-row');
+    if(col!=='0'&&isTrendOn()){
         var idx=findTimelineIdx(row,col);
-        if(idx>=0){
-            activeChartIdx=idx;
-            drawAllCharts(idx,idx);
-        }
+        if(idx>=0){activeChartIdx=idx;drawAllCharts(idx,idx)}
     }
 });
 document.getElementById('tablesRow').addEventListener('mouseleave',function(){
-    clearHoverHL();
-    // Reset charts to last point
-    if(allPts.length)drawAllCharts(allPts.length-1,-1);
+    if(isTrendOn()&&allPts.length)drawAllCharts(allPts.length-1,-1);
 });
 
 // Hook charts into table render
