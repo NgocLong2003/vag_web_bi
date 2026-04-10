@@ -198,3 +198,13 @@ GO
  
 PRINT N'kpi_ratios OK';
 GO
+
+
+CREATE TABLE kpi_chot (
+        id INT IDENTITY PRIMARY KEY,
+        ma_kbc NVARCHAR(20) NOT NULL,
+        chot BIT DEFAULT 0,
+        updated_at DATETIME DEFAULT GETDATE(),
+        CONSTRAINT UQ_kpi_chot_kbc UNIQUE (ma_kbc)
+    );
+GO

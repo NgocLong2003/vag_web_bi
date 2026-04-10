@@ -11,6 +11,11 @@
      
      TRANG CẦN DEFINE callback:
        function onKBCSelected()  → gọi sau khi áp dụng chọn kỳ
+     
+     UX:
+       - Click vào node (tên kỳ) → chọn DUY NHẤT kỳ đó (Tháng) hoặc expand/collapse (Quý/Năm)
+       - Click vào checkbox → toggle thêm/bớt kỳ vào selection (multi)
+       - Click ra ngoài panel → đóng + auto apply
 -->
 
 <style>
@@ -22,13 +27,14 @@
 .kbc-panel{position:fixed;z-index:9990;background:var(--white);border:1px solid var(--g2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.14);width:320px;display:none;flex-direction:column;overflow:hidden}
 .kbc-panel.open{display:flex}
 .kbc-panel-head{padding:8px 12px;border-bottom:1px solid var(--g1,#eef0f4);display:flex;align-items:center;gap:6px}
-.kbc-panel-head .kbc-apply{padding:4px 14px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);flex-shrink:0}
-.kbc-panel-head .kbc-apply:hover{opacity:.9}
 .kbc-panel-head input{flex:1;height:28px;padding:0 8px;border:1px solid var(--g2);border-radius:5px;font-size:11px;font-family:var(--sans);outline:none}.kbc-panel-head input:focus{border-color:var(--blue)}
+.kbc-panel-hint{font-size:9px;color:var(--g3);padding:0 12px 4px;line-height:1.4}
 .kbc-tree{overflow-y:auto;max-height:360px;padding:4px 0}
 .ki{display:flex;align-items:center;height:34px;padding:0 12px;cursor:pointer;transition:background .08s;user-select:none;gap:4px}
 .ki:hover{background:var(--g0,#f7f8fa)}
+.ki.selected{background:var(--blue-lt,#eef2ff)}
 .ki input[type="checkbox"]{width:14px;height:14px;cursor:pointer;accent-color:var(--blue);flex-shrink:0}
+.ki input[type="checkbox"].has-child-sel{accent-color:var(--g3);opacity:.5}
 .ki-tog{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:3px;color:var(--g3);cursor:pointer}
 .ki-tog:hover{background:var(--g1);color:var(--g5)}
 .ki-tog svg{width:8px;height:8px;stroke:currentColor;fill:none;stroke-linecap:round}
@@ -53,9 +59,9 @@
 
 <div class="kbc-panel" id="kbc-panel">
   <div class="kbc-panel-head">
-    <button class="kbc-apply" onclick="kbcApply()">Áp dụng</button>
     <input type="text" id="kbc-q" placeholder="Tìm kỳ báo cáo..." oninput="renderKbcTree()"/>
   </div>
+  <div class="kbc-panel-hint">Bấm tên = chọn 1 kỳ · Bấm ☑ = chọn thêm nhiều kỳ</div>
   <div class="kbc-tree" id="kbc-tree"></div>
 </div>
 
@@ -153,7 +159,8 @@ function renderKbcTree(){
             var tog=hasKids?'<span class="ki-tog" data-togid="'+k.id+'"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="ki-tog-sp"></span>';
             var checked=isMonth?_kbcChecked.has(k.id):_kbcAllChecked(k.id);
             var indet=!checked&&!isMonth&&_kbcSomeChecked(k.id);
-            html+='<div class="ki" data-kid="'+k.id+'" style="padding-left:'+(8+ind)+'px">'
+            var isSel=isMonth&&_kbcChecked.has(k.id)&&_kbcChecked.size===1;
+            html+='<div class="ki'+(isSel?' selected':'')+'" data-kid="'+k.id+'" data-month="'+(isMonth?1:0)+'" style="padding-left:'+(8+ind)+'px">'
                 +tog
                 +'<input type="checkbox" data-kid="'+k.id+'"'+(checked?' checked':'')+(indet?' data-indet="1"':'')+'>'
                 +'<span class="ki-dot '+loaiLow+'"></span>'
@@ -166,25 +173,61 @@ function renderKbcTree(){
     walk(_kbcRK,0);
     var container=document.getElementById('kbc-tree');
     container.innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">Không tìm thấy</div>';
-    // Set indeterminate state
-    container.querySelectorAll('input[data-indet="1"]').forEach(function(cb){cb.indeterminate=true});
+    container.querySelectorAll('input[data-indet="1"]').forEach(function(cb){
+        cb.indeterminate=false;
+        cb.checked=false;
+        cb.classList.add('has-child-sel');
+    });
     // Bind events
     container.querySelectorAll('.ki').forEach(function(el){
+        // Click on checkbox → toggle multi
+        var cb=el.querySelector('input[type="checkbox"]');
+        cb.addEventListener('click',function(e){
+            e.stopPropagation();
+            var id=parseInt(this.dataset.kid);
+            kbcToggleMulti(id);
+        });
+        // Click on node (not checkbox, not toggle arrow) → select single or expand/collapse
         el.addEventListener('click',function(e){
+            if(e.target.closest('input[type="checkbox"]'))return; // handled above
             var togEl=e.target.closest('.ki-tog');
-            if(togEl){e.preventDefault();e.stopPropagation();var tid=parseInt(togEl.dataset.togid);kbcExp[tid]=!kbcExp[tid];renderKbcTree();return}
+            if(togEl){
+                e.preventDefault();e.stopPropagation();
+                var tid=parseInt(togEl.dataset.togid);
+                kbcExp[tid]=!kbcExp[tid];
+                renderKbcTree();
+                return;
+            }
             e.preventDefault();e.stopPropagation();
             var id=parseInt(this.dataset.kid);
-            kbcToggleCheck(id);
+            var isMonth=this.dataset.month==='1';
+            if(isMonth){
+                // Select ONLY this one
+                kbcSelectSingle(id);
+            }else{
+                // Expand/collapse for Quý/Năm
+                kbcExp[id]=!kbcExp[id];
+                renderKbcTree();
+            }
         });
     });
 }
 
-function kbcToggleCheck(id){
+function kbcSelectSingle(id){
+    // Clear all, select only this one
+    _kbcChecked.clear();
+    _kbcChecked.add(id);
+    updateKbcLabel();
+    renderKbcTree();
+}
+
+function kbcToggleMulti(id){
+    // Toggle: checkbox behavior — add/remove from selection
     var k=_kbcMap[id];if(!k)return;
     if(k.loai_kbc==='Tháng'){
         if(_kbcChecked.has(id))_kbcChecked.delete(id);else _kbcChecked.add(id);
     }else{
+        // Quý/Năm: toggle all descendants
         var allOn=_kbcAllChecked(id);
         var desc=_kbcDescendants(id);
         desc.forEach(function(did){
@@ -193,19 +236,18 @@ function kbcToggleCheck(id){
                 if(allOn)_kbcChecked.delete(did);else _kbcChecked.add(did);
             }
         });
-        // Auto-expand when checking
         if(!allOn)kbcExp[id]=true;
     }
+    updateKbcLabel();
     renderKbcTree();
 }
 
 function kbcApply(){
     var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
-    if(months.length===0){currentKBC=null;updateKbcLabel();closeKbcPicker();return}
+    if(months.length===0){currentKBC=null;updateKbcLabel();return}
     if(months.length===1){currentKBC=months[0]}
     else{currentKBC=mergeKBCs(months)}
     updateKbcLabel();
-    closeKbcPicker();
     if(typeof onKBCSelected==='function')onKBCSelected();
 }
 
@@ -248,9 +290,12 @@ function openKbcPicker(){
     renderKbcTree();
 }
 function closeKbcPicker(){
+    if(!kbcOpen)return;
     kbcOpen=false;
     document.getElementById('kbc-panel').classList.remove('open');
     var tr=document.getElementById('kbc-trigger');if(tr)tr.classList.remove('open');
+    // Auto apply on close
+    kbcApply();
 }
 function toggleKbcPicker(){kbcOpen?closeKbcPicker():openKbcPicker()}
 

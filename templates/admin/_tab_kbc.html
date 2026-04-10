@@ -1,18 +1,21 @@
 <!-- ══ TAB: KỲ BÁO CÁO ══ -->
 <div class="tab-content" id="tab-kbc">
 <style>
+#tab-kbc{overflow:visible!important;max-height:none!important;height:auto!important}
+#tab-kbc .kbc-tree{overflow:visible!important;max-height:none!important;height:auto!important}
 .kbc-tree{display:flex;flex-direction:column;gap:0}
-.kbc-node{border:1px solid var(--g2);border-radius:8px;background:var(--white);margin-bottom:6px;overflow:hidden}
+.kbc-node{border:1px solid var(--g2);border-radius:8px;background:var(--white);margin-bottom:6px;overflow:visible}
 .kbc-node.lv0{border-left:3px solid var(--purple)}
 .kbc-node.lv1{border-left:3px solid var(--blue);margin-left:24px}
 .kbc-node.lv2{border-left:3px solid var(--green);margin-left:48px}
-.kbc-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;gap:8px;flex-wrap:wrap;cursor:pointer}
-.kbc-header:hover{background:var(--g1)}
-.kbc-info{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
-.kbc-dates{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px 14px;padding:0 14px 10px}
-.kbc-dates .card-field{gap:0}.kbc-dates .card-field .lbl{font-size:9px}.kbc-dates .card-field .val{font-size:12px}
+.kbc-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;gap:8px;flex-wrap:wrap;cursor:pointer;min-height:44px}
+.kbc-header:hover{background:var(--g1);border-radius:7px}
+.kbc-info{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap;min-height:24px}
+.kbc-dates{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px 14px;padding:6px 14px 12px;border-top:1px solid var(--g1)}
+.kbc-dates .card-field{gap:1px}.kbc-dates .card-field .lbl{font-size:9px}.kbc-dates .card-field .val{font-size:12px}
 .kbc-dates.hidden{display:none}
 </style>
+<button class="btn btn-blue" style="margin-bottom:12px" onclick="document.getElementById('addKbcModal').classList.add('show');togKbcDates('add')">+ Thêm kỳ báo cáo</button>
 <div class="kbc-tree">
 {% set kbc_map = {} %}
 {% for k in ky_bao_cao %}{% if kbc_map.update({k.id: k}) %}{% endif %}{% endfor %}
@@ -59,7 +62,6 @@
     {{ render_kbc(k, 0) }}
 {% endfor %}
 </div>
-<button class="btn-add" onclick="document.getElementById('addKbcModal').classList.add('show');togKbcDates('add')">+ Thêm kỳ báo cáo</button>
 </div>
 
 <!-- ══ MODALS: KBC Add/Edit ══ -->

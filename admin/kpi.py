@@ -694,6 +694,7 @@ def kpi_import_excel():
         kbcs = sorted(set(r['ma_kbc'] for r in records))
         return jsonify({
             'ok': True,
+            'kbcs': kbcs,
             'message': f'{len(records)} dòng: +{ins} mới, ~{upd} cập nhật, ={skp} bỏ qua. Kỳ: {", ".join(kbcs)}'
         })
 
@@ -913,3 +914,145 @@ def kpi_ratios_save():
         return jsonify({'ok': True, 'message': f'Đã lưu tỷ lệ + cập nhật {updated} NV'})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+    
+# ═══════════════════════════════════════════════
+# API: Chốt status + auto-sync kiến trúc
+# ═══════════════════════════════════════════════
+ 
+@bp.route('/kpi/chot-status')
+@admin_required
+def kpi_chot_status():
+    """Trả về trạng thái chốt của 1 kỳ."""
+    ma_kbc = request.args.get('ma_kbc', '').strip()
+    if not ma_kbc:
+        return jsonify({'ok': True, 'chot': False})
+    try:
+        conn = _ss_conn()
+        cur = conn.cursor()
+        cur.execute('SELECT chot FROM kpi_chot WHERE ma_kbc = ?', (ma_kbc,))
+        row = cur.fetchone()
+        conn.close()
+        return jsonify({'ok': True, 'chot': bool(row[0]) if row else False})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+ 
+ 
+@bp.route('/kpi/save-chot', methods=['POST'])
+@admin_required
+def kpi_save_chot():
+    """Lưu trạng thái chốt + auto-sync kiến trúc sang các kỳ chưa chốt kế tiếp."""
+    data = request.get_json(force=True)
+    ma_kbc = data.get('ma_kbc', '').strip()
+    chot = int(data.get('chot', 0))
+    ma_bp = data.get('ma_bp', '').strip()
+ 
+    if not ma_kbc:
+        return jsonify({'ok': False, 'error': 'Thiếu ma_kbc'}), 400
+ 
+    try:
+        conn = _ss_conn()
+        cur = conn.cursor()
+ 
+        # Upsert chot status
+        cur.execute('SELECT id FROM kpi_chot WHERE ma_kbc = ?', (ma_kbc,))
+        if cur.fetchone():
+            cur.execute('UPDATE kpi_chot SET chot = ?, updated_at = GETDATE() WHERE ma_kbc = ?',
+                        (chot, ma_kbc))
+        else:
+            cur.execute('INSERT INTO kpi_chot (ma_kbc, chot) VALUES (?, ?)',
+                        (ma_kbc, chot))
+        conn.commit()
+ 
+        synced = []
+ 
+        if chot == 1:
+            src_nam, src_thang = _parse_kbc(ma_kbc)
+            src_ym = src_nam * 100 + src_thang
+ 
+            # Tìm tất cả kỳ tháng có trong kpi_targets
+            cur.execute('SELECT DISTINCT ma_kbc FROM kpi_targets ORDER BY ma_kbc')
+            all_kbcs = [r[0] for r in cur.fetchall() if r[0]]
+ 
+            kbc_parsed = []
+            for k in all_kbcs:
+                try:
+                    n, t = _parse_kbc(k)
+                    kbc_parsed.append({'ma_kbc': k, 'nam': n, 'thang': t, 'ym': n * 100 + t})
+                except:
+                    pass
+            kbc_parsed.sort(key=lambda x: x['ym'])
+ 
+            # Load chot status
+            chot_map = {}
+            if kbc_parsed:
+                ph = ','.join(['?'] * len(kbc_parsed))
+                cur.execute(f'SELECT ma_kbc, chot FROM kpi_chot WHERE ma_kbc IN ({ph})',
+                            [k['ma_kbc'] for k in kbc_parsed])
+                for r in cur.fetchall():
+                    chot_map[r[0]] = bool(r[1])
+            chot_map[ma_kbc] = True
+ 
+            # Tìm kỳ chưa chốt SAU ma_kbc mà kỳ chốt gần nhất trước nó = ma_kbc
+            for kp in kbc_parsed:
+                if kp['ym'] <= src_ym:
+                    continue
+                if chot_map.get(kp['ma_kbc'], False):
+                    continue  # đã chốt → skip
+ 
+                # Tìm kỳ chốt gần nhất TRƯỚC kp
+                prev_chot = None
+                for pk in kbc_parsed:
+                    if pk['ym'] >= kp['ym']:
+                        break
+                    if chot_map.get(pk['ma_kbc'], False):
+                        prev_chot = pk['ma_kbc']
+ 
+                if prev_chot != ma_kbc:
+                    continue
+ 
+                # Sync kiến trúc
+                _sync_structure(cur, ma_kbc, kp['ma_kbc'], ma_bp)
+                synced.append(kp['ma_kbc'])
+ 
+            if synced:
+                conn.commit()
+                for sk in synced:
+                    _recalc_paths(conn, sk)
+ 
+        conn.close()
+        return jsonify({'ok': True, 'synced': synced})
+ 
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+ 
+ 
+def _sync_structure(cur, from_kbc, to_kbc, ma_bp=''):
+    """Copy kiến trúc (ma_ql) từ from_kbc → to_kbc, giữ nguyên KPI."""
+    sql_src = 'SELECT ma_nvkd, ten_nvkd, ma_ql, ma_bp FROM kpi_targets WHERE ma_kbc = ?'
+    params_src = [from_kbc]
+    if ma_bp:
+        sql_src += ' AND ma_bp = ?'
+        params_src.append(ma_bp)
+    cur.execute(sql_src, params_src)
+    src_rows = {r[0]: {'ten': r[1], 'ql': r[2], 'bp': r[3]} for r in cur.fetchall()}
+ 
+    cur.execute('SELECT ma_nvkd FROM kpi_targets WHERE ma_kbc = ?', (to_kbc,))
+    existing = set(r[0] for r in cur.fetchall())
+ 
+    to_nam, to_thang = _parse_kbc(to_kbc)
+ 
+    for ma, info in src_rows.items():
+        if ma in existing:
+            upd_sql = 'UPDATE kpi_targets SET ma_ql = ?, ldate = GETDATE() WHERE ma_kbc = ? AND ma_nvkd = ?'
+            upd_params = [info['ql'] or '', to_kbc, ma]
+            if ma_bp:
+                upd_sql += ' AND ma_bp = ?'
+                upd_params.append(ma_bp)
+            cur.execute(upd_sql, upd_params)
+        else:
+            cur.execute('''INSERT INTO kpi_targets
+                (ma_bp, ma_kbc, nam, thang, ma_nvkd, ten_nvkd, nguoi_gd, ma_ql,
+                 kpi, kpi_cong_ty, kpi_ds, kpi_ds_cong_ty)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)''',
+                (info['bp'] or ma_bp, to_kbc, to_nam, to_thang, ma,
+                 info['ten'] or '', info['ten'] or '', info['ql'] or ''))
