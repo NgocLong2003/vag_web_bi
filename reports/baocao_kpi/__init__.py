@@ -88,13 +88,19 @@ def api_data():
         cols = [d[0] for d in cur.description]
         rows = cur.fetchall()
 
-        # Build tree + sum KPI
+        # Build tree + sum KPI (both nội bộ and công ty)
         kpi_fields = {'dt': {'nb': 'kpi', 'cty': 'kpi_cong_ty'},
                       'ds': {'nb': 'kpi_ds', 'cty': 'kpi_ds_cong_ty'}}
         kpi_field = kpi_fields.get(metric, {}).get(scope, 'kpi')
 
+        # Always compute both nb and cty sums for display
+        kpi_nb_field = kpi_fields.get(metric, {}).get('nb', 'kpi')
+        kpi_cty_field = kpi_fields.get(metric, {}).get('cty', 'kpi_cong_ty')
+
         seen = {}
         kpi_sum = {}
+        kpi_nb_sum = {}
+        kpi_cty_sum = {}
         for r in rows:
             rd = {cols[i]: r[i] for i in range(len(cols))}
             ma = rd['ma_nvkd'] or ''
@@ -114,7 +120,11 @@ def api_data():
                 }
             if ma not in kpi_sum:
                 kpi_sum[ma] = 0
+                kpi_nb_sum[ma] = 0
+                kpi_cty_sum[ma] = 0
             kpi_sum[ma] += float(rd[kpi_field] or 0)
+            kpi_nb_sum[ma] += float(rd[kpi_nb_field] or 0)
+            kpi_cty_sum[ma] += float(rd[kpi_cty_field] or 0)
 
         # 2. Load cdate (ngày tạo nhân viên) for "new employee" badge
         cdate_map = {}
@@ -144,36 +154,29 @@ def api_data():
                 kbcs
             ).fetchall()
 
-            # Date ranges depend on metric:
-            # DT: group A (VA/VB/SF) = ngay_bd_thu_tien → ngay_kt_thu_tien
-            #     group B (others)   = ngay_bd_xuat_ban → ngay_kt_xuat_ban
-            # DS: all groups         = ngay_bd_xuat_ban → ngay_kt_xuat_ban
-            dates_a, dates_b = [], []  # a = group A, b = group B
-            dates_ds = []  # for doanh so (all groups same range)
+            dates_a, dates_b = [], []
+            dates_ds = []
             for kr in kbc_rows:
                 bd_xb = str(kr['ngay_bd_xuat_ban'] or '')[:10]
                 kt_xb = str(kr['ngay_kt_xuat_ban'] or '')[:10]
                 bd_tt = str(kr['ngay_bd_thu_tien'] or '')[:10]
                 kt_tt = str(kr['ngay_kt_thu_tien'] or '')[:10]
                 if bd_tt and kt_tt:
-                    dates_a.append((bd_tt, kt_tt))  # DT group A: thu tien
+                    dates_a.append((bd_tt, kt_tt))
                 if bd_xb and kt_xb:
-                    dates_b.append((bd_xb, kt_xb))  # DT group B: xuat ban
-                    dates_ds.append((bd_xb, kt_xb))  # DS: all = xuat ban
+                    dates_b.append((bd_xb, kt_xb))
+                    dates_ds.append((bd_xb, kt_xb))
 
             has_dates = dates_a or dates_b or dates_ds
             if has_dates:
-                # DT dates
-                min_a = min(d[0] for d in dates_a) if dates_a else None  # thu_tien for VA/VB/SF
+                min_a = min(d[0] for d in dates_a) if dates_a else None
                 max_a = max(d[1] for d in dates_a) if dates_a else None
-                min_b = min(d[0] for d in dates_b) if dates_b else None  # xuat_ban for others
+                min_b = min(d[0] for d in dates_b) if dates_b else None
                 max_b = max(d[1] for d in dates_b) if dates_b else None
-                # DS dates (all = xuat_ban)
                 min_ds = min(d[0] for d in dates_ds) if dates_ds else None
                 max_ds = max(d[1] for d in dates_ds) if dates_ds else None
 
                 if metric == 'dt' and min_a:
-                    # Per-NVKD: dùng query chuẩn (join BKHDBANHANG để resolve ma_nvkd)
                     sql = load_sql('DOANHTHU_BCKPI_DUCK')
                     rows_actual = store.query(sql, [min_a, max_a, min_b, max_b, ''])
                     for r in rows_actual:
@@ -182,7 +185,6 @@ def api_data():
                         if ma_nv:
                             actual_per_nvkd[ma_nv] = actual_per_nvkd.get(ma_nv, 0) + val
 
-                    # Per-BP total trực tiếp từ PTHUBAOCO (FACT level, cho Manager)
                     bp_date_cond = f"(ma_bp IN ('VA','VB','SF') AND ngay_ct >= '{min_a}' AND ngay_ct <= '{max_a}')"
                     if min_b:
                         bp_date_cond += f" OR (ma_bp NOT IN ('VA','VB','SF') AND ngay_ct >= '{min_b}' AND ngay_ct <= '{max_b}')"
@@ -203,7 +205,6 @@ def api_data():
                             actual_per_bp[bp_c] = float(r.get('total', 0) or 0)
 
                 elif metric == 'ds' and min_ds:
-                    # Doanh số: all groups use ngay_bd_xuat_ban → ngay_kt_xuat_ban
                     sql = load_sql('DOANHSO_BCKPI_DUCK')
                     rows_actual = store.query(sql, [min_ds, max_ds, ''])
                     for r in rows_actual:
@@ -253,6 +254,8 @@ def api_data():
                     seen[mx] = {'ma_nvkd': mx, 'ten_nvkd': (r[1] or '').strip(),
                                 'ma_ql': nv_ql, 'ma_bp': nv_bp, 'stt_nhom': ''}
                     kpi_sum[mx] = 0
+                    kpi_nb_sum[mx] = 0
+                    kpi_cty_sum[mx] = 0
             except Exception as e:
                 logger.warning(f'Could not load missing NVKDs: {e}')
 
@@ -276,38 +279,30 @@ def api_data():
             is_company = mv == 'VAG' or (not info.get('ma_ql'))
 
             if not children:
-                # Leaf = own revenue
                 actual_node[mv] = actual_per_nvkd.get(mv, 0)
             else:
-                # Has children: first calc all children
                 child_sum = 0
                 for c in children:
                     child_sum += calc_actual(c)
 
                 if is_company:
-                    # Company = total from FACT
                     t = sum(actual_per_bp.values())
                     actual_node[mv] = t if not ma_bp else actual_per_bp.get(ma_bp, 0)
                 elif mv.endswith('00'):
-                    # Manager = total BP from FACT
                     actual_node[mv] = actual_per_bp.get(info.get('ma_bp', ''), 0)
                 else:
-                    # Mid-level = own + sum children
                     actual_node[mv] = actual_per_nvkd.get(mv, 0) + child_sum
 
             return actual_node[mv]
 
-        # Trigger calc for all nodes (start from roots, recurse down)
         for mv in tree_ch.get('__ROOT__', []):
             calc_actual(mv)
-        # Also calc any orphan nodes not reached from __ROOT__
         for mv in seen:
             if mv not in actual_node:
                 calc_actual(mv)
 
         # 5. Calculate months worked for new employees
         from datetime import datetime, date
-        # Determine report month from first kbc
         report_month = None
         for kbc in kbcs:
             try:
@@ -317,16 +312,14 @@ def api_data():
             except:
                 pass
 
-        # 5. Build node list with KPI, actual, completion %, months
+        # 6. Build node list with KPI (both nb + cty), actual, months
         nodes = []
         for ma, info in seen.items():
             kpi_val = kpi_sum.get(ma, 0)
+            kpi_nb_val = kpi_nb_sum.get(ma, 0)
+            kpi_cty_val = kpi_cty_sum.get(ma, 0)
             actual_val = actual_node.get(ma, 0)
 
-            # For managers: actual = sum of children actual
-            # (will be recalculated on frontend for tree sum)
-
-            # Months worked
             months_worked = None
             cdt = cdate_map.get(ma)
             if cdt and report_month:
@@ -347,9 +340,10 @@ def api_data():
                 'ma_ql': info['ma_ql'],
                 'ma_bp': info['ma_bp'],
                 'stt_nhom': info['stt_nhom'],
-                'kpi': kpi_val,
+                'kpi': kpi_nb_val,
+                'kpi_cty': kpi_cty_val,
                 'actual': actual_val,
-                'months': months_worked,  # None = not new, int = months since start
+                'months': months_worked,
             })
 
         return jsonify({'ok': True, 'nodes': nodes})
@@ -365,7 +359,6 @@ def api_detail():
     ma_kbc_list = request.args.getlist('ma_kbc')
     ma_nvkd = request.args.get('ma_nvkd', '').strip()
     metric = request.args.get('metric', 'dt')
-    # ds_nvkd: comma-separated list of NVKDs to include (for manager = all subtree)
     ds_nvkd = request.args.get('ds_nvkd', '').strip()
 
     kbcs = []
