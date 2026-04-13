@@ -72,7 +72,9 @@ def api_data():
         return jsonify({'ok': True, 'nodes': []})
 
     try:
+        # ═══════════════════════════════════════════════════
         # 1. Load KPI targets from SQL Server
+        # ═══════════════════════════════════════════════════
         conn = _ss_conn()
         cur = conn.cursor()
         ph = ','.join(['?'] * len(kbcs))
@@ -88,15 +90,14 @@ def api_data():
         cols = [d[0] for d in cur.description]
         rows = cur.fetchall()
 
-        # Build tree + sum KPI (both nội bộ and công ty)
+        # KPI field mapping
         kpi_fields = {'dt': {'nb': 'kpi', 'cty': 'kpi_cong_ty'},
                       'ds': {'nb': 'kpi_ds', 'cty': 'kpi_ds_cong_ty'}}
         kpi_field = kpi_fields.get(metric, {}).get(scope, 'kpi')
-
-        # Always compute both nb and cty sums for display
         kpi_nb_field = kpi_fields.get(metric, {}).get('nb', 'kpi')
         kpi_cty_field = kpi_fields.get(metric, {}).get('cty', 'kpi_cong_ty')
 
+        # Build seen{} (node info) + kpi sums
         seen = {}
         kpi_sum = {}
         kpi_nb_sum = {}
@@ -126,7 +127,9 @@ def api_data():
             kpi_nb_sum[ma] += float(rd[kpi_nb_field] or 0)
             kpi_cty_sum[ma] += float(rd[kpi_cty_field] or 0)
 
-        # 2. Load cdate (ngày tạo nhân viên) for "new employee" badge
+        # ═══════════════════════════════════════════════════
+        # 2. Load cdate for "new employee" badge
+        # ═══════════════════════════════════════════════════
         cdate_map = {}
         try:
             cur.execute("SELECT ma_nvkd, cdate FROM DMNHANVIENKD_VIEW WHERE ma_nvkd IS NOT NULL")
@@ -138,10 +141,17 @@ def api_data():
 
         conn.close()
 
-        # 3. Load actual revenue from DuckDB using standard queries (same as bckh)
+        # ═══════════════════════════════════════════════════
+        # 3. Load actual revenue/sales from DuckDB
+        #    + thu thập actual_bp_map (ma_nvkd → ma_bp)
+        # ═══════════════════════════════════════════════════
         store = get_store()
         actual_per_nvkd = {}
         actual_per_bp = {}
+        actual_bp_map = {}   # ma_nvkd → ma_bp (từ kết quả DuckDB)
+
+        # Lưu date bounds để dùng ở block 4a
+        min_a = max_a = min_b = max_b = min_ds = max_ds = None
 
         try:
             from database import get_db
@@ -181,10 +191,14 @@ def api_data():
                     rows_actual = store.query(sql, [min_a, max_a, min_b, max_b, ''])
                     for r in rows_actual:
                         ma_nv = (r.get('ma_nvkd') or '').strip()
+                        bp_c = (r.get('ma_bp') or '').strip()
                         val = float(r.get('doanhthu', 0) or 0)
                         if ma_nv:
                             actual_per_nvkd[ma_nv] = actual_per_nvkd.get(ma_nv, 0) + val
+                            if bp_c and ma_nv not in actual_bp_map:
+                                actual_bp_map[ma_nv] = bp_c
 
+                    # BP-level actual (doanh thu theo bộ phận)
                     bp_date_cond = f"(ma_bp IN ('VA','VB','SF') AND ngay_ct >= '{min_a}' AND ngay_ct <= '{max_a}')"
                     if min_b:
                         bp_date_cond += f" OR (ma_bp NOT IN ('VA','VB','SF') AND ngay_ct >= '{min_b}' AND ngay_ct <= '{max_b}')"
@@ -213,53 +227,92 @@ def api_data():
                         val = float(r.get('doanhso', 0) or 0)
                         if ma_nv:
                             actual_per_nvkd[ma_nv] = actual_per_nvkd.get(ma_nv, 0) + val
+                            if bp_c and ma_nv not in actual_bp_map:
+                                actual_bp_map[ma_nv] = bp_c
                         if bp_c:
                             actual_per_bp[bp_c] = actual_per_bp.get(bp_c, 0) + val
 
         except Exception as e:
             logger.warning(f'Could not load actual revenue: {e}')
 
-        # 4a. Add NVKDs that have actual revenue but are NOT in kpi_targets
+        # ═══════════════════════════════════════════════════
+        # 4a. NVKD có actual nhưng không trong phân công
+        #     → check dim_nhanvien_history (SCD2) tại thời
+        #       điểm kỳ báo cáo để biết ma_ql
+        #     → nếu ma_ql có trong tree → tạo node con
+        #     → nếu không → gom vào "Khác" (bp+99)
+        # ═══════════════════════════════════════════════════
         missing_nvkds = set(actual_per_nvkd.keys()) - set(seen.keys())
         if missing_nvkds:
-            try:
-                conn2 = _ss_conn()
-                cur2 = conn2.cursor()
-                ph_m = ','.join(['?' for _ in missing_nvkds])
-                cur2.execute(
-                    f"SELECT ma_nvkd, ten_nvkd, ma_ql FROM DMNHANVIENKD_VIEW WHERE ma_nvkd IN ({ph_m})",
-                    list(missing_nvkds))
-                nv_info_rows = cur2.fetchall()
-                cur2.execute(
-                    f"""SELECT DISTINCT ma_nvkd, ma_bp FROM DMKHACHHANG_VIEW
-                        WHERE ma_nvkd IN ({ph_m})
-                          AND ma_bp IS NOT NULL AND ma_bp != '' AND ma_bp != 'TN'""",
-                    list(missing_nvkds))
-                bp_extra = {}
-                for r in cur2.fetchall():
-                    bp_extra[(r[0] or '').strip()] = (r[1] or '').strip()
-                conn2.close()
-                for r in nv_info_rows:
-                    mx = (r[0] or '').strip()
-                    if not mx or mx in seen:
-                        continue
-                    nv_bp = bp_extra.get(mx, '')
-                    nv_ql = (r[2] or '').strip()
-                    if not nv_bp:
-                        nv_bp = 'XX'
-                    if nv_bp and not nv_ql:
-                        nv_ql = nv_bp + '99'
-                    if ma_bp and nv_bp != ma_bp:
-                        continue
-                    seen[mx] = {'ma_nvkd': mx, 'ten_nvkd': (r[1] or '').strip(),
-                                'ma_ql': nv_ql, 'ma_bp': nv_bp, 'stt_nhom': ''}
+            ref_date = max_b or max_a or max_ds
+
+            # Query dim_nhanvien_history để biết ma_ql, stt_nhom
+            # tại thời điểm ref_date
+            nv_found = {}
+            if ref_date:
+                try:
+                    conn2 = _ss_conn()
+                    cur2 = conn2.cursor()
+                    ph_m = ','.join(['?' for _ in missing_nvkds])
+                    cur2.execute(
+                        f"""SELECT ma_nvkd, ten_nvkd, ma_ql, stt_nhom
+                            FROM dim_nhanvien_history
+                            WHERE ma_nvkd IN ({ph_m})
+                              AND valid_from <= ?
+                              AND (valid_to IS NULL OR valid_to > ?)""",
+                        list(missing_nvkds) + [ref_date, ref_date])
+                    for r in cur2.fetchall():
+                        mx = (r[0] or '').strip()
+                        if mx:
+                            nv_found[mx] = {
+                                'ten_nvkd': (r[1] or '').strip(),
+                                'ma_ql': (r[2] or '').strip(),
+                                'stt_nhom': (r[3] or '').strip(),
+                            }
+                    conn2.close()
+                except Exception as e:
+                    logger.warning(f'Could not query dim_nhanvien_history: {e}')
+
+            # Phân loại missing NVKDs
+            khac_extra = {}  # bp_code → tổng actual cần gom vào "Khác"
+            remove_from_actual = []
+
+            for mx in missing_nvkds:
+                bp_code = actual_bp_map.get(mx, 'XX')
+                if ma_bp and bp_code != ma_bp:
+                    remove_from_actual.append(mx)
+                    continue
+
+                nv = nv_found.get(mx)
+                if nv and nv['ma_ql'] and nv['ma_ql'] in seen:
+                    # Case 1: quản lý có trong tree → tạo node con
+                    seen[mx] = {
+                        'ma_nvkd': mx,
+                        'ten_nvkd': nv['ten_nvkd'],
+                        'ma_ql': nv['ma_ql'],
+                        'ma_bp': bp_code,
+                        'stt_nhom': nv['stt_nhom'],
+                    }
                     kpi_sum[mx] = 0
                     kpi_nb_sum[mx] = 0
                     kpi_cty_sum[mx] = 0
-            except Exception as e:
-                logger.warning(f'Could not load missing NVKDs: {e}')
+                    # actual_per_nvkd[mx] giữ nguyên → tree walk sẽ tính
+                else:
+                    # Case 2: không tìm được quản lý → gom vào "Khác"
+                    khac_node = bp_code + '99'
+                    khac_extra[khac_node] = khac_extra.get(khac_node, 0) + actual_per_nvkd.get(mx, 0)
+                    remove_from_actual.append(mx)
 
-        # 4b. Calculate actual per node using tree walk (bottom-up)
+            # Gom actual vào "Khác" + xóa missing keys
+            for khac_node, val in khac_extra.items():
+                actual_per_nvkd[khac_node] = actual_per_nvkd.get(khac_node, 0) + val
+            for mx in remove_from_actual:
+                if mx in actual_per_nvkd:
+                    del actual_per_nvkd[mx]
+
+        # ═══════════════════════════════════════════════════
+        # 4b. Tree walk bottom-up → actual_node{}
+        # ═══════════════════════════════════════════════════
         tree_ch = {}
         for mv, info in seen.items():
             pid = info.get('ma_ql', '')
@@ -301,7 +354,9 @@ def api_data():
             if mv not in actual_node:
                 calc_actual(mv)
 
-        # 5. Calculate months worked for new employees
+        # ═══════════════════════════════════════════════════
+        # 5. Tính months_worked cho nhân viên mới
+        # ═══════════════════════════════════════════════════
         from datetime import datetime, date
         report_month = None
         for kbc in kbcs:
@@ -312,10 +367,11 @@ def api_data():
             except:
                 pass
 
-        # 6. Build node list with KPI (both nb + cty), actual, months
+        # ═══════════════════════════════════════════════════
+        # 6. Build nodes[] → return
+        # ═══════════════════════════════════════════════════
         nodes = []
         for ma, info in seen.items():
-            kpi_val = kpi_sum.get(ma, 0)
             kpi_nb_val = kpi_nb_sum.get(ma, 0)
             kpi_cty_val = kpi_cty_sum.get(ma, 0)
             actual_val = actual_node.get(ma, 0)

@@ -404,7 +404,8 @@ function renderOneTable(suffix,years,data,field,curYearCol){
     var ft='<tr class="row-total"><td>Tổng cộng</td>';
     years.forEach(function(y){ft+='<td class="num">'+fN(totals[y])+'</td>'});
     ft+='</tr><tr class="row-avg"><td>Trung bình</td>';
-    years.forEach(function(y){var avg=counts[y]>0?Math.round(totals[y]/counts[y]):0;ft+='<td class="num">'+fN(avg)+'</td>'});
+    years.forEach(function(y){var div=(y<NOW_Y)?12:(y===NOW_Y?NOW_M:1);var avg=totals[y]?Math.round(totals[y]/div):0;ft+='<td class="num">'+fN(avg)+'</td>'});
+
     ft+='</tr>';
     document.getElementById('tfoot'+suffix).innerHTML=ft;
 }
@@ -627,7 +628,7 @@ function buildSpDetailTables(sp,years){
         html+='</tbody><tfoot><tr class="row-total"><td>Tổng cộng</td>';
         years.forEach(function(y){html+='<td>'+spN(totals[y])+'</td>'});
         html+='</tr><tr class="row-avg"><td>Trung bình</td>';
-        years.forEach(function(y){var avg=counts[y]>0?totals[y]/counts[y]:0;html+='<td>'+(avg?spN(avg):'')+'</td>'});
+        years.forEach(function(y){var div=(y<NOW_Y)?12:(y===NOW_Y?NOW_M:1);var avg=totals[y]?totals[y]/div:0;html+='<td>'+(avg?spN(avg):'')+'</td>'});
         html+='</tr></tfoot></table></div></div>';
     });
     html+='</div>';

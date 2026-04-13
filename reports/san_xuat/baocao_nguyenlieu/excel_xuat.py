@@ -38,7 +38,7 @@ def _styles():
     }
 
 
-def _write_pivot_table(ws, s, ts, years, data, field='xuat'):
+def _write_pivot_table(ws, s, ts, years, data, now_m, now_y):
     """
     Ghi bảng pivot 12 tháng × years bắt đầu từ row ts.
     data: dict[month][year] = value
@@ -82,15 +82,20 @@ def _write_pivot_table(ws, s, ts, years, data, field='xuat'):
         cell.number_format = "#,##0"
         cell.font = s['f_total']; cell.alignment = s['a_r']; cell.border = s['bdr']; cell.fill = s['fill_t']
 
-    # Trung bình
+    # Trung bình: năm đã qua ÷12, năm hiện tại ÷ tháng hiện tại
     ra = rt + 1
     cell = ws.cell(row=ra, column=1, value="Trung bình")
     cell.font = s['f_avg']; cell.alignment = s['a_c']; cell.border = s['bdr']; cell.fill = s['fill_avg']
-    for i in range(num_yr):
+    for i, y in enumerate(years):
         cl = get_column_letter(i + 2)
-        rng = f"{cl}{ts+1}:{cl}{ts+12}"
+        if y < now_y:
+            divisor = 12
+        elif y == now_y:
+            divisor = now_m
+        else:
+            divisor = 1  # năm tương lai, tránh chia 0
         cell = ws.cell(row=ra, column=i + 2)
-        cell.value = f'=IF(COUNTIF({rng},"<>0")>0,AVERAGEIF({rng},"<>0"),0)'
+        cell.value = f"=IF({cl}{rt}=0,0,{cl}{rt}/{divisor})"
         cell.number_format = "#,##0"
         cell.font = s['f_avg']; cell.alignment = s['a_r']; cell.border = s['bdr']; cell.fill = s['fill_avg']
 
@@ -168,7 +173,10 @@ def build_xuat_excel(rows, ma_vt, ten_vt, dvt, incl_xuatle=False, products=None)
             latest_ym = ym
             ton_cuoiki = float(rec.get("CUOI_KI", 0) or 0)
 
-    now_str = datetime.now(VN_TZ).strftime("%d/%m/%Y %H:%M")
+    now_vn = datetime.now(VN_TZ)
+    now_str = now_vn.strftime("%d/%m/%Y %H:%M")
+    now_m = now_vn.month
+    now_y = now_vn.year
 
     for mr in [3, 4]:
         ws.merge_cells(start_row=mr, start_column=9, end_row=mr, end_column=10)
@@ -190,7 +198,7 @@ def build_xuat_excel(rows, ma_vt, ten_vt, dvt, incl_xuatle=False, products=None)
         nvl_data[m][y] = nvl_data[m].get(y, 0) + xv
 
     # Write NVL table starting row 7
-    last_row = _write_pivot_table(ws, s, 7, years, nvl_data)
+    last_row = _write_pivot_table(ws, s, 7, years, nvl_data, now_m, now_y)
 
     # ══════════════════════════════════════════
     # PHẦN 2: THÀNH PHẨM XUẤT BÁN
@@ -251,7 +259,7 @@ def build_xuat_excel(rows, ma_vt, ten_vt, dvt, incl_xuatle=False, products=None)
 
             # Write table — 1 row gap after info
             tbl_start = r_val + 1
-            last_row = _write_pivot_table(ws, s, tbl_start, years, p_data)
+            last_row = _write_pivot_table(ws, s, tbl_start, years, p_data, now_m, now_y)
             cur = last_row
 
     # ── Print area ──
