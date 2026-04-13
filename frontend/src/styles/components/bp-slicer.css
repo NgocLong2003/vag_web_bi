@@ -1,0 +1,95 @@
+/* ═══════════════════════════════════════
+   BP SLICER STRIP — Dải logo ngang
+   ═══════════════════════════════════════ */
+
+.bp-strip-wrap {
+  display: flex; align-items: center; gap: 0;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 0; scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.bp-strip-wrap::-webkit-scrollbar { display: none; }
+
+.bp-strip-item {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  height: 40px; padding: 0 8px;
+  border-radius: 0; border: none; border-bottom: 2.5px solid transparent;
+  background: none; cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.bp-strip-item:hover { border-bottom-color: var(--g2); }
+
+/* Active = border + accent bar + soft glow */
+.bp-strip-item.active {
+  border: 1.5px solid var(--accent, #0d9488);
+  border-radius: 8px;
+  border-bottom: 2.5px solid var(--accent, #0d9488);
+  background: rgba(13, 148, 136, 0.04);
+  box-shadow: 0 0 12px rgba(13, 148, 136, 0.15), 0 0 4px rgba(13, 148, 136, 0.08);
+}
+
+/* Parent company */
+.bp-strip-parent { padding: 0 10px; }
+.bp-strip-logo-parent { height: 38px; }
+
+/* Divider between parent and children */
+.bp-strip-divider {
+  width: 1px; height: 28px; background: var(--g2);
+  flex-shrink: 0; margin: 0 2px;
+}
+
+/* All-selected: children get subtle glow when parent is active */
+.bp-strip-item.all-selected:not(.active) {
+  border: 1.5px solid rgba(13, 148, 136, 0.2);
+  border-radius: 8px;
+  background: rgba(13, 148, 136, 0.03);
+  box-shadow: 0 0 8px rgba(13, 148, 136, 0.08);
+}
+
+/* Logo — as big as possible */
+.bp-strip-logo {
+  height: 30px; width: auto;
+  object-fit: contain;
+}
+
+/* Fallback text */
+.bp-strip-all {
+  font-size: 11px; font-weight: 700; color: var(--g5);
+  padding: 0 6px; white-space: nowrap;
+}
+.bp-strip-item.active .bp-strip-all { color: var(--accent, #0d9488); }
+
+.bp-strip-fallback {
+  font-size: 10px; font-weight: 700; color: var(--g4);
+  padding: 0 4px;
+}
+
+/* BP strip at header level */
+.bp-header-strip {
+  position: fixed; top: 4px; z-index: 55;
+  left: 50%; transform: translateX(-50%);
+  background: var(--white);
+  border: 1px solid var(--g1);
+  border-radius: 13px;
+  padding: 0 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  max-width: calc(100vw - 460px);
+  height: 52px;
+  display: flex; align-items: center;
+}
+.bp-header-strip .bp-strip-wrap { gap: 0; }
+.bp-header-strip .bp-strip-item { height: 46px; padding: 0 14px; }
+.bp-header-strip .bp-strip-logo { height: 36px; }
+.bp-header-strip .bp-strip-parent { padding: 0 16px; }
+.bp-header-strip .bp-strip-logo-parent { height: 42px; }
+.bp-header-strip .bp-strip-divider { height: 34px; margin: 0 4px; }
+
+/* Mobile */
+@media (max-width: 768px) {
+  .bp-strip-item { height: 48px; padding: 0 10px; }
+  .bp-strip-logo { height: 34px; }
+  .bp-strip-parent { padding: 0 12px; }
+  .bp-strip-logo-parent { height: 42px; }
+}

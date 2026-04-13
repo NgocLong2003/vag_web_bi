@@ -1,0 +1,69 @@
+/* ═══════════════════════════════════════
+   SLICER CHIP — Compact chip + popover
+   ═══════════════════════════════════════ */
+
+.sc-wrap { position: relative; }
+
+.sc-chip {
+  display: flex; align-items: center; gap: 5px;
+  height: 32px; padding: 0 8px 0 10px;
+  border-radius: 8px; border: 1px solid var(--g2);
+  background: var(--white); cursor: pointer;
+  font-family: var(--sans); font-size: 12px;
+  transition: all 0.15s; white-space: nowrap;
+  color: var(--g5);
+}
+.sc-chip:hover {
+  border-color: var(--g3); background: var(--g0);
+}
+.sc-chip.open {
+  border-color: var(--accent, #0d9488);
+  background: var(--white);
+}
+.sc-chip.active {
+  border-color: var(--accent, #0d9488);
+  background: rgba(13, 148, 136, 0.03);
+}
+.sc-chip.active .sc-value { color: var(--accent, #0d9488); }
+
+.sc-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; flex-shrink: 0;
+  color: var(--g4);
+}
+.sc-chip.active .sc-icon,
+.sc-chip.open .sc-icon { color: var(--accent, #0d9488); }
+.sc-icon svg { width: 16px; height: 16px; }
+
+.sc-label {
+  font-size: 11px; font-weight: 500; color: var(--g4);
+}
+
+.sc-value {
+  font-size: 12px; font-weight: 600; color: var(--g7);
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis;
+}
+
+.sc-chev {
+  width: 10px; height: 10px; color: var(--g3);
+  transition: transform 0.2s; flex-shrink: 0;
+}
+.sc-chev.rotated { transform: rotate(180deg); }
+
+/* Popover */
+.sc-popover {
+  background: var(--white); border: 1px solid var(--g2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  display: flex; flex-direction: column; overflow: hidden;
+  z-index: 9990;
+  animation: sc-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes sc-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Mobile bottom sheet */
+@media (max-width: 768px) {
+  .sc-chip { height: 36px; padding: 0 10px 0 12px; }
+}

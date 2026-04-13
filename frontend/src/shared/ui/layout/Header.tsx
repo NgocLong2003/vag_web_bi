@@ -1,86 +1,342 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@shared/auth/AuthProvider'
-import { useLayoutStore } from '@shared/stores/useLayoutStore'
-import { Menu, Settings, LogOut, Shield, ChevronDown } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import {
+  Star,
+  Bell,
+  Download,
+  Maximize,
+  Minimize,
+  ChevronDown,
+  Settings,
+  Shield,
+  HelpCircle,
+  LogOut,
+} from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
-export function Header() {
+// ============================================================================
+// HEADER — Split-pill floating header (desktop only)
+//
+// Left pill:  Logo (Home) | Dashboard selector | Update badge
+// Right pill: Hỏi AI | Cảnh báo | Tải xuống (split) | Toàn màn hình | Avatar
+//
+// STANDARDS:
+// - Tất cả nút đều có text label (user không hiểu icon-only)
+// - Tải xuống: split button (main = default format, dropdown = other formats)
+// - Real-time: không có dropdown. Scheduled: có dropdown lịch sử cập nhật
+// - Mỗi nút có ring glow effect riêng khi hover
+// ============================================================================
+
+export interface DashboardOption {
+  id: string
+  name: string
+  group: string
+}
+
+export interface UpdateLogEntry {
+  time: string
+  message: string
+  status: 'ok' | 'warn' | 'error'
+}
+
+export interface HeaderProps {
+  /** Current dashboard/report name */
+  dashboardName?: string
+  /** Available dashboards for selector dropdown */
+  dashboards?: DashboardOption[]
+  /** Data update mode */
+  updateMode?: 'realtime' | 'scheduled'
+  /** For scheduled: display text e.g. "5 phút trước" */
+  lastUpdateText?: string
+  /** For scheduled: update history log */
+  updateLog?: UpdateLogEntry[]
+  /** Default download format when clicking main button */
+  defaultDownloadFormat?: 'xlsx' | 'pdf' | 'csv'
+  /** Called when user downloads */
+  onDownload?: (format: string) => void
+  /** Called when user switches dashboard */
+  onDashboardChange?: (id: string) => void
+  /** Number of unread alerts (0 = no badge) */
+  alertCount?: number
+  /** Alert items to render in dropdown */
+  alertSlot?: React.ReactNode
+}
+
+export function Header({
+  dashboardName = 'Dashboard',
+  dashboards = [],
+  updateMode = 'realtime',
+  lastUpdateText = 'Cập nhật 5 phút trước',
+  updateLog = [],
+  defaultDownloadFormat = 'xlsx',
+  onDownload,
+  onDashboardChange,
+  alertCount = 0,
+  alertSlot,
+}: HeaderProps) {
   const { user, logout } = useAuth()
-  const toggleSidebar = useLayoutStore((s) => s.toggleSidebar)
-  const location = useLocation()
+  const navigate = useNavigate()
   const [fullscreen, setFullscreen] = useState(false)
+  const [openDD, setOpenDD] = useState<string | null>(null)
+  const [dbSearch, setDbSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
 
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen()
-      setFullscreen(true)
-    } else {
-      document.exitFullscreen()
-      setFullscreen(false)
-    }
-  }
-
-  useEffect(() => {
-    const handler = () => setFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', handler)
-    return () => document.removeEventListener('fullscreenchange', handler)
+  const closeAll = useCallback(() => {
+    setOpenDD(null)
+    setDbSearch('')
   }, [])
 
+  function toggle(id: string) {
+    setOpenDD((prev) => (prev === id ? null : id))
+  }
+
+  // Close on Escape or click outside
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeAll()
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) closeAll()
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('click', onClick)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('click', onClick)
+    }
+  }, [closeAll])
+
+  // Fullscreen sync
+  useEffect(() => {
+    const h = () => setFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', h)
+    return () => document.removeEventListener('fullscreenchange', h)
+  }, [])
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen()
+    else document.exitFullscreen()
+  }
+
+  // Dashboard filter
+  const filtered = dashboards.filter((d) =>
+    d.name.toLowerCase().includes(dbSearch.toLowerCase())
+  )
+  const groups = [...new Set(filtered.map((d) => d.group))]
+
+  // User initials
+  const initials = (user?.displayName || user?.username || 'U')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase()
+
   return (
-    <header className="flex h-10 shrink-0 items-center justify-between bg-surface-7 px-3 text-white">
-      {/* Left: hamburger + brand */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={toggleSidebar}
-          className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-white/10"
-          aria-label="Menu"
+    <div ref={ref} className="hdr-area">
+      {/* ══ LEFT PILL ══ */}
+      <div className="pill pill-l">
+        {/* Logo = Home */}
+        <div
+          className="hdr-logo"
+          onClick={() => navigate('/dashboards')}
+          title="Về trang chủ"
         >
-          <Menu className="h-4 w-4" />
-        </button>
+          VA
+        </div>
 
-        <Link to="/dashboards" className="text-sm font-bold tracking-tight hover:text-white/80">
-          VietAnh BI
-        </Link>
-      </div>
-
-      {/* Center: fullscreen toggle */}
-      <button
-        onClick={toggleFullscreen}
-        className="rounded-md border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-semibold tracking-wide text-white/60 hover:bg-white/15 hover:text-white"
-      >
-        {fullscreen ? 'THOÁT TOÀN MÀN HÌNH' : 'TOÀN MÀN HÌNH'}
-      </button>
-
-      {/* Right: user info + actions */}
-      <div className="flex items-center gap-2 text-xs">
-        <span className="text-white/70">{user?.displayName || user?.username}</span>
-
-        {user?.role === 'admin' && (
-          <Link
-            to="/admin"
-            className="flex items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold hover:bg-white/20"
+        {/* Dashboard selector */}
+        <div className="relative">
+          <button
+            className={`db-trigger ${openDD === 'db' ? 'open' : ''}`}
+            onClick={(e) => { e.stopPropagation(); toggle('db') }}
           >
-            <Shield className="h-3 w-3" />
-            Quản trị
-          </Link>
+            <span className="db-name">{dashboardName}</span>
+            <ChevronDown className="db-chev" />
+          </button>
+
+          {openDD === 'db' && (
+            <div className="dropdown show db-dd" onClick={(e) => e.stopPropagation()}>
+              <input
+                className="db-search"
+                placeholder="Tìm dashboard..."
+                value={dbSearch}
+                onChange={(e) => setDbSearch(e.target.value)}
+                autoFocus
+              />
+              {groups.map((group) => (
+                <div key={group}>
+                  <div className="db-group">{group}</div>
+                  {filtered
+                    .filter((d) => d.group === group)
+                    .map((d) => (
+                      <div
+                        key={d.id}
+                        className={`db-item ${d.name === dashboardName ? 'active' : ''}`}
+                        onClick={() => { onDashboardChange?.(d.id); closeAll() }}
+                      >
+                        {d.name}
+                      </div>
+                    ))}
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <p className="px-3 py-4 text-center text-xs text-white/30">
+                  Không tìm thấy
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Update badge */}
+        {updateMode === 'realtime' ? (
+          <div className="ub-pill realtime">
+            <div className="ub-dot" />
+            Real-time
+          </div>
+        ) : (
+          <div className="relative">
+            <button
+              className="ub-pill scheduled"
+              onClick={(e) => { e.stopPropagation(); toggle('update') }}
+            >
+              <div className="ub-dot" />
+              {lastUpdateText}
+            </button>
+            {openDD === 'update' && (
+              <div className="dropdown show ub-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="ub-modal-hdr">
+                  <span className="ub-modal-title">Lịch sử cập nhật</span>
+                </div>
+                <div className="ub-modal-list">
+                  {updateLog.map((entry, i) => (
+                    <div key={i} className="ub-log">
+                      <div className={`ub-log-dot ${entry.status === 'ok' ? 'ok' : entry.status === 'warn' ? 'warn' : 'err'}`} />
+                      <div className="ub-log-info">
+                        <div className="ub-log-time">{entry.time}</div>
+                        <div className="ub-log-msg">{entry.message}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {updateLog.length === 0 && (
+                    <p className="px-3 py-4 text-center text-xs text-white/30">
+                      Chưa có lịch sử
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         )}
-
-        <Link
-          to="/settings"
-          className="flex items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold hover:bg-white/20"
-        >
-          <Settings className="h-3 w-3" />
-          Cài đặt
-        </Link>
-
-        <button
-          onClick={logout}
-          className="flex items-center gap-1 rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold hover:bg-white/20"
-        >
-          <LogOut className="h-3 w-3" />
-          Thoát
-        </button>
       </div>
-    </header>
+
+      {/* ══ RIGHT PILL ══ */}
+      <div className="pill pill-r">
+        {/* Hỏi AI */}
+        <button className="hb hb-ai">
+          <Star className="ai-sparkle h-3.5 w-3.5" />
+          <span>Hỏi AI</span>
+        </button>
+
+        {/* Cảnh báo */}
+        <div className="relative">
+          <button
+            className="hb hb-alert-btn"
+            onClick={(e) => { e.stopPropagation(); toggle('alert') }}
+          >
+            {alertCount > 0 && <div className="alert-dot" />}
+            <Bell className="h-3.5 w-3.5" />
+            <span>Cảnh báo</span>
+          </button>
+          {openDD === 'alert' && (
+            <div className="dropdown show alert-dd" onClick={(e) => e.stopPropagation()}>
+              <div className="alert-dd-hdr">
+                <span className="alert-dd-title">Cảnh báo</span>
+                {alertCount > 0 && <span className="alert-dd-count">{alertCount} mới</span>}
+              </div>
+              <div className="alert-list">
+                {alertSlot || (
+                  <p className="px-3 py-4 text-center text-xs text-white/30">
+                    Không có cảnh báo
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tải xuống — split button */}
+        <div className="dl-group relative">
+          <button className="hb dl-main" onClick={() => onDownload?.(defaultDownloadFormat)}>
+            <Download className="h-3.5 w-3.5" />
+            <span>Tải xuống</span>
+          </button>
+          <button
+            className="dl-drop"
+            onClick={(e) => { e.stopPropagation(); toggle('dl') }}
+          >
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          {openDD === 'dl' && (
+            <div className="dropdown show dl-dd" onClick={(e) => e.stopPropagation()}>
+              {(['xlsx', 'pdf', 'csv'] as const).map((fmt) => (
+                <div
+                  key={fmt}
+                  className="dl-item"
+                  onClick={() => { onDownload?.(fmt); closeAll() }}
+                >
+                  <Download className="h-4 w-4" />
+                  {fmt === 'xlsx' ? 'Excel' : fmt === 'pdf' ? 'PDF' : 'CSV'}
+                  <span className="dl-ext">.{fmt}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Toàn màn hình */}
+        <button className="hb hb-fs" onClick={toggleFullscreen}>
+          {fullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+          <span>{fullscreen ? 'Thoát' : 'Toàn màn hình'}</span>
+        </button>
+
+        <div className="h-div" />
+
+        {/* Avatar */}
+        <div className="relative">
+          <button
+            className="av-trigger"
+            onClick={(e) => { e.stopPropagation(); toggle('av') }}
+          >
+            <span className="av-name">{user?.displayName || user?.username}</span>
+            <div className="av">{initials}</div>
+          </button>
+          {openDD === 'av' && (
+            <div className="dropdown show av-dd" onClick={(e) => e.stopPropagation()}>
+              <div className="av-hdr">
+                <div className="av-hdr-name">{user?.displayName}</div>
+                <div className="av-hdr-role">{user?.chucVu} · {user?.boPhan}</div>
+              </div>
+              <div className="av-body">
+                <Link to="/settings" className="av-item" onClick={closeAll}>
+                  <Settings className="h-4 w-4" /> Cài đặt
+                </Link>
+                {user?.role === 'admin' && (
+                  <Link to="/admin" className="av-item" onClick={closeAll}>
+                    <Shield className="h-4 w-4" /> Quản trị
+                  </Link>
+                )}
+                <div className="av-item">
+                  <HelpCircle className="h-4 w-4" /> Trợ giúp
+                </div>
+                <div className="av-divider" />
+                <div className="av-item danger" onClick={logout}>
+                  <LogOut className="h-4 w-4" /> Đăng xuất
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

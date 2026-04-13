@@ -1,0 +1,100 @@
+/* ═══════════════════════════════════════
+   KBC PICKER — Kỳ Báo Cáo selector
+   ═══════════════════════════════════════ */
+
+.kbc-wrap { position: relative; }
+.kbc-trigger {
+  height: 32px; padding: 0 10px; min-width: 130px;
+  background: var(--g0); border: 1px solid var(--g2); border-radius: 6px;
+  font-family: var(--sans); font-size: 12px; color: var(--g7);
+  outline: none; cursor: pointer; display: flex; align-items: center;
+  gap: 6px; transition: .15s; white-space: nowrap;
+}
+.kbc-trigger:hover, .kbc-trigger.open { border-color: var(--blue); background: var(--white); }
+.kbc-trigger svg { width: 13px; height: 13px; stroke: var(--g4); fill: none; flex-shrink: 0; }
+.kbc-lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+.kbc-panel {
+  background: var(--white); border: 1px solid var(--g2); border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.14); display: flex; flex-direction: column;
+  overflow: hidden; z-index: 9990;
+}
+.kbc-panel-head {
+  padding: 8px 12px; border-bottom: 1px solid var(--g1);
+  display: flex; align-items: center; gap: 6px;
+}
+.kbc-panel-head input {
+  flex: 1; height: 28px; padding: 0 8px;
+  border: 1px solid var(--g2); border-radius: 5px;
+  font-size: 11px; font-family: var(--sans); outline: none;
+}
+.kbc-panel-head input:focus { border-color: var(--blue); }
+.kbc-panel-hint {
+  font-size: 9px; color: var(--g3); padding: 0 12px 4px; line-height: 1.4;
+}
+.kbc-tree { overflow-y: auto; max-height: 360px; padding: 4px 0; }
+.kbc-tree::-webkit-scrollbar { width: 4px; }
+.kbc-tree::-webkit-scrollbar-track { background: transparent; }
+.kbc-tree::-webkit-scrollbar-thumb { background: var(--g2); border-radius: 4px; }
+.kbc-empty {
+  padding: 20px; text-align: center; color: var(--g4); font-size: 12px;
+}
+
+/* KBC tree items */
+.ki {
+  display: flex; align-items: center; height: 34px; padding: 0 12px;
+  cursor: pointer; transition: background .08s; user-select: none; gap: 4px;
+}
+.ki:hover { background: var(--g0); }
+.ki.selected { background: var(--blue-lt); }
+
+.ki input[type="checkbox"] {
+  width: 14px; height: 14px; cursor: pointer;
+  accent-color: var(--blue); flex-shrink: 0;
+}
+.ki input[type="checkbox"].has-child-sel { accent-color: var(--g3); opacity: .5; }
+
+.ki-tog {
+  width: 16px; height: 16px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px; color: var(--g3); cursor: pointer;
+}
+.ki-tog:hover { background: var(--g1); color: var(--g5); }
+.ki-tog svg {
+  width: 8px; height: 8px; stroke: currentColor; fill: none; stroke-linecap: round;
+}
+.ki-tog-sp { width: 16px; flex-shrink: 0; }
+
+.ki-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-right: 4px;
+}
+.ki-dot.nam { background: var(--purple); }
+.ki-dot.quy { background: var(--blue); }
+.ki-dot.thang { background: var(--emr); }
+
+.ki-name {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  font-size: 12px; white-space: nowrap;
+}
+.ki-name.lv0 {
+  font-weight: 800; text-transform: uppercase; letter-spacing: .02em; color: var(--g5);
+}
+.ki-name.lv1 { font-weight: 700; color: var(--g5); }
+.kbc-hl { background: #fef9c3; font-style: normal; border-radius: 2px; }
+
+.ki-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; flex-shrink: 0;
+}
+.ki-badge.nam { background: #f3e8ff; color: var(--purple); }
+.ki-badge.quy { background: var(--blue-lt); color: var(--blue); }
+.ki-badge.thang { background: var(--emr-lt); color: var(--emr); }
+
+/* Mobile: bottom sheet */
+@media (max-width: 768px) {
+  .kbc-tree { max-height: 55vh; }
+  .ki { height: 40px; }
+}
+/* Landscape phone: side panel */
+@media (orientation: landscape) and (max-height: 500px) and (hover: none) {
+  .kbc-tree { max-height: calc(100vh - 60px); }
+}

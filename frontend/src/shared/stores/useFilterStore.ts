@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { MergedKBC } from '@shared/ui/slicers/kbc-picker.types'
 
 interface FilterState {
   // Selected BP (empty = all)
@@ -18,7 +19,11 @@ interface FilterState {
   dateB: string
   setDateRange: (a: string, b: string) => void
 
-  // Selected KBC IDs
+  // Selected KBC (merged result — persists across pages)
+  currentKBC: MergedKBC | null
+  setCurrentKBC: (kbc: MergedKBC | null) => void
+
+  // Selected KBC IDs (for multi-select state)
   selectedKbcIds: Set<number>
   setSelectedKbcIds: (ids: Set<number>) => void
 
@@ -40,6 +45,9 @@ export const useFilterStore = create<FilterState>((set) => ({
   dateB: '',
   setDateRange: (a, b) => set({ dateA: a, dateB: b }),
 
+  currentKBC: null,
+  setCurrentKBC: (kbc) => set({ currentKBC: kbc }),
+
   selectedKbcIds: new Set(),
   setSelectedKbcIds: (ids) => set({ selectedKbcIds: ids }),
 
@@ -50,6 +58,7 @@ export const useFilterStore = create<FilterState>((set) => ({
       selectedKH: null,
       dateA: '',
       dateB: '',
+      currentKBC: null,
       selectedKbcIds: new Set(),
     }),
 }))

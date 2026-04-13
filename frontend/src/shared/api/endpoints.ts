@@ -53,6 +53,7 @@ export const ENDPOINTS = {
       base: '/reports/bao-cao-kinh-doanh',
       hierarchy: '/reports/bao-cao-kinh-doanh/api/hierarchy',
       khachhang: '/reports/bao-cao-kinh-doanh/api/khachhang',
+      kyBaoCao: '/reports/bao-cao-kinh-doanh/api/ky-bao-cao',
       congno: '/reports/bao-cao-kinh-doanh/api/congno',
       doanhso: '/reports/bao-cao-kinh-doanh/api/doanhso',
       doanhthu: '/reports/bao-cao-kinh-doanh/api/doanhthu',

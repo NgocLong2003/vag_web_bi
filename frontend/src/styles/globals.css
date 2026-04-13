@@ -1,11 +1,15 @@
+/* ═══ Component CSS ═══ */
+@import './components/header.css';
+@import './components/kbc-picker.css';
+@import './components/bp-slicer.css';
+@import './components/bp-dropdown.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ═══════════════════════════════════════
    DESIGN TOKENS (CSS Variables)
-   Used by components that need fine-grained control
-   beyond Tailwind utilities
    ═══════════════════════════════════════ */
 :root {
   --white: #fff;
@@ -34,11 +38,29 @@
   --mono: 'JetBrains Mono', monospace;
 
   /* Layout */
-  --header-h: 40px;
+  --header-h: 60px;
   --sidebar-w: 260px;
   --toolbar-h: 42px;
   --dock-h: 52px;
   --row-h: 34px;
+
+  /* Header light palette */
+  --hdr-bg: #ffffff;
+  --hdr-bg-pill: #ffffff;
+  --hdr-bdr: var(--g2, #d8dce6);
+  --hdr-bdr-h: var(--g3, #b0b8c9);
+  --hdr-bdr-a: var(--theme-500, #0d9488);
+  --hdr-t1: var(--g7, #1e2a3a);
+  --hdr-t2: var(--g5, #5a6478);
+  --hdr-t3: var(--g4, #8b95aa);
+  --hdr-t4: var(--g3, #b0b8c9);
+  --hdr-neon: var(--theme-500, #0d9488);
+  --hdr-neon2: var(--theme-400, #2dd4bf);
+  --hdr-cyan: #0891b2;
+  --hdr-emerald: #059669;
+  --hdr-rose: #e11d48;
+  --hdr-amber: #d97706;
+  --hdr-blue: #2563eb;
 }
 
 /* ═══ Base ═══ */

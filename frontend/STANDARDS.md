@@ -129,6 +129,17 @@ import { ExportBar } from '@shared/ui/actions/ExportButton'
 
 ---
 
+## 6. Màu sắc
+
+| Quy tắc | Chi tiết |
+|---------|---------|
+| Tỉ lệ | **70%** trắng/nền sáng, **20%** accent (theme), **10%** text đen |
+| Thư viện | 6 bộ theme trong `themes.ts`: indigo, teal, slateBlue, emerald, deepOcean, warmCoral |
+| Mặc định | `teal` (phù hợp ngành dược) |
+| Hardcode hex | **CẤM** — luôn dùng `var(--theme-xxx)` hoặc `accent-xxx` |
+
+**Enforce bởi:** `useTheme()` hook + CSS variables. Dev không cần nhớ hex.
+
 ## 6–12. Chưa quyết định
 
 Các mục sau sẽ được bổ sung dần trong quá trình phát triển:
