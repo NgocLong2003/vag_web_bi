@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════
+   DESIGN TOKENS (CSS Variables)
+   Used by components that need fine-grained control
+   beyond Tailwind utilities
+   ═══════════════════════════════════════ */
+:root {
+  --white: #fff;
+  --g0: #f7f8fa;
+  --g1: #eef0f4;
+  --g2: #d8dce6;
+  --g3: #b0b8c9;
+  --g4: #8b95aa;
+  --g5: #5a6478;
+  --g6: #3d4a63;
+  --g7: #1e2a3a;
+
+  --blue: #1a46c4;
+  --blue-lt: #eef2ff;
+  --blue-md: #4a78df;
+  --emr: #056944;
+  --emr-lt: #eafaf4;
+  --emr-md: #2db87e;
+  --red: #c0392b;
+  --red-lt: #fef2f2;
+  --amber: #964a06;
+  --purple: #7c3aed;
+  --purple-lt: #f5f3ff;
+
+  --sans: 'Nunito Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+
+  /* Layout */
+  --header-h: 40px;
+  --sidebar-w: 260px;
+  --toolbar-h: 42px;
+  --dock-h: 52px;
+  --row-h: 34px;
+}
+
+/* ═══ Base ═══ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--sans);
+  color: var(--g7);
+  background: var(--g0);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══ Scrollbar ═══ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--g2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--g3); }
+
+/* ═══ Number formatting classes ═══ */
+.n { font-family: var(--mono); font-size: 0.72rem; display: block; text-align: right; }
+.n.pos { color: var(--g7); }
+.n.neg { color: var(--red); }
+.n.zero { color: var(--g3); }
+.n.sub { font-weight: 600; font-size: 0.75rem; }
+.n.grand { font-size: 0.8rem; font-weight: 700; }
+
+/* ═══ Skeleton shimmer ═══ */
+.skeleton {
+  display: inline-block;
+  height: 10px;
+  width: 55px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--g1) 25%, var(--g2) 50%, var(--g1) 75%);
+  background-size: 200%;
+  animation: shimmer 1.3s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200%; }
+  100% { background-position: -200%; }
+}
+
+/* ═══ Tree connector lines ═══ */
+.tree-seg { width: 18px; height: var(--row-h); position: relative; flex-shrink: 0; }
+.tree-seg.vline::before {
+  content: ''; position: absolute; left: 8px; top: 0; bottom: 0;
+  width: 1px; background: rgba(168, 176, 197, 0.35);
+}
+.tree-seg.branch::before {
+  content: ''; position: absolute; left: 8px; top: 0; width: 1px;
+  height: 50%; background: rgba(168, 176, 197, 0.35);
+}
+.tree-seg.branch::after {
+  content: ''; position: absolute; left: 8px; top: 50%;
+  width: 9px; height: 1px; background: rgba(168, 176, 197, 0.35);
+}
