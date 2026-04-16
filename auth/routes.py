@@ -31,7 +31,7 @@ def login():
             db.execute(f'UPDATE users SET last_login = {sql_now()} WHERE id = ?', (user['id'],))
             db.commit()
             log_activity(user['id'], 'login')
-            return redirect(url_for('dashboard.dashboard_list'))
+            return redirect('/')    
         else:
             error = 'Sai tên đăng nhập hoặc mật khẩu'
     return render_template('login.html', error=error)
@@ -67,3 +67,56 @@ def user_settings():
         return redirect(url_for('auth.user_settings'))
     return render_template('settings.html', user=user,
         username=user['display_name'] or user['username'], role=user['role'])
+
+@bp.route('/api/me')
+@login_required
+def api_me():
+    """API: trả thông tin user đang login (JSON)"""
+    from flask import jsonify
+    user = g.current_user
+    db = get_db()
+ 
+    # Lấy danh sách dashboard được phân quyền
+    if user['role'] == 'admin':
+        dashboards = db.execute(
+            'SELECT id, slug, name, dashboard_type FROM dashboards WHERE is_active = 1 ORDER BY sort_order'
+        ).fetchall()
+    else:
+        dashboards = db.execute('''
+            SELECT d.id, d.slug, d.name, d.dashboard_type
+            FROM dashboards d JOIN user_dashboards ud ON d.id = ud.dashboard_id
+            WHERE ud.user_id = ? AND d.is_active = 1 ORDER BY d.sort_order
+        ''', (user['id'],)).fetchall()
+ 
+    # Lấy danh sách BP được phân quyền
+    ma_bp_raw = user['ma_bp'] or ''
+    allowed_bps = [b.strip() for b in ma_bp_raw.split(',') if b.strip()]
+ 
+    # Lấy danh sách mã NVKD
+    nvkd_raw = user['ma_nvkd_list'] or ''
+    ma_nvkd_list = [n.strip() for n in nvkd_raw.split(',') if n.strip()]
+ 
+    return jsonify({
+        'success': True,
+        'user': {
+            'id': user['id'],
+            'username': user['username'],
+            'display_name': user['display_name'] or user['username'],
+            'role': user['role'],
+            'khoi': user['khoi'] or '',
+            'bo_phan': user['bo_phan'] or '',
+            'chuc_vu': user['chuc_vu'] or '',
+            'ma_bp': ma_bp_raw,
+            'ma_nvkd_list': nvkd_raw,
+            'email': user['email'] or '',
+            'is_active': user['is_active'],
+        },
+        'permissions': {
+            'allowed_bps': allowed_bps,
+            'ma_nvkd_list': ma_nvkd_list,
+            'dashboards': [
+                {'id': d['id'], 'slug': d['slug'], 'name': d['name'], 'type': d['dashboard_type']}
+                for d in dashboards
+            ],
+        }
+    })
