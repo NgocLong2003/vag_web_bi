@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cảnh báo tồn kho</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include "_sidebar_css.html" %}
+<style>
+:root{
+  --white:#fff;--g0:#f7f8fa;--g1:#eef0f4;--g2:#d8dce6;--g3:#b0b8c9;--g4:#8b95aa;--g5:#5a6478;--g6:#3d4a63;--g7:#1e2a3a;
+  --blue:#1a46c4;--blue-lt:#eef2ff;
+  --emr:#056944;--emr-lt:#eafaf4;
+  --red:#c0392b;--red-lt:#fef2f2;
+  --amber:#b45309;--amber-lt:#fef3c7;
+  --sans:'Nunito Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:13px;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+@supports(height:100dvh){.app{height:100dvh}}
+
+/* ═══ Filter bar ═══ */
+.filter-bar{padding:14px 20px 10px;background:var(--white);border-bottom:1px solid var(--g1);display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0}
+
+.vt-wrap{position:relative;flex:1;max-width:480px;min-width:240px}
+.vt-inp-wrap{position:relative;display:flex;align-items:center}
+.vt-inp-wrap svg.ico{position:absolute;left:10px;width:14px;height:14px;stroke:var(--g4);fill:none;pointer-events:none;z-index:1}
+.vt-inp{width:100%;height:34px;padding:0 36px 0 32px;border:1.5px solid var(--g2);border-radius:7px;font-size:13px;font-family:var(--sans);color:var(--g6);outline:none;background:var(--white);transition:border-color .15s}
+.vt-inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,70,196,.08)}
+.vt-clear{position:absolute;right:8px;width:20px;height:20px;border:none;background:var(--g1);color:var(--g4);font-size:12px;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:50%;padding:0;line-height:1}
+.vt-clear.show{display:flex}
+.vt-clear:hover{background:var(--red-lt);color:var(--red)}
+.vt-suggest{position:absolute;top:100%;left:0;right:0;margin-top:4px;max-height:280px;overflow-y:auto;background:var(--white);border:1px solid var(--g2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:100;display:none;padding:3px 0}
+.vt-suggest.open{display:block}
+.vt-item{padding:7px 12px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--g1)}
+.vt-item:last-child{border-bottom:none}
+.vt-item:hover,.vt-item.hl{background:var(--blue-lt)}
+.vt-item .vt-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.vt-item .vt-code{font-family:var(--sans);font-size:10px;color:var(--g4);flex-shrink:0}
+.vt-item mark{background:#fef08a;padding:0 1px;border-radius:2px;font-style:normal;color:var(--g7)}
+.vt-suggest-empty{padding:14px;text-align:center;color:var(--g3);font-size:12px}
+.vt-suggest-hint{padding:6px 12px;font-size:10px;color:var(--g4);background:var(--g0);border-bottom:1px solid var(--g1);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+
+.date-group{display:flex;align-items:center;gap:6px}
+.date-group label{font-size:11px;font-weight:700;color:var(--g4);text-transform:uppercase;letter-spacing:.03em}
+.date-inp{height:34px;padding:0 10px;border:1.5px solid var(--g2);border-radius:7px;font-size:12px;font-family:var(--sans);color:var(--g6);outline:none;background:var(--white)}
+.date-inp:focus{border-color:var(--blue)}
+
+.dk-pills{display:flex;border:1.5px solid var(--g2);border-radius:7px;overflow:hidden;height:34px}
+.dk-pills button{padding:0 12px;border:none;background:var(--white);font-size:11px;font-weight:700;color:var(--g4);cursor:pointer;font-family:var(--sans);border-right:1px solid var(--g2);transition:.1s}
+.dk-pills button:last-child{border-right:none}
+.dk-pills button:hover{background:var(--g1)}
+.dk-pills button.active{background:var(--blue);color:#fff}
+
+.reload-btn{height:34px;padding:0 14px;border-radius:7px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.reload-btn:hover{opacity:.9}
+.reload-btn:disabled{opacity:.5;cursor:not-allowed}
+.reload-btn svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-linecap:round}
+.reload-btn .spin-mini{width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+
+.stats-wrap{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:11px;color:var(--g4);font-weight:600;flex-wrap:wrap}
+.stat-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--g0);border-radius:12px;border:1px solid var(--g1);white-space:nowrap}
+.stat-chip b{font-family:var(--sans);font-size:12px;color:var(--g6)}
+.stat-chip.danger{background:var(--red-lt);border-color:#fecaca;color:var(--red)}
+.stat-chip.danger b{color:var(--red)}
+.stat-chip.warn{background:var(--amber-lt);border-color:#fde68a;color:var(--amber)}
+.stat-chip.warn b{color:var(--amber)}
+.stat-chip.ok{background:var(--emr-lt);border-color:#a7f3d0;color:var(--emr)}
+.stat-chip.ok b{color:var(--emr)}
+
+/* ═══ Severity pills ═══ */
+.sev-bar{padding:6px 20px 8px;background:var(--white);border-bottom:1px solid var(--g1);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.sev-label{font-size:10px;font-weight:700;color:var(--g4);text-transform:uppercase;letter-spacing:.04em;margin-right:2px}
+.sev-pill{height:26px;padding:0 10px;border:1.5px solid var(--g2);background:var(--white);border-radius:13px;font-size:11px;font-weight:700;color:var(--g5);cursor:pointer;font-family:var(--sans);transition:.1s;display:flex;align-items:center;gap:5px}
+.sev-pill:hover{background:var(--g0)}
+.sev-pill.active{background:var(--g7);color:#fff;border-color:var(--g7)}
+.sev-pill.danger.active{background:var(--red);border-color:var(--red)}
+.sev-pill.warn.active{background:var(--amber);border-color:var(--amber)}
+.sev-pill.ok.active{background:var(--emr);border-color:var(--emr)}
+.sev-pill .sev-dot{width:7px;height:7px;border-radius:50%;background:var(--g3)}
+.sev-pill.danger .sev-dot{background:var(--red)}
+.sev-pill.warn .sev-dot{background:var(--amber)}
+.sev-pill.ok .sev-dot{background:var(--emr)}
+.sev-pill.active .sev-dot{background:#fff}
+
+/* ═══ Table container — centered card with rounded corners ═══ */
+.tbl-outer{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--g0);padding:20px;position:relative;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;align-items:flex-start}
+.tbl-outer::-webkit-scrollbar{width:10px;height:10px}
+.tbl-outer::-webkit-scrollbar-track{background:transparent}
+.tbl-outer::-webkit-scrollbar-thumb{background:var(--g2);border-radius:5px}
+.tbl-outer::-webkit-scrollbar-thumb:hover{background:var(--g3)}
+
+.tbl-card{background:var(--white);border:1px solid var(--g2);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 20px rgba(0,0,0,.04);overflow:hidden;width:max-content;max-width:100%;min-width:min(100%,960px)}
+
+table.data-tbl{border-collapse:separate;border-spacing:0;width:100%}
+table.data-tbl thead th{position:sticky;top:0;z-index:10;background:var(--g0);border-bottom:2px solid var(--g2);padding:0;font-size:10.5px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.04em;text-align:left;white-space:nowrap}
+table.data-tbl thead th > div{padding:12px 16px;display:flex;align-items:center;cursor:pointer;user-select:none;transition:.1s;border-right:1px solid var(--g1)}
+table.data-tbl thead th:last-child > div{border-right:none}
+table.data-tbl thead th > div:hover{background:var(--g1);color:var(--g6)}
+table.data-tbl thead th.right > div{justify-content:flex-end}
+table.data-tbl thead th .sort-ico{margin-left:4px;font-size:9px;opacity:.4}
+table.data-tbl thead th.sorted > div{color:var(--blue);background:var(--blue-lt)}
+table.data-tbl thead th.sorted .sort-ico{opacity:1}
+
+/* Content-visibility — browser-native lazy rendering */
+table.data-tbl tbody tr{
+  content-visibility:auto;
+  contain-intrinsic-size:0 34px;
+  border-bottom:1px solid var(--g1);
+  transition:background .06s;
+}
+table.data-tbl tbody tr:last-child{border-bottom:none}
+table.data-tbl tbody tr:hover{background:var(--g0)}
+
+table.data-tbl tbody td{padding:7px 16px;white-space:nowrap;vertical-align:middle}
+table.data-tbl tbody td.c-ma{font-family:var(--sans);font-size:11px;color:var(--g5);font-weight:600}
+table.data-tbl tbody td.c-ten{font-size:12.5px;color:var(--g7);font-weight:500;max-width:360px;overflow:hidden;text-overflow:ellipsis}
+table.data-tbl tbody td.c-num{text-align:right;font-family:var(--sans);font-size:12px;font-variant-numeric:tabular-nums}
+table.data-tbl tbody td.c-num.neg{color:var(--red);font-weight:600}
+table.data-tbl tbody td.c-num.pos{color:var(--g6)}
+table.data-tbl tbody td.c-num.zero{color:var(--g3)}
+table.data-tbl tbody td.c-chenh{font-weight:800;font-size:12.5px}
+table.data-tbl tbody td.c-chenh.danger{color:var(--red)}
+table.data-tbl tbody td.c-chenh.ok{color:var(--emr)}
+table.data-tbl tbody td.c-chenh.zero{color:var(--g3);font-weight:500}
+table.data-tbl tbody td mark{background:#fef08a;padding:0 1px;border-radius:2px;font-style:normal;color:var(--g7)}
+
+/* State box — overlay trong card */
+.state-box{position:absolute;left:20px;right:20px;top:20px;bottom:20px;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--g4);font-size:13px;background:var(--white);border:1px solid var(--g2);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 20px rgba(0,0,0,.04);z-index:20;padding:20px;text-align:center}
+.state-box.show{display:flex}
+.state-spin{width:28px;height:28px;border:3px solid var(--g1);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state-msg{font-weight:600;color:var(--g5);font-size:14px}
+.state-sub{font-size:11px;color:var(--g3);max-width:380px;line-height:1.5}
+.state-box.err .state-msg{color:var(--red)}
+.state-retry{margin-top:8px;padding:7px 18px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+.state-retry:hover{opacity:.9}
+
+/* Toast */
+#toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none}
+.toast{background:var(--g7);color:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.2);font-size:12px;font-weight:600;animation:si .2s ease;pointer-events:all;max-width:320px}
+.toast.err{background:var(--red)}
+.toast.ok{background:var(--emr)}
+@keyframes si{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+
+/* Mobile */
+@media(max-width:900px){
+  table.data-tbl{font-size:11px}
+  table.data-tbl thead th > div{padding:10px 12px}
+  table.data-tbl tbody td{padding:6px 12px}
+  .filter-bar{padding:10px 12px 8px}
+  .stats-wrap{width:100%;margin-left:0}
+  .tbl-outer{padding:12px}
+  .tbl-card{min-width:100%}
+}
+@media(max-width:640px){
+  table.data-tbl th.hide-sm,
+  table.data-tbl td.hide-sm{display:none}
+  .tbl-outer{padding:8px}
+  .tbl-card{border-radius:10px}
+}
+</style>
+</head>
+<body>
+{% include "_sidebar.html" %}
+<div class="app">
+
+<div class="toolbar-slim">
+  <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+  <div class="v-div"></div>
+  <span class="toolbar-title">{{ dashboard_name }}</span>
+</div>
+
+<div class="filter-bar">
+  <div class="vt-wrap" id="vtWrap">
+    <div class="vt-inp-wrap">
+      <svg class="ico" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+      <input class="vt-inp" id="vtInp" type="text" placeholder="Tìm mã hoặc tên vật tư..." autocomplete="off">
+      <button class="vt-clear" id="vtClear" onclick="clearSearch()" title="Xóa (ESC)">✕</button>
+    </div>
+    <div class="vt-suggest" id="vtSuggest"></div>
+  </div>
+  <div class="date-group">
+    <label>Ngày</label>
+    <input class="date-inp" id="dateInp" type="date">
+  </div>
+  <div class="dk-pills" id="dkPills">
+    <button data-dk="1" onclick="setDk(1,this)">Đầu kỳ</button>
+    <button class="active" data-dk="2" onclick="setDk(2,this)">Cuối kỳ</button>
+  </div>
+  <button class="reload-btn" id="reloadBtn" onclick="loadData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg><span id="reloadLbl">Tải</span></button>
+  <div class="stats-wrap" id="statsWrap"></div>
+</div>
+
+<div class="sev-bar">
+  <span class="sev-label">Lọc mức cảnh báo:</span>
+  <button class="sev-pill active" data-sev="all" onclick="setSev('all',this)">Tất cả</button>
+  <button class="sev-pill danger" data-sev="danger" onclick="setSev('danger',this)"><span class="sev-dot"></span>Thiếu hàng</button>
+  <button class="sev-pill warn" data-sev="warn" onclick="setSev('warn',this)"><span class="sev-dot"></span>Cận an toàn</button>
+  <button class="sev-pill ok" data-sev="ok" onclick="setSev('ok',this)"><span class="sev-dot"></span>Đủ hàng</button>
+  <button class="sev-pill" data-sev="neg" onclick="setSev('neg',this)"><span class="sev-dot"></span>Tồn âm</button>
+</div>
+
+<div class="tbl-outer" id="tblOuter">
+  <div class="tbl-card">
+    <table class="data-tbl" id="dataTbl">
+      <thead>
+        <tr>
+          <th data-sort="ma_vt"><div onclick="sortBy('ma_vt')">Mã VT<span class="sort-ico">↕</span></div></th>
+          <th data-sort="ten_vt"><div onclick="sortBy('ten_vt')">Tên vật tư<span class="sort-ico">↕</span></div></th>
+          <th data-sort="so_luong" class="right hide-sm"><div onclick="sortBy('so_luong')">Số lượng<span class="sort-ico">↕</span></div></th>
+          <th data-sort="tam_nhap" class="right hide-sm"><div onclick="sortBy('tam_nhap')">Tạm nhập<span class="sort-ico">↕</span></div></th>
+          <th data-sort="ton_kho_thuc" class="right"><div onclick="sortBy('ton_kho_thuc')">Tồn thực<span class="sort-ico">↕</span></div></th>
+          <th data-sort="sl_antoan" class="right"><div onclick="sortBy('sl_antoan')">SL an toàn<span class="sort-ico">↕</span></div></th>
+          <th data-sort="chenh_lech" class="right sorted"><div onclick="sortBy('chenh_lech')">Chênh lệch<span class="sort-ico">↓</span></div></th>
+        </tr>
+      </thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+  </div>
+  <div class="state-box" id="stateBox"></div>
+</div>
+
+</div>
+<div id="toasts"></div>
+
+{% include "_sidebar_js.html" %}
+<script>
+(function(){
+'use strict';
+var API='/reports/canh-bao-ton-kho';
+
+// ─── State ───
+var rawData=[];
+var filtered=[];
+var sortCol='chenh_lech';
+var sortDir='desc';
+var severity='all';
+var searchQ='';
+var selectedDk=2;
+var vtList=[];
+var loading=false;
+
+// ─── Utils ───
+var FMT=new Intl.NumberFormat('vi-VN',{minimumFractionDigits:0,maximumFractionDigits:4});
+var FMT_INT=new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0});
+function fN(v){
+  if(v==null||isNaN(v))return'';
+  var abs=Math.abs(v);
+  if(abs===Math.floor(abs))return FMT_INT.format(v);
+  return FMT.format(v);
+}
+function esc(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function escAttr(s){return esc(s).replace(/"/g,'&quot;')}
+function toast(m,type){var e=document.createElement('div');e.className='toast '+(type||'');e.textContent=m;document.getElementById('toasts').appendChild(e);setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3000)}
+
+function classifyRow(r){
+  return{
+    is_neg: r.ton_kho_thuc < 0,
+    is_danger: r.chenh_lech > 0,
+    is_warn: r.chenh_lech === 0 && r.sl_antoan > 0,
+    is_ok: r.chenh_lech < 0,
+  };
+}
+
+// ─── Init date ───
+(function initDate(){
+  var d=new Date();
+  document.getElementById('dateInp').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+})();
+
+// ─── State box helpers ───
+function showState(kind, msg, sub, btnLabel){
+  var box=document.getElementById('stateBox');
+  box.classList.remove('err');
+  if(kind==='err')box.classList.add('err');
+  var html='';
+  if(kind==='loading')html+='<div class="state-spin"></div>';
+  html+='<div class="state-msg">'+esc(msg)+'</div>';
+  if(sub)html+='<div class="state-sub">'+esc(sub)+'</div>';
+  if(btnLabel)html+='<button class="state-retry" onclick="loadData()">'+esc(btnLabel)+'</button>';
+  box.innerHTML=html;
+  box.classList.add('show');
+}
+function hideState(){
+  document.getElementById('stateBox').classList.remove('show');
+}
+
+// ─── Handlers ───
+window.setDk=function(v,btn){
+  selectedDk=v;
+  btn.parentElement.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+};
+
+window.setSev=function(s,btn){
+  severity=s;
+  btn.parentElement.querySelectorAll('.sev-pill').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  document.getElementById('tblOuter').scrollTop=0;
+  applyFilter();
+};
+
+window.sortBy=function(col){
+  if(sortCol===col){
+    sortDir=sortDir==='asc'?'desc':'asc';
+  }else{
+    sortCol=col;
+    sortDir=(col==='ma_vt'||col==='ten_vt')?'asc':'desc';
+  }
+  updateSortHeaders();
+  document.getElementById('tblOuter').scrollTop=0;
+  applyFilter();
+};
+
+function updateSortHeaders(){
+  document.querySelectorAll('.data-tbl thead th').forEach(function(th){
+    var col=th.getAttribute('data-sort');
+    var ico=th.querySelector('.sort-ico');
+    if(col===sortCol){
+      th.classList.add('sorted');
+      if(ico)ico.textContent=sortDir==='asc'?'↑':'↓';
+    }else{
+      th.classList.remove('sorted');
+      if(ico)ico.textContent='↕';
+    }
+  });
+}
+
+// ─── Filter + Sort ───
+function applyFilter(){
+  var q=searchQ.toLowerCase().trim();
+  var sev=severity;
+  var out=[];
+  for(var i=0;i<rawData.length;i++){
+    var r=rawData[i];
+    if(sev!=='all'){
+      var cls=classifyRow(r);
+      if(sev==='neg'&&!cls.is_neg)continue;
+      if(sev==='danger'&&!cls.is_danger)continue;
+      if(sev==='warn'&&!cls.is_warn)continue;
+      if(sev==='ok'&&!cls.is_ok)continue;
+    }
+    if(q){
+      var ma=(r.ma_vt||'').toLowerCase();
+      var ten=(r.ten_vt||'').toLowerCase();
+      if(ma.indexOf(q)<0&&ten.indexOf(q)<0)continue;
+    }
+    out.push(r);
+  }
+  var dir=sortDir==='asc'?1:-1;
+  var col=sortCol;
+  var isStr=(col==='ma_vt'||col==='ten_vt');
+  out.sort(function(a,b){
+    var va=a[col],vb=b[col];
+    if(isStr){
+      va=(va||'').toString();vb=(vb||'').toString();
+      return va.localeCompare(vb,'vi')*dir;
+    }
+    va=+va||0;vb=+vb||0;
+    return (va-vb)*dir;
+  });
+  filtered=out;
+  renderBody();
+  renderStats();
+}
+
+function renderStats(){
+  if(rawData.length===0){document.getElementById('statsWrap').innerHTML='';return}
+  var cNeg=0,cDanger=0,cWarn=0,cOk=0;
+  for(var i=0;i<rawData.length;i++){
+    var cls=classifyRow(rawData[i]);
+    if(cls.is_neg)cNeg++;
+    if(cls.is_danger)cDanger++;
+    else if(cls.is_warn)cWarn++;
+    else if(cls.is_ok)cOk++;
+  }
+  var html='';
+  html+='<span class="stat-chip">Hiển thị <b>'+FMT_INT.format(filtered.length)+'</b>/'+FMT_INT.format(rawData.length)+'</span>';
+  html+='<span class="stat-chip danger">Thiếu <b>'+FMT_INT.format(cDanger)+'</b></span>';
+  html+='<span class="stat-chip warn">Cận <b>'+FMT_INT.format(cWarn)+'</b></span>';
+  html+='<span class="stat-chip ok">Đủ <b>'+FMT_INT.format(cOk)+'</b></span>';
+  if(cNeg>0)html+='<span class="stat-chip danger">Tồn âm <b>'+FMT_INT.format(cNeg)+'</b></span>';
+  document.getElementById('statsWrap').innerHTML=html;
+}
+
+// ─── Render body — build tất cả rows 1 lần, CSS content-visibility sẽ lazy-render ───
+function renderBody(){
+  var tbody=document.getElementById('tblBody');
+
+  if(filtered.length===0){
+    tbody.innerHTML='';
+    if(rawData.length===0){
+      showState('empty','Chưa có dữ liệu','Nhấn "Tải" để xem tồn kho','Tải lại');
+    }else{
+      showState('empty','Không có vật tư nào khớp','Thử điều chỉnh tìm kiếm hoặc mức cảnh báo');
+    }
+    return;
+  }
+
+  hideState();
+
+  var q=searchQ.toLowerCase().trim();
+  var parts=new Array(filtered.length);
+  for(var i=0;i<filtered.length;i++){
+    parts[i]=buildRowHTML(filtered[i],q);
+  }
+  // innerHTML 1 lần — nhanh hơn nhiều so với appendChild lặp
+  tbody.innerHTML=parts.join('');
+}
+
+function buildRowHTML(r,q){
+  var ma=r.ma_vt||'';
+  var ten=r.ten_vt||'';
+  if(q){
+    ma=highlight(ma,q);
+    ten=highlight(ten,q);
+  }else{
+    ma=esc(ma);
+    ten=esc(ten);
+  }
+
+  function numCls(v){if(v<0)return'neg';if(v===0)return'zero';return'pos'}
+  function chenhCls(v){
+    if(v===0)return'zero';
+    if(v>0)return'danger';
+    return'ok';
+  }
+
+  return'<tr>'
+    +'<td class="c-ma" title="'+escAttr(r.ma_vt)+'">'+ma+'</td>'
+    +'<td class="c-ten" title="'+escAttr(r.ten_vt)+'">'+ten+'</td>'
+    +'<td class="c-num hide-sm '+numCls(r.so_luong)+'">'+fN(r.so_luong)+'</td>'
+    +'<td class="c-num hide-sm '+numCls(r.tam_nhap)+'">'+fN(r.tam_nhap)+'</td>'
+    +'<td class="c-num '+numCls(r.ton_kho_thuc)+'">'+fN(r.ton_kho_thuc)+'</td>'
+    +'<td class="c-num '+numCls(r.sl_antoan)+'">'+fN(r.sl_antoan)+'</td>'
+    +'<td class="c-num c-chenh '+chenhCls(r.chenh_lech)+'">'+fN(r.chenh_lech)+'</td>'
+    +'</tr>';
+}
+
+function highlight(text,q){
+  if(!q)return esc(text);
+  var lower=text.toLowerCase();
+  var idx=lower.indexOf(q);
+  if(idx<0)return esc(text);
+  return esc(text.substring(0,idx))+'<mark>'+esc(text.substring(idx,idx+q.length))+'</mark>'+esc(text.substring(idx+q.length));
+}
+
+// ═══════════════════════════════════════════════════
+// VT SEARCH — Autocomplete
+// ═══════════════════════════════════════════════════
+var vtHl=-1;
+
+function renderVtSuggest(q){
+  var box=document.getElementById('vtSuggest');
+  q=(q||'').toLowerCase().trim();
+  var pool=rawData.length>0?rawData:vtList;
+  var isFromRaw=rawData.length>0;
+
+  if(!pool.length){
+    box.classList.remove('open');
+    return;
+  }
+
+  if(!q){
+    if(rawData.length===0){
+      box.classList.remove('open');
+      return;
+    }
+    box.innerHTML='<div class="vt-suggest-hint">Gợi ý — '+Math.min(15,pool.length)+' vật tư đầu</div>'
+      + pool.slice(0,15).map(function(v){
+          return '<div class="vt-item" onclick="pickVt(\''+(v.ma_vt||'').replace(/'/g,"\\'")+'\')">'
+            +'<span class="vt-name">'+esc(v.ten_vt||'')+'</span>'
+            +'<span class="vt-code">'+esc(v.ma_vt||'')+'</span></div>';
+        }).join('');
+    box.classList.add('open');
+    vtHl=-1;
+    return;
+  }
+
+  var matches=[];
+  for(var i=0;i<pool.length&&matches.length<30;i++){
+    var v=pool[i];
+    var ma=(v.ma_vt||'').toLowerCase();
+    var ten=(v.ten_vt||'').toLowerCase();
+    if(ma.indexOf(q)>=0||ten.indexOf(q)>=0)matches.push(v);
+  }
+
+  if(!matches.length){
+    box.innerHTML='<div class="vt-suggest-empty">Không tìm thấy vật tư khớp "'+esc(q)+'"</div>';
+    box.classList.add('open');
+    vtHl=-1;
+    return;
+  }
+
+  var hint=isFromRaw?'Trong bảng — '+matches.length+' kết quả':'Toàn danh mục — '+matches.length+' kết quả';
+  box.innerHTML='<div class="vt-suggest-hint">'+hint+'</div>'
+    + matches.map(function(v){
+        return '<div class="vt-item" onclick="pickVt(\''+(v.ma_vt||'').replace(/'/g,"\\'")+'\')">'
+          +'<span class="vt-name">'+hlMark(v.ten_vt||'',q)+'</span>'
+          +'<span class="vt-code">'+hlMark(v.ma_vt||'',q)+'</span></div>';
+      }).join('');
+  box.classList.add('open');
+  vtHl=-1;
+}
+
+function hlMark(text,q){
+  if(!q)return esc(text);
+  var lower=text.toLowerCase();
+  var idx=lower.indexOf(q);
+  if(idx<0)return esc(text);
+  return esc(text.substring(0,idx))+'<mark>'+esc(text.substring(idx,idx+q.length))+'</mark>'+esc(text.substring(idx+q.length));
+}
+
+window.pickVt=function(ma_vt){
+  document.getElementById('vtInp').value=ma_vt;
+  document.getElementById('vtClear').classList.add('show');
+  document.getElementById('vtSuggest').classList.remove('open');
+  searchQ=ma_vt;
+  document.getElementById('tblOuter').scrollTop=0;
+  applyFilter();
+};
+
+function moveHl(delta){
+  var items=document.querySelectorAll('#vtSuggest .vt-item');
+  if(!items.length)return;
+  vtHl=(vtHl+delta+items.length)%items.length;
+  items.forEach(function(el,i){el.classList.toggle('hl',i===vtHl)});
+  var el=items[vtHl];
+  if(el)el.scrollIntoView({block:'nearest'});
+}
+function pickHl(){
+  var items=document.querySelectorAll('#vtSuggest .vt-item');
+  if(vtHl>=0&&items[vtHl])items[vtHl].click();
+}
+
+// Search wiring
+var searchTimer=null;
+var vtInp=document.getElementById('vtInp');
+
+vtInp.addEventListener('input',function(e){
+  var v=e.target.value;
+  document.getElementById('vtClear').classList.toggle('show',!!v);
+  renderVtSuggest(v);
+  if(searchTimer)clearTimeout(searchTimer);
+  searchTimer=setTimeout(function(){
+    searchQ=v;
+    document.getElementById('tblOuter').scrollTop=0;
+    applyFilter();
+  },120);
+});
+
+vtInp.addEventListener('focus',function(){renderVtSuggest(this.value)});
+
+vtInp.addEventListener('keydown',function(e){
+  var box=document.getElementById('vtSuggest');
+  if(e.key==='ArrowDown'){e.preventDefault();if(!box.classList.contains('open'))renderVtSuggest(this.value);else moveHl(1)}
+  else if(e.key==='ArrowUp'){e.preventDefault();moveHl(-1)}
+  else if(e.key==='Enter'){e.preventDefault();if(box.classList.contains('open')&&vtHl>=0)pickHl();else{searchQ=this.value;applyFilter();box.classList.remove('open')}}
+  else if(e.key==='Escape'){if(this.value)clearSearch();else box.classList.remove('open')}
+});
+
+window.clearSearch=function(){
+  vtInp.value='';
+  vtInp.focus();
+  searchQ='';
+  document.getElementById('vtClear').classList.remove('show');
+  document.getElementById('vtSuggest').classList.remove('open');
+  document.getElementById('tblOuter').scrollTop=0;
+  applyFilter();
+};
+
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.vt-wrap'))document.getElementById('vtSuggest').classList.remove('open');
+});
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();vtInp.focus();vtInp.select()}
+});
+
+// ─── Load vật tư danh mục ───
+function loadVattu(){
+  fetch(API+'/api/vattu').then(function(r){return r.json()}).then(function(d){
+    if(d.ok)vtList=d.items||[];
+  }).catch(function(){});
+}
+
+// ─── Load data ───
+window.loadData=function(){
+  if(loading)return;
+  var ngay=document.getElementById('dateInp').value;
+  if(!ngay){toast('Chọn ngày','err');return}
+
+  loading=true;
+  showState('loading','Đang tải dữ liệu tồn kho...','Truy vấn ngày '+ngay);
+
+  var btn=document.getElementById('reloadBtn');
+  btn.disabled=true;
+  document.getElementById('reloadLbl').innerHTML='<span class="spin-mini"></span>';
+
+  var t0=performance.now();
+  fetch(API+'/api/data?ngay='+encodeURIComponent(ngay)+'&dk_ck='+selectedDk)
+    .then(function(r){
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return r.json();
+    })
+    .then(function(d){
+      var ms=Math.round(performance.now()-t0);
+      if(!d.ok){
+        showState('err','Lỗi tải dữ liệu',d.error||'Không rõ','Thử lại');
+        return;
+      }
+      rawData=d.rows||[];
+      if(rawData.length===0){
+        showState('empty','Không có dữ liệu','Thử đổi ngày hoặc chế độ đầu/cuối kỳ','Tải lại');
+        filtered=[];renderStats();return;
+      }
+      var srvMs=d.elapsed_ms||0;
+      toast('Tải '+FMT_INT.format(rawData.length)+' dòng (server '+srvMs+'ms)','ok');
+      applyFilter();
+    })
+    .catch(function(e){
+      console.error('[cbtk] loadData error:',e);
+      showState('err','Lỗi kết nối',e.message||String(e),'Thử lại');
+    })
+    .finally(function(){
+      loading=false;
+      btn.disabled=false;
+      document.getElementById('reloadLbl').textContent='Tải';
+    });
+};
+
+// Auto-load on mount
+document.addEventListener('DOMContentLoaded',function(){
+  updateSortHeaders();
+  loadVattu();
+  loadData();
+});
+
+})();
+</script>
+</body>
+</html>

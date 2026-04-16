@@ -80,3 +80,8 @@ register_report('bao-cao-kpi', bckpi_bp, 'baocao_kpi/baocao_kpi.html',
 from reports.san_xuat.baocao_nguyenlieu import bp as bcnl_bp
 register_report('bao-cao-nguyen-lieu', bcnl_bp, 'san_xuat/baocao_nguyenlieu/baocao_nguyenlieu.html',
                 datasource='sanxuat', category='Sản xuất')
+
+from reports.san_xuat.canhbao_tonkho import bp as cbtk_bp
+register_report('canh-bao-ton-kho', cbtk_bp,
+                'san_xuat/canhbao_tonkho/canhbao_tonkho.html',
+                datasource='sanxuat', category='Sản xuất')
