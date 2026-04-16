@@ -57,6 +57,16 @@ DATASOURCES = {
         'driver': 'ODBC Driver 17 for SQL Server',
         'pool_size': 3,
     },
+    'warehouse': {
+        'type': 'sqlserver',
+        'server': '192.168.4.17',
+        'port': '1433',
+        'database': 'VietAnhBI',
+        'username': 'sa',
+        'password': '123456a@',
+        'driver': 'ODBC Driver 17 for SQL Server',
+        'pool_size': 3,
+    },
 }
 
 DEFAULT_ADMIN_USER = 'admin'

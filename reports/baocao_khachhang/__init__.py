@@ -2,7 +2,8 @@
 Báo cáo Khách Hàng — Blueprint (DuckDB version)
 API prefix: /reports/bao-cao-khach-hang/api/...
 """
-from flask import Blueprint, jsonify, request, send_file, current_app
+from flask import Blueprint, request, send_file, current_app
+from api_logger import api_response, set_api_result
 from datetime import datetime, date
 import logging
 
@@ -26,10 +27,10 @@ def get_store():
 def api_ky_bao_cao():
     try:
         data = get_store().query(load_sql('KY_BAO_CAO_DUCK'))
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data))
     except Exception as e:
         logger.error(f"[ky_bao_cao] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -39,10 +40,10 @@ def api_ky_bao_cao():
 def api_hierarchy():
     try:
         data = get_store().query(load_sql('HIERARCHY_CTE_DUCK'))
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data))
     except Exception as e:
         logger.error(f"[hierarchy] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -52,10 +53,10 @@ def api_hierarchy():
 def api_khachhang():
     try:
         data = get_store().query(load_sql('KHACHHANG_DUCK'))
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data))
     except Exception as e:
         logger.error(f"[khachhang] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -70,11 +71,11 @@ def api_congno():
     ds_kh = body.get('ds_kh', '')
 
     if not ngay_cut:
-        return jsonify({'success': False, 'error': 'Thiếu ngay_cut'}), 400
+        return api_response(ok=False, error='Thiếu ngay_cut', status_code=400)
     try:
         start_y = datetime.strptime(ngay_cut, '%Y-%m-%d').year
     except ValueError:
-        return jsonify({'success': False, 'error': 'ngay_cut không hợp lệ'}), 400
+        return api_response(ok=False, error='ngay_cut không hợp lệ', status_code=400)
 
     try:
         data = get_store().query(
@@ -85,11 +86,11 @@ def api_congno():
             for k in ('so_du_ban_dau', 'tong_phatsinh', 'du_no_ck'):
                 if d.get(k) is not None:
                     d[k] = float(d[k])
-        logger.info(f"[BCKH congno] Returned {len(data)} rows")
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_cut': ngay_cut, 'ma_bp': ma_bp})
     except Exception as e:
         logger.error(f"[BCKH congno] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -105,7 +106,7 @@ def api_doanhso():
     ds_kh = body.get('ds_kh', '')
 
     if not ngay_a or not ngay_b:
-        return jsonify({'success': False, 'error': 'Thiếu ngay_a hoặc ngay_b'}), 400
+        return api_response(ok=False, error='Thiếu ngay_a hoặc ngay_b', status_code=400)
 
     try:
         data = get_store().query(
@@ -116,11 +117,11 @@ def api_doanhso():
             for k in ('tong_so_luong', 'tong_tien_nt2', 'tong_tien_ck_nt', 'tong_thue_gtgt_nt', 'tong_doanhso'):
                 if d.get(k) is not None:
                     d[k] = float(d[k])
-        logger.info(f"[BCKH doanhso] Returned {len(data)} rows")
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_a': ngay_a, 'ngay_b': ngay_b, 'ma_bp': ma_bp})
     except Exception as e:
         logger.error(f"[BCKH doanhso] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -138,7 +139,7 @@ def api_doanhthu():
     ds_kh = body.get('ds_kh', '')
 
     if not ngay_a or not ngay_b:
-        return jsonify({'success': False, 'error': 'Thiếu ngay_a hoặc ngay_b'}), 400
+        return api_response(ok=False, error='Thiếu ngay_a hoặc ngay_b', status_code=400)
 
     try:
         data = get_store().query(
@@ -149,11 +150,11 @@ def api_doanhthu():
         for d in data:
             if d.get('doanhthu') is not None:
                 d['doanhthu'] = float(d['doanhthu'])
-        logger.info(f"[BCKH doanhthu] Returned {len(data)} rows")
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_a': ngay_a, 'ngay_b': ngay_b, 'ma_bp': ma_bp})
     except Exception as e:
         logger.error(f"[BCKH doanhthu] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -171,7 +172,7 @@ def api_dunotrongky():
     ds_kh = body.get('ds_kh', '')
 
     if not ngay_a_hang or not ngay_b_hang or not ngay_a_tien or not ngay_b_tien:
-        return jsonify({'success': False, 'error': 'Thiếu ngày'}), 400
+        return api_response(ok=False, error='Thiếu ngày', status_code=400)
 
     try:
         data = get_store().query(
@@ -183,11 +184,11 @@ def api_dunotrongky():
             for k in ('ban_ra', 'tra_ve', 'dt_thuong', 'du_no_trong_ky'):
                 if d.get(k) is not None:
                     d[k] = float(d[k])
-        logger.info(f"[BCKH dunotrongky] Returned {len(data)} rows")
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ma_bp': ma_bp})
     except Exception as e:
         logger.error(f"[BCKH dunotrongky] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -204,11 +205,11 @@ def api_dunocuoiky():
     ds_kh = body.get('ds_kh', '')
 
     if not ngay_cut:
-        return jsonify({'success': False, 'error': 'Thiếu ngay_cut'}), 400
+        return api_response(ok=False, error='Thiếu ngay_cut', status_code=400)
     try:
         start_y = datetime.strptime(ngay_cut, '%Y-%m-%d').year
     except ValueError:
-        return jsonify({'success': False, 'error': 'ngay_cut không hợp lệ'}), 400
+        return api_response(ok=False, error='ngay_cut không hợp lệ', status_code=400)
 
     has_lk = 1 if (ngay_a_lk and ngay_b_lk) else 0
 
@@ -222,11 +223,11 @@ def api_dunocuoiky():
             for k in ('du_no', 'ban_ra_lk', 'tra_ve_lk', 'du_no_cuoi_ky'):
                 if d.get(k) is not None:
                     d[k] = float(d[k])
-        logger.info(f"[BCKH dunocuoiky] Returned {len(data)} rows")
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_cut': ngay_cut, 'ma_bp': ma_bp})
     except Exception as e:
         logger.error(f"[BCKH dunocuoiky] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -239,7 +240,7 @@ def api_doanhso_chitiet():
     ngay_b = body.get('ngay_b', '')
     ma_kh = body.get('ma_kh', '')
     if not ngay_a or not ngay_b or not ma_kh:
-        return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
+        return api_response(ok=False, error='Thiếu tham số', status_code=400)
 
     try:
         data = get_store().query(
@@ -250,10 +251,11 @@ def api_doanhso_chitiet():
             for k in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'doanhso'):
                 if d.get(k) is not None:
                     d[k] = float(d[k])
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ma_kh': ma_kh})
     except Exception as e:
         logger.error(f"[BCKH ds_chitiet] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -266,7 +268,7 @@ def api_doanhthu_chitiet():
     ngay_b = body.get('ngay_b', '')
     ma_kh = body.get('ma_kh', '')
     if not ngay_a or not ngay_b or not ma_kh:
-        return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
+        return api_response(ok=False, error='Thiếu tham số', status_code=400)
 
     try:
         data = get_store().query(
@@ -276,10 +278,11 @@ def api_doanhthu_chitiet():
         for d in data:
             if d.get('doanhthu') is not None:
                 d['doanhthu'] = float(d['doanhthu'])
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ma_kh': ma_kh})
     except Exception as e:
         logger.error(f"[BCKH dt_chitiet] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -292,7 +295,7 @@ def api_thuong_chitiet():
     ngay_b = body.get('ngay_b', '')
     ma_kh = body.get('ma_kh', '')
     if not ngay_a or not ngay_b or not ma_kh:
-        return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
+        return api_response(ok=False, error='Thiếu tham số', status_code=400)
 
     try:
         data = get_store().query(
@@ -302,10 +305,11 @@ def api_thuong_chitiet():
         for d in data:
             if d.get('thuong') is not None:
                 d['thuong'] = float(d['thuong'])
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ma_kh': ma_kh})
     except Exception as e:
         logger.error(f"[BCKH thuong_chitiet] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -318,7 +322,7 @@ def api_tralai_chitiet():
     ngay_b = body.get('ngay_b', '')
     ma_kh = body.get('ma_kh', '')
     if not ngay_a or not ngay_b or not ma_kh:
-        return jsonify({'success': False, 'error': 'Thiếu tham số'}), 400
+        return api_response(ok=False, error='Thiếu tham số', status_code=400)
 
     try:
         data = get_store().query(
@@ -329,14 +333,15 @@ def api_tralai_chitiet():
             for k in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'tralai'):
                 if d.get(k) is not None:
                     d[k] = float(d[k])
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ma_kh': ma_kh})
     except Exception as e:
         logger.error(f"[BCKH tralai_chitiet] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
-# API: Export Excel (giữ nguyên logic)
+# API: Export Excel
 # ─────────────────────────────────────────
 @bp.route('/api/export_excel', methods=['POST'])
 def api_export_excel():
@@ -351,7 +356,7 @@ def api_export_excel():
     kbc_name = body.get('kbc_name', '')
 
     if not rows:
-        return jsonify({'success': False, 'error': 'Không có dữ liệu'}), 400
+        return api_response(ok=False, error='Không có dữ liệu', status_code=400)
 
     max_nv_depth = max((r.get('depth', 0) for r in rows if r.get('type') == 'nv'), default=0)
     nv_cols = max_nv_depth + 1
@@ -457,6 +462,13 @@ def api_export_excel():
     buf.seek(0)
     now = datetime.now()
     filename = f'BaoCaoKH{"_" + kbc_name if kbc_name else ""}_{now.strftime("%Y%m%d")}.xlsx'
+
+    set_api_result(
+        status='ok',
+        row_count=len(rows),
+        meta={'export': filename, 'kbc_name': kbc_name}
+    )
+
     return send_file(buf,
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=filename)

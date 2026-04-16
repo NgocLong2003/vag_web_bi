@@ -1,5 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@shared/auth/AuthProvider'
+import { SettingsModal } from '@shared/ui/modals/SettingsModal'
+import { HelpModal } from '@shared/ui/modals/HelpModal'
 import {
   Star,
   Bell,
@@ -79,6 +81,7 @@ export function Header({
   const [fullscreen, setFullscreen] = useState(false)
   const [openDD, setOpenDD] = useState<string | null>(null)
   const [dbSearch, setDbSearch] = useState('')
+  const [modal, setModal] = useState<'settings' | 'help' | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   const closeAll = useCallback(() => {
@@ -131,6 +134,7 @@ export function Header({
     .toUpperCase()
 
   return (
+    <>
     <div ref={ref} className="hdr-area">
       {/* ══ LEFT PILL ══ */}
       <div className="pill pill-l">
@@ -317,20 +321,20 @@ export function Header({
                 <div className="av-hdr-role">{user?.chucVu} · {user?.boPhan}</div>
               </div>
               <div className="av-body">
-                <Link to="/settings" className="av-item" onClick={closeAll}>
-                  <Settings className="h-4 w-4" /> Cài đặt
-                </Link>
+                <div className="av-item" onClick={() => { closeAll(); setModal('settings') }}>
+                  <Settings className="h-4 w-4" /> Cai dat
+                </div>
                 {user?.role === 'admin' && (
-                  <Link to="/admin" className="av-item" onClick={closeAll}>
-                    <Shield className="h-4 w-4" /> Quản trị
-                  </Link>
+                  <div className="av-item" onClick={() => { closeAll(); navigate('/admin') }}>
+                    <Shield className="h-4 w-4" /> Quan tri
+                  </div>
                 )}
-                <div className="av-item">
-                  <HelpCircle className="h-4 w-4" /> Trợ giúp
+                <div className="av-item" onClick={() => { closeAll(); setModal('help') }}>
+                  <HelpCircle className="h-4 w-4" /> Tro giup
                 </div>
                 <div className="av-divider" />
                 <div className="av-item danger" onClick={logout}>
-                  <LogOut className="h-4 w-4" /> Đăng xuất
+                  <LogOut className="h-4 w-4" /> Dang xuat
                 </div>
               </div>
             </div>
@@ -338,5 +342,10 @@ export function Header({
         </div>
       </div>
     </div>
+
+    {/* ══ Settings Modal ══ */}
+    <SettingsModal open={modal === 'settings'} onClose={() => setModal(null)} />
+    <HelpModal open={modal === 'help'} onClose={() => setModal(null)} />
+    </>
   )
 }

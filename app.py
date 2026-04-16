@@ -22,6 +22,7 @@ import time
 import json
 from pathlib import Path
 
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(name)s] %(levelname)s %(message)s'
@@ -152,6 +153,8 @@ from auth.routes import bp as auth_bp;       app.register_blueprint(auth_bp)
 from dashboard import bp as dash_bp;         app.register_blueprint(dash_bp)
 from admin import bp as admin_bp;            app.register_blueprint(admin_bp)
 from analytics import bp as analytics_bp;    app.register_blueprint(analytics_bp)
+from api_logger import init_api_logger
+init_api_logger(app, ds_name='warehouse')
 
 from reports import get_all_blueprints
 for slug, report_bp in get_all_blueprints():

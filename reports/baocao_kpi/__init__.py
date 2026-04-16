@@ -3,7 +3,8 @@ Báo cáo KPI — Blueprint
 So sánh doanh thu/doanh số thực tế vs KPI đăng ký, hiển thị dạng tree graph.
 API prefix: /reports/bao-cao-kpi/api/...
 """
-from flask import Blueprint, jsonify, request, render_template, current_app
+from flask import Blueprint, request, render_template, current_app
+from api_logger import api_response
 import logging
 
 logger = logging.getLogger(__name__)
@@ -47,10 +48,15 @@ def index():
 @bp.route('/api/kbc')
 def api_kbc():
     """Trả về danh sách kỳ báo cáo."""
-    from database import get_db
-    db = get_db()
-    kbc = db.execute('SELECT * FROM ky_bao_cao ORDER BY sort_order, id').fetchall()
-    return jsonify({'data': [dict(r) for r in kbc]})
+    try:
+        from database import get_db
+        db = get_db()
+        kbc = db.execute('SELECT * FROM ky_bao_cao ORDER BY sort_order, id').fetchall()
+        data = [dict(r) for r in kbc]
+        return api_response(ok=True, data=data, count=len(data))
+    except Exception as e:
+        logger.error(f'bckpi kbc error: {e}')
+        return api_response(ok=False, error=str(e))
 
 
 @bp.route('/api/data')
@@ -58,8 +64,8 @@ def api_data():
     """Trả về: KPI targets (tree) + doanh thu thực tế + tháng làm việc."""
     ma_kbc_list = request.args.getlist('ma_kbc')
     ma_bp = request.args.get('ma_bp', '').strip()
-    metric = request.args.get('metric', 'dt')   # dt or ds
-    scope = request.args.get('scope', 'nb')      # nb or cty
+    metric = request.args.get('metric', 'dt')
+    scope = request.args.get('scope', 'nb')
 
     kbcs = []
     for k in ma_kbc_list:
@@ -69,7 +75,7 @@ def api_data():
                 kbcs.append(part)
 
     if not kbcs:
-        return jsonify({'ok': True, 'nodes': []})
+        return api_response(ok=True, nodes=[], meta={'kbcs': [], 'metric': metric})
 
     try:
         # ═══════════════════════════════════════════════════
@@ -143,14 +149,12 @@ def api_data():
 
         # ═══════════════════════════════════════════════════
         # 3. Load actual revenue/sales from DuckDB
-        #    + thu thập actual_bp_map (ma_nvkd → ma_bp)
         # ═══════════════════════════════════════════════════
         store = get_store()
         actual_per_nvkd = {}
         actual_per_bp = {}
-        actual_bp_map = {}   # ma_nvkd → ma_bp (từ kết quả DuckDB)
+        actual_bp_map = {}
 
-        # Lưu date bounds để dùng ở block 4a
         min_a = max_a = min_b = max_b = min_ds = max_ds = None
 
         try:
@@ -198,7 +202,6 @@ def api_data():
                             if bp_c and ma_nv not in actual_bp_map:
                                 actual_bp_map[ma_nv] = bp_c
 
-                    # BP-level actual (doanh thu theo bộ phận)
                     bp_date_cond = f"(ma_bp IN ('VA','VB','SF') AND ngay_ct >= '{min_a}' AND ngay_ct <= '{max_a}')"
                     if min_b:
                         bp_date_cond += f" OR (ma_bp NOT IN ('VA','VB','SF') AND ngay_ct >= '{min_b}' AND ngay_ct <= '{max_b}')"
@@ -237,17 +240,11 @@ def api_data():
 
         # ═══════════════════════════════════════════════════
         # 4a. NVKD có actual nhưng không trong phân công
-        #     → check dim_nhanvien_history (SCD2) tại thời
-        #       điểm kỳ báo cáo để biết ma_ql
-        #     → nếu ma_ql có trong tree → tạo node con
-        #     → nếu không → gom vào "Khác" (bp+99)
         # ═══════════════════════════════════════════════════
         missing_nvkds = set(actual_per_nvkd.keys()) - set(seen.keys())
         if missing_nvkds:
             ref_date = max_b or max_a or max_ds
 
-            # Query dim_nhanvien_history để biết ma_ql, stt_nhom
-            # tại thời điểm ref_date
             nv_found = {}
             if ref_date:
                 try:
@@ -273,8 +270,7 @@ def api_data():
                 except Exception as e:
                     logger.warning(f'Could not query dim_nhanvien_history: {e}')
 
-            # Phân loại missing NVKDs
-            khac_extra = {}  # bp_code → tổng actual cần gom vào "Khác"
+            khac_extra = {}
             remove_from_actual = []
 
             for mx in missing_nvkds:
@@ -285,7 +281,6 @@ def api_data():
 
                 nv = nv_found.get(mx)
                 if nv and nv['ma_ql'] and nv['ma_ql'] in seen:
-                    # Case 1: quản lý có trong tree → tạo node con
                     seen[mx] = {
                         'ma_nvkd': mx,
                         'ten_nvkd': nv['ten_nvkd'],
@@ -296,14 +291,11 @@ def api_data():
                     kpi_sum[mx] = 0
                     kpi_nb_sum[mx] = 0
                     kpi_cty_sum[mx] = 0
-                    # actual_per_nvkd[mx] giữ nguyên → tree walk sẽ tính
                 else:
-                    # Case 2: không tìm được quản lý → gom vào "Khác"
                     khac_node = bp_code + '99'
                     khac_extra[khac_node] = khac_extra.get(khac_node, 0) + actual_per_nvkd.get(mx, 0)
                     remove_from_actual.append(mx)
 
-            # Gom actual vào "Khác" + xóa missing keys
             for khac_node, val in khac_extra.items():
                 actual_per_nvkd[khac_node] = actual_per_nvkd.get(khac_node, 0) + val
             for mx in remove_from_actual:
@@ -402,16 +394,17 @@ def api_data():
                 'months': months_worked,
             })
 
-        return jsonify({'ok': True, 'nodes': nodes})
+        return api_response(ok=True, nodes=nodes, count=len(nodes),
+                            meta={'kbcs': kbcs, 'metric': metric, 'scope': scope, 'ma_bp': ma_bp})
 
     except Exception as e:
         logger.error(f'bckpi data error: {e}')
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 @bp.route('/api/detail')
 def api_detail():
-    """Chi tiết doanh thu/doanh số cho 1 hoặc nhiều NV (quản lý = all children)."""
+    """Chi tiết doanh thu/doanh số cho 1 hoặc nhiều NV."""
     ma_kbc_list = request.args.getlist('ma_kbc')
     ma_nvkd = request.args.get('ma_nvkd', '').strip()
     metric = request.args.get('metric', 'dt')
@@ -424,7 +417,7 @@ def api_detail():
             if p: kbcs.append(p)
 
     if not kbcs or not ds_nvkd:
-        return jsonify({'ok': True, 'rows': []})
+        return api_response(ok=True, rows=[])
 
     try:
         from database import get_db
@@ -451,7 +444,7 @@ def api_detail():
 
         if metric == 'dt':
             if not dates_a:
-                return jsonify({'ok': True, 'rows': []})
+                return api_response(ok=True, rows=[])
             min_a = min(d[0] for d in dates_a)
             max_a = max(d[1] for d in dates_a)
             min_b = min(d[0] for d in dates_b) if dates_b else None
@@ -469,7 +462,7 @@ def api_detail():
                 })
         else:
             if not dates_ds:
-                return jsonify({'ok': True, 'rows': []})
+                return api_response(ok=True, rows=[])
             min_ds = min(d[0] for d in dates_ds)
             max_ds = max(d[1] for d in dates_ds)
 
@@ -488,8 +481,9 @@ def api_detail():
                     'ma_bp': r.get('ma_bp', ''),
                 })
 
-        return jsonify({'ok': True, 'rows': rows, 'count': len(rows)})
+        return api_response(ok=True, rows=rows,
+                            meta={'kbcs': kbcs, 'metric': metric, 'ma_nvkd': ma_nvkd})
 
     except Exception as e:
         logger.error(f'bckpi detail error: {e}')
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))

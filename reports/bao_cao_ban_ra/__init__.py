@@ -3,7 +3,8 @@ Báo cáo Bán Ra — Blueprint
 API prefix: /reports/bao-cao-ban-ra/api/...
 Query trực tiếp SQL Server (dữ liệu lớn, flat table)
 """
-from flask import Blueprint, jsonify, request, send_file, g
+from flask import Blueprint, request, send_file
+from api_logger import api_response, set_api_result
 from datetime import datetime
 import logging, io
 
@@ -60,7 +61,7 @@ def api_data():
         ds_ten_bp = body.get('ds_ten_bp', '')
 
         if not ngay_a or not ngay_b:
-            return jsonify({'success': False, 'error': 'Thiếu ngày'}), 400
+            return api_response(ok=False, error='Thiếu ngày', status_code=400)
 
         conditions = ["ngay_ct >= ?", "ngay_ct <= ?", "ma_bp != 'TN'"]
         params = [ngay_a, ngay_b]
@@ -117,10 +118,11 @@ def api_data():
             ORDER BY ngay_ct, ma_nvkd, ma_kh
         """
         data = _query(sql, params)
-        return jsonify({'success': True, 'data': data, 'count': len(data)})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_a': ngay_a, 'ngay_b': ngay_b, 'ma_bp': ma_bp})
     except Exception as e:
         logger.exception('api_data error')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -137,6 +139,9 @@ def api_export_excel():
         rows = body.get('rows', [])
         col_headers = body.get('col_headers', [])
         title = body.get('title', 'Bán Ra')
+
+        if not rows:
+            return api_response(ok=False, error='Không có dữ liệu', status_code=400)
 
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -160,7 +165,6 @@ def api_export_excel():
         # Data style
         dfont = Font(name='Arial', size=10)
         nfont = Font(name='Consolas', size=10)
-        num_cols = {'so_luong', 'gia_nt2', 'tien_nt2', 'tl_ck', 'tien_ck_nt', 'ts_gtgt', 'thue_gtgt_nt', 'tt_nt'}
 
         # Write data
         for ri, row in enumerate(rows, 2):
@@ -184,13 +188,12 @@ def api_export_excel():
         # Freeze header
         ws.freeze_panes = 'A2'
 
-        # Format as Table (đã bao gồm auto-filter)
+        # Format as Table
         from openpyxl.worksheet.table import Table, TableStyleInfo
         if col_headers and rows:
             last_col = get_column_letter(len(col_headers))
             last_row = len(rows) + 1
 
-            # Table column names phải unique — sanitize
             seen = {}
             for ci, h in enumerate(col_headers, 1):
                 safe = str(h).replace('\n', ' ').strip()
@@ -212,8 +215,15 @@ def api_export_excel():
         buf.seek(0)
 
         fn = f'BanRa_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+
+        set_api_result(
+            status='ok',
+            row_count=len(rows),
+            meta={'export': fn, 'title': title}
+        )
+
         return send_file(buf, as_attachment=True, download_name=fn,
                          mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         logger.exception('export error')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))

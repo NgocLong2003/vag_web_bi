@@ -6,7 +6,8 @@ Gọi stored procedure asINRptCB_DMAT_Flat
 SP chạy lâu (30-60s) nên tạo connection riêng với timeout dài,
 không dùng pool mặc định (pool=15s).
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
+from api_logger import api_response
 from datetime import date, datetime as dt
 from decimal import Decimal
 import logging
@@ -33,7 +34,6 @@ def _get_conn():
         timeout=30,
         autocommit=True
     )
-    # Command timeout dành cho SP nặng
     conn.timeout = SP_TIMEOUT
     return conn
 
@@ -54,10 +54,10 @@ def api_data():
     Gọi SP asINRptCB_DMAT_Flat.
     Query params:
       - ngay: YYYY-MM-DD (default: hôm nay)
-      - dk_ck: 1 hoặc 2 (default: 1)
+      - dk_ck: 1 hoặc 2 (default: 2)
     """
     ngay = request.args.get('ngay', '').strip()
-    dk_ck = request.args.get('dk_ck', '1').strip()
+    dk_ck = request.args.get('dk_ck', '2').strip()
 
     if not ngay:
         ngay = date.today().isoformat()
@@ -65,28 +65,28 @@ def api_data():
     try:
         dk_ck_int = int(dk_ck)
         if dk_ck_int not in (1, 2):
-            dk_ck_int = 1
+            dk_ck_int = 2
     except:
-        dk_ck_int = 1
+        dk_ck_int = 2
 
     conn = None
     t0 = dt.now()
     try:
         conn = _get_conn()
         cur = conn.cursor()
-        # SET NOCOUNT ON để tránh extra result sets từ row counts
         cur.execute(
             "SET NOCOUNT ON; EXEC asINRptCB_DMAT_Flat @pNgay=?, @pDk_Ck=?",
             [ngay, dk_ck_int]
         )
 
-        # SP có thể trả nhiều result sets — lặp tới khi gặp cái có columns
         while cur.description is None:
             if not cur.nextset():
                 break
 
         if cur.description is None:
-            return jsonify({'ok': True, 'rows': [], 'count': 0, 'ngay': ngay, 'dk_ck': dk_ck_int})
+            return api_response(ok=True, rows=[], count=0,
+                                ngay=ngay, dk_ck=dk_ck_int,
+                                meta={'ngay': ngay, 'dk_ck': dk_ck_int})
 
         columns = [d[0] for d in cur.description]
         rows_raw = cur.fetchall()
@@ -94,7 +94,6 @@ def api_data():
         rows = []
         for r in rows_raw:
             d = _serialize(dict(zip(columns, r)))
-            # Ép kiểu số
             for k in ('so_luong', 'tam_nhap', 'ton_kho_thuc', 'sl_antoan', 'chenh_lech'):
                 v = d.get(k)
                 if v is None or v == '':
@@ -109,25 +108,23 @@ def api_data():
         elapsed = (dt.now() - t0).total_seconds()
         logger.info(f"[cbtk] SP trả {len(rows)} dòng trong {elapsed:.1f}s (ngay={ngay}, dk_ck={dk_ck_int})")
 
-        return jsonify({
-            'ok': True,
-            'rows': rows,
-            'count': len(rows),
-            'ngay': ngay,
-            'dk_ck': dk_ck_int,
-            'elapsed_ms': int(elapsed * 1000),
-        })
+        return api_response(ok=True, rows=rows,
+                            ngay=ngay, dk_ck=dk_ck_int,
+                            elapsed_ms=int(elapsed * 1000),
+                            meta={'ngay': ngay, 'dk_ck': dk_ck_int})
 
     except pyodbc.OperationalError as e:
         elapsed = (dt.now() - t0).total_seconds()
         logger.error(f'[cbtk] Timeout/OperationalError sau {elapsed:.1f}s: {e}')
-        return jsonify({
-            'ok': False,
-            'error': f'SP chạy quá lâu (>{SP_TIMEOUT}s) hoặc mất kết nối. Thử lại sau vài giây.',
-        }), 500
+        return api_response(
+            ok=False,
+            error=f'SP chạy quá lâu (>{SP_TIMEOUT}s) hoặc mất kết nối. Thử lại sau vài giây.',
+            meta={'ngay': ngay, 'dk_ck': dk_ck_int}
+        )
     except Exception as e:
         logger.exception('[cbtk] Data error')
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e),
+                            meta={'ngay': ngay, 'dk_ck': dk_ck_int})
     finally:
         if conn:
             try:
@@ -138,7 +135,7 @@ def api_data():
 
 @bp.route('/api/vattu')
 def api_vattu():
-    """Danh sách vật tư cho autocomplete (giống baocao_nguyenlieu)."""
+    """Danh sách vật tư cho autocomplete."""
     try:
         from datasource import get_ds
         ds = get_ds('sanxuat')
@@ -147,7 +144,7 @@ def api_vattu():
             FROM [AE1213VietAnhDATA].[dbo].[DMHANGHOA_VIEW]
             ORDER BY ma_vt
         """)
-        return jsonify({'ok': True, 'items': rows})
+        return api_response(ok=True, items=rows, count=len(rows))
     except Exception as e:
         logger.error(f'[cbtk] vattu error: {e}')
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))

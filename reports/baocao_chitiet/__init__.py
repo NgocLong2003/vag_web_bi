@@ -2,7 +2,8 @@
 Báo cáo Chi Tiết Bán Hàng & Thanh Toán — Blueprint (DuckDB version)
 API prefix: /reports/bao-cao-chi-tiet/api/...
 """
-from flask import Blueprint, jsonify, request, send_file, current_app
+from flask import Blueprint, request, send_file, current_app
+from api_logger import api_response, set_api_result
 from datetime import datetime, date
 import logging
 
@@ -26,10 +27,10 @@ def get_store():
 def api_hierarchy():
     try:
         data = get_store().query(load_sql('HIERARCHY_CTE_DUCK'))
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data))
     except Exception as e:
         logger.error(f"[BCCT hierarchy] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -39,10 +40,10 @@ def api_hierarchy():
 def api_khachhang():
     try:
         data = get_store().query(load_sql('KHACHHANG_DUCK'))
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data))
     except Exception as e:
         logger.error(f"[BCCT khachhang] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -58,7 +59,7 @@ def api_doanhso_chitiet():
     ds_kh = body.get('ds_kh', '')
 
     if not ngay_a or not ngay_b:
-        return jsonify({'success': False, 'error': 'Thiếu ngày'}), 400
+        return api_response(ok=False, error='Thiếu ngày', status_code=400)
 
     try:
         data = get_store().query(
@@ -69,11 +70,11 @@ def api_doanhso_chitiet():
             for k in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'ts_gtgt', 'thue_gtgt_nt', 'doanhso'):
                 if d.get(k) is not None:
                     d[k] = float(d[k])
-        logger.info(f"[BCCT doanhso] Returned {len(data)} rows")
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_a': ngay_a, 'ngay_b': ngay_b, 'ma_bp': ma_bp})
     except Exception as e:
         logger.error(f"[BCCT doanhso] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
@@ -89,7 +90,7 @@ def api_doanhthu_chitiet():
     ds_kh = body.get('ds_kh', '')
 
     if not ngay_a or not ngay_b:
-        return jsonify({'success': False, 'error': 'Thiếu ngày'}), 400
+        return api_response(ok=False, error='Thiếu ngày', status_code=400)
 
     try:
         data = get_store().query(
@@ -99,15 +100,15 @@ def api_doanhthu_chitiet():
         for d in data:
             if d.get('doanhthu') is not None:
                 d['doanhthu'] = float(d['doanhthu'])
-        logger.info(f"[BCCT doanhthu] Returned {len(data)} rows")
-        return jsonify({'success': True, 'data': data})
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_a': ngay_a, 'ngay_b': ngay_b, 'ma_bp': ma_bp})
     except Exception as e:
         logger.error(f"[BCCT doanhthu] {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_response(ok=False, error=str(e))
 
 
 # ─────────────────────────────────────────
-# API: Export Excel (giữ nguyên logic)
+# API: Export Excel
 # ─────────────────────────────────────────
 @bp.route('/api/export_excel', methods=['POST'])
 def api_export_excel():
@@ -121,7 +122,7 @@ def api_export_excel():
     col_headers = body.get('col_headers', [])
 
     if not rows:
-        return jsonify({'success': False, 'error': 'Không có dữ liệu'}), 400
+        return api_response(ok=False, error='Không có dữ liệu', status_code=400)
 
     max_nv_depth = max((r.get('depth', 0) for r in rows if r.get('type') == 'nv'), default=0)
     nv_cols = max_nv_depth + 1
@@ -244,6 +245,13 @@ def api_export_excel():
     buf.seek(0)
     now = datetime.now()
     filename = f'BaoCaoChiTiet_{now.strftime("%Y%m%d")}.xlsx'
+
+    set_api_result(
+        status='ok',
+        row_count=len(rows),
+        meta={'export': filename}
+    )
+
     return send_file(buf,
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=filename)
