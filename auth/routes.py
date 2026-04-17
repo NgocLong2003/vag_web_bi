@@ -120,3 +120,40 @@ def api_me():
             ],
         }
     })
+
+@bp.route('/api/dashboards')
+@login_required
+def api_dashboards():
+    """API: trả danh sách dashboard user được phép xem (JSON)"""
+    from flask import jsonify
+    db = get_db()
+    user = g.current_user
+ 
+    if user['role'] == 'admin':
+        rows = db.execute(
+            'SELECT * FROM dashboards WHERE is_active = 1 ORDER BY sort_order, name'
+        ).fetchall()
+    else:
+        rows = db.execute('''
+            SELECT d.* FROM dashboards d
+            JOIN user_dashboards ud ON d.id = ud.dashboard_id
+            WHERE ud.user_id = ? AND d.is_active = 1
+            ORDER BY d.sort_order, d.name
+        ''', (user['id'],)).fetchall()
+ 
+    dashboards = []
+    for d in rows:
+        dashboards.append({
+            'id': d['id'],
+            'slug': d['slug'],
+            'name': d['name'],
+            'description': d['description'] or '',
+            'dashboard_type': d['dashboard_type'] or 'powerbi',
+            'powerbi_url': d['powerbi_url'] or '',
+            'sort_order': d['sort_order'] or 0,
+            # Các cột mới (nếu chưa có thì trả default)
+            'icon_svg': d['icon_svg'] if 'icon_svg' in d.keys() else '',
+            'color': d['color'] if 'color' in d.keys() else 'teal',
+        })
+ 
+    return jsonify({'success': True, 'data': dashboards})

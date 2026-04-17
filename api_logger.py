@@ -143,9 +143,21 @@ def init_api_logger(app, ds_name='default'):
         # Meta — context bổ sung từ route
         meta = result.get('meta')
 
+        # Report — tự đọc từ blueprint.api_report nếu có
+        report_name = None
+        if request.blueprints:
+            bp_obj = app.blueprints.get(request.blueprints[0])
+            if bp_obj:
+                report_name = getattr(bp_obj, 'api_report', None)
+
+        # Report session — frontend gửi qua header, nhóm các API cùng 1 lần thao tác
+        report_session = request.headers.get('X-Report-Session')
+
         record = {
             'user_id': user_id,
             'user_name': user_name,
+            'report': report_name,
+            'report_session': report_session,
             'endpoint': request.path,
             'method': request.method,
             'params': json.dumps(params, ensure_ascii=False) if params else None,
@@ -250,17 +262,19 @@ def _write_log(record, ds_name='warehouse'):
     sql = """
         SET NOCOUNT ON;
         INSERT INTO api_access_log
-            (user_id, user_name, endpoint, method, params,
+            (user_id, user_name, report, report_session, endpoint, method, params,
              http_status, status, row_count, error,
              elapsed_ms, ip, user_agent, meta, created_at)
         VALUES
-            (?, ?, ?, ?, ?,
+            (?, ?, ?, ?, ?, ?, ?,
              ?, ?, ?, ?,
              ?, ?, ?, ?, GETDATE())
     """
     ds.query(sql, [
         record['user_id'],
         record['user_name'],
+        record['report'],
+        record['report_session'],
         record['endpoint'],
         record['method'],
         record['params'],
@@ -280,25 +294,37 @@ def _write_log(record, ds_name='warehouse'):
 # ═══════════════════════════════════════════════════════
 CREATE_TABLE_SQL = """
 CREATE TABLE api_access_log (
-    id          BIGINT IDENTITY(1,1) PRIMARY KEY,
-    user_id     NVARCHAR(50)   NULL,
-    user_name   NVARCHAR(100)  NULL,
-    endpoint    NVARCHAR(300)  NOT NULL,
-    method      VARCHAR(10)    NOT NULL DEFAULT 'GET',
-    params      NVARCHAR(MAX)  NULL,       -- JSON query params
-    http_status SMALLINT       NOT NULL DEFAULT 200,
-    status      VARCHAR(20)    NOT NULL,   -- 'ok' | 'error' | 'unknown'
-    row_count   INT            NULL,       -- số dòng trả về
-    error       NVARCHAR(MAX)  NULL,       -- message lỗi nếu có
-    elapsed_ms  INT            NULL,       -- thời gian xử lý (ms)
-    ip          VARCHAR(45)    NULL,
-    user_agent  NVARCHAR(500)  NULL,
-    meta        NVARCHAR(MAX)  NULL,       -- JSON context bổ sung
-    created_at  DATETIME2      NOT NULL DEFAULT GETDATE(),
+    id              BIGINT IDENTITY(1,1) PRIMARY KEY,
+    user_id         NVARCHAR(50)   NULL,
+    user_name       NVARCHAR(100)  NULL,
+    report          NVARCHAR(100)  NULL,
+    report_session  VARCHAR(36)    NULL,       -- nhóm các API cùng 1 lần thao tác
+    endpoint        NVARCHAR(300)  NOT NULL,
+    method          VARCHAR(10)    NOT NULL DEFAULT 'GET',
+    params          NVARCHAR(MAX)  NULL,
+    http_status     SMALLINT       NOT NULL DEFAULT 200,
+    status          VARCHAR(20)    NOT NULL,
+    row_count       INT            NULL,
+    error           NVARCHAR(MAX)  NULL,
+    elapsed_ms      INT            NULL,
+    ip              VARCHAR(45)    NULL,
+    user_agent      NVARCHAR(500)  NULL,
+    meta            NVARCHAR(MAX)  NULL,
+    created_at      DATETIME2      NOT NULL DEFAULT GETDATE(),
 
     INDEX IX_api_log_user     (user_id, created_at DESC),
+    INDEX IX_api_log_report   (report, created_at DESC),
+    INDEX IX_api_log_session  (report_session),
     INDEX IX_api_log_endpoint (endpoint, created_at DESC),
     INDEX IX_api_log_status   (status, created_at DESC),
     INDEX IX_api_log_date     (created_at DESC)
 );
+"""
+
+# Nếu bảng đã tồn tại, chạy lệnh này để thêm cột:
+ALTER_ADD_COLUMNS = """
+ALTER TABLE api_access_log ADD report NVARCHAR(100) NULL;
+ALTER TABLE api_access_log ADD report_session VARCHAR(36) NULL;
+CREATE INDEX IX_api_log_report ON api_access_log (report, created_at DESC);
+CREATE INDEX IX_api_log_session ON api_access_log (report_session);
 """

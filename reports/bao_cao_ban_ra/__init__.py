@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('bcbr', __name__,
                url_prefix='/reports/bao-cao-ban-ra',
                template_folder='templates')
-
+bp.api_report = 'bao-cao-ban-ra'
 
 def _get_sqlserver():
     """Lấy SQL Server connection từ pyodbc."""

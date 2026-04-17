@@ -129,7 +129,7 @@ window.dgOpen=function(ma_vt, ten_vt){
     +'&ngay='+encodeURIComponent(ngay||'')
     +'&ngay_dh1='+encodeURIComponent(ngayDH1||'');
 
-  fetch(url)
+  reportFetch(url)
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
     .then(function(d){
       if(!d.ok){
@@ -179,9 +179,7 @@ function dgRender(rows){
 
   document.getElementById('dgFooter').innerHTML=
     '<span><b>'+rows.length+'</b> đơn</span>'
-    +'<span>SL đặt: <b>'+dgFN(sumDat)+'</b></span>'
-    +'<span>Đã nhập: <b>'+dgFN(sumNhap)+'</b></span>'
-    +'<span>Đang giao: <b style="color:var(--blue)">'+dgFN(sumGiao)+'</b></span>';
+    +'<span>Tổng đang giao: <b style="color:var(--blue)">'+dgFN(sumGiao)+'</b></span>';
 }
 
 window.dgClose=function(){

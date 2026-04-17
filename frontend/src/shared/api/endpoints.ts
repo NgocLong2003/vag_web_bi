@@ -15,6 +15,7 @@ export const ENDPOINTS = {
     list: '/dashboards',
     reportUrl: '/api/report-url',
     dataStatus: '/api/data-status',
+    apiList: '/api/dashboards',
   },
 
   // Admin

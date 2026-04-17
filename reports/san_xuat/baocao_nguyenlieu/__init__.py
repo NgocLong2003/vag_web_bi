@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('bcnl', __name__, url_prefix='/reports/bao-cao-nguyen-lieu')
-
+bp.api_report = 'bao-cao-nguyen-lieu'
 
 @bp.route('/api/data')
 def api_data():

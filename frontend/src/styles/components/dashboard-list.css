@@ -1,0 +1,119 @@
+/* ═══════════════════════════════════════
+   DASHBOARD LIST — Card grid
+   ═══════════════════════════════════════ */
+
+.db-list {
+  max-width: 960px; margin: 0 auto; padding: 32px 24px 60px;
+}
+.db-list-header { margin-bottom: 8px; }
+.db-list-title { font-size: 22px; font-weight: 800; color: var(--g7); }
+.db-list-sub { font-size: 13px; color: var(--g4); margin-top: 4px; }
+.db-list-loading, .db-list-empty {
+  text-align: center; padding: 60px 20px; color: var(--g4); font-size: 14px;
+}
+
+.db-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 24px; padding-top: 28px;
+}
+
+/* ═══ Card ═══ */
+.db-card {
+  background: var(--white); border-radius: 16px; position: relative;
+  border: 1px solid var(--g1); cursor: pointer; margin-top: 28px;
+  transition: all .3s cubic-bezier(.25,.8,.25,1); overflow: visible;
+}
+.db-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 18px 44px var(--sh), 0 0 0 1px rgba(0,0,0,.02);
+  border-color: #dfe2ea;
+}
+/* Left accent stripe on hover */
+.db-card::after {
+  content: ''; position: absolute;
+  top: 16px; bottom: 16px; left: -1px; width: 3.5px;
+  border-radius: 0 3px 3px 0; background: var(--grad);
+  opacity: 0; transition: opacity .3s;
+}
+.db-card:hover::after { opacity: 1; }
+
+/* ═══ Icon ═══ */
+.db-card-icon {
+  position: absolute; top: -24px; left: 24px;
+  width: 52px; height: 52px;
+  filter: drop-shadow(0 3px 10px var(--sh));
+  transition: transform .3s cubic-bezier(.25,.8,.25,1), filter .3s;
+}
+.db-card:hover .db-card-icon {
+  transform: translateY(-2px) scale(1.06);
+  filter: drop-shadow(0 6px 16px var(--sh));
+}
+/* Map currentFill/currentStroke to CSS vars */
+.db-card-icon svg { width: 100%; height: 100%; }
+.db-card-icon [fill="currentFill"] { fill: var(--fill); }
+.db-card-icon [stroke="currentStroke"] { stroke: var(--stroke); }
+.db-card-icon [fill="currentStroke"] { fill: var(--stroke); }
+
+/* ═══ Body ═══ */
+.db-card-body { padding: 36px 22px 14px; }
+.db-card-name {
+  font-size: 15px; font-weight: 800; color: var(--g7);
+  margin-bottom: 5px; letter-spacing: -.2px;
+}
+.db-card-desc {
+  font-size: 11.5px; color: var(--g4); line-height: 1.55;
+}
+
+/* ═══ Footer ═══ */
+.db-card-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 22px; border-top: 1px solid var(--g1);
+}
+.db-card-meta { display: flex; align-items: center; gap: 8px; }
+.db-card-badge {
+  font-size: 9px; font-weight: 700; padding: 3px 9px; border-radius: 5px;
+  background: var(--badge-bg); color: var(--accent); letter-spacing: .3px;
+}
+.db-card-go {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--g0); transition: all .2s;
+}
+.db-card:hover .db-card-go { background: var(--badge-bg); }
+.db-card-go svg {
+  width: 13px; height: 13px; stroke: var(--accent); fill: none;
+  stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  transition: transform .2s;
+}
+.db-card:hover .db-card-go svg { transform: translateX(2px); }
+
+/* ═══ Mobile ═══ */
+@media (max-width: 640px) {
+  .db-list { padding: 20px 16px 48px; }
+  .db-grid { grid-template-columns: 1fr; gap: 20px; }
+}
+
+/* ═══════════════════════════════════════
+   DASHBOARD VIEW — iframe embed
+   ═══════════════════════════════════════ */
+
+.db-view { height: 100%; display: flex; flex-direction: column; }
+.db-view-iframe {
+  flex: 1; width: 100%; border: none;
+  background: var(--g0);
+}
+.db-view-status {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%;
+  color: var(--g4); font-size: 14px; gap: 12px;
+}
+.db-view-error {
+  font-size: 14px; color: var(--red); font-weight: 600;
+}
+.db-view-back {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid var(--g2);
+  background: var(--white); color: var(--g5); font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: var(--sans);
+}
+.db-view-back:hover { background: var(--g0); }

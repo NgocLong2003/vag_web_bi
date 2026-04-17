@@ -4,6 +4,7 @@
 @import './components/bp-slicer.css';
 @import './components/bp-dropdown.css';
 @import './components/modal.css';
+@import './components/dashboard-list.css';
 
 @tailwind base;
 @tailwind components;

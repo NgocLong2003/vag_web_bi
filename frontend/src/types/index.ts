@@ -95,6 +95,10 @@ export interface Dashboard {
   category: string
   isActive: boolean
   sortOrder: number
+  /** SVG path data for card icon (admin configurable) */
+  iconSvg: string
+  /** Color theme for card: teal, blue, purple, amber, rose, emerald, indigo, cyan */
+  color: string
 }
 
 // ═══════════════════════════════════════

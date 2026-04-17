@@ -215,6 +215,7 @@ table.data-tbl tbody td mark{background:#fef08a;padding:0 1px;border-radius:2px;
 
 {% include "san_xuat/canhbao_tonkho/_modal_danggiao.html" %}
 {% include "_sidebar_js.html" %}
+<script src="/static/js/_report_session.js"></script>
 <script>
 (function(){
 'use strict';
@@ -476,7 +477,7 @@ document.addEventListener('click',function(e){if(!e.target.closest('.vt-wrap'))d
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();vtInp.focus();vtInp.select()}});
 
 function loadVattu(){
-  fetch(API+'/api/vattu').then(function(r){return r.json()}).then(function(d){if(d.ok)vtList=d.items||[]}).catch(function(){});
+  reportFetch(API+'/api/vattu').then(function(r){return r.json()}).then(function(d){if(d.ok)vtList=d.items||[]}).catch(function(){});
 }
 
 window.loadData=function(){
@@ -487,6 +488,7 @@ window.loadData=function(){
   if(!ngayDH1){toast('Chọn ngày ĐH từ','err');return}
 
   loading=true;
+  newReportSession();
   showState('loading','Đang tải dữ liệu tồn kho...','Truy vấn ngày '+ngay);
 
   var btn=document.getElementById('reloadBtn');
@@ -494,7 +496,7 @@ window.loadData=function(){
   document.getElementById('reloadLbl').innerHTML='<span class="spin-mini"></span>';
 
   var t0=performance.now();
-  fetch(API+'/api/data?ngay='+encodeURIComponent(ngay)+'&ngay_dh1='+encodeURIComponent(ngayDH1))
+  reportFetch(API+'/api/data?ngay='+encodeURIComponent(ngay)+'&ngay_dh1='+encodeURIComponent(ngayDH1))
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
     .then(function(d){
       var ms=Math.round(performance.now()-t0);

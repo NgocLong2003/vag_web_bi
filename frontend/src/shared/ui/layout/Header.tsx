@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@shared/auth/AuthProvider'
 import { SettingsModal } from '@shared/ui/modals/SettingsModal'
 import { HelpModal } from '@shared/ui/modals/HelpModal'
@@ -78,6 +78,8 @@ export function Header({
 }: HeaderProps) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const isListPage = location.pathname === '/dashboards' || location.pathname === '/'
   const [fullscreen, setFullscreen] = useState(false)
   const [openDD, setOpenDD] = useState<string | null>(null)
   const [dbSearch, setDbSearch] = useState('')
@@ -136,7 +138,8 @@ export function Header({
   return (
     <>
     <div ref={ref} className="hdr-area">
-      {/* ══ LEFT PILL ══ */}
+      {/* ══ LEFT PILL — hidden on dashboard list page ══ */}
+      {!isListPage && (
       <div className="pill pill-l">
         {/* Logo = Home */}
         <div
@@ -232,6 +235,7 @@ export function Header({
           </div>
         )}
       </div>
+      )}
 
       {/* ══ RIGHT PILL ══ */}
       <div className="pill pill-r">

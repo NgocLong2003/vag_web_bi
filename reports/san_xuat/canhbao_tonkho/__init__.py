@@ -13,6 +13,8 @@ import pyodbc
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('cbtk', __name__, url_prefix='/reports/canh-bao-ton-kho')
+bp.api_report = 'canh-bao-ton-kho'
+
 
 SP_TIMEOUT = 180
 

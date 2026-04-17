@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('bcct', __name__,
                url_prefix='/reports/bao-cao-chi-tiet',
                template_folder='templates')
-
+bp.api_report = 'bao-cao-chi-tiet'
 from query_loader import load_sql
 
 

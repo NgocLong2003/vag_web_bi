@@ -21,7 +21,9 @@ export default defineConfig({
       '/reports': 'http://localhost:5000',
       '/login': 'http://localhost:5000',
       '/logout': 'http://localhost:5000',
-      '/d': 'http://localhost:5000',
+      '/settings': 'http://localhost:5000',
+      // /d/:slug — must use /d/ (trailing slash) so it doesn't match /dashboards
+      '/d/': 'http://localhost:5000',
     },
   },
   build: {
