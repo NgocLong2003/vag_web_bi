@@ -1,0 +1,201 @@
+<!-- _modal_danggiao.html — Modal chi tiết đơn đang giao -->
+<style>
+.dg-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:900;display:none;align-items:center;justify-content:center;padding:20px;animation:dg-fadeIn .15s ease}
+.dg-overlay.open{display:flex}
+@keyframes dg-fadeIn{from{opacity:0}to{opacity:1}}
+
+.dg-modal{background:var(--white);border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.18);width:100%;max-width:1060px;max-height:85vh;display:flex;flex-direction:column;animation:dg-slideUp .2s ease}
+@keyframes dg-slideUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+
+.dg-header{padding:18px 24px 14px;border-bottom:1px solid var(--g1);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.dg-header-info{flex:1;min-width:0}
+.dg-title{font-size:15px;font-weight:800;color:var(--g7)}
+.dg-subtitle{font-size:11px;color:var(--g4);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dg-close{width:32px;height:32px;border:none;background:var(--g0);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--g4);font-size:16px;flex-shrink:0;transition:.1s}
+.dg-close:hover{background:var(--red-lt);color:var(--red)}
+
+.dg-body{flex:1;overflow:auto;padding:0}
+
+/* Table reuse data-tbl styling */
+table.dg-tbl{border-collapse:separate;border-spacing:0;width:100%}
+table.dg-tbl thead th{position:sticky;top:0;z-index:5;background:var(--g0);border-bottom:2px solid var(--g2);padding:11px 16px;font-size:10.5px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.04em;text-align:left;white-space:nowrap}
+table.dg-tbl thead th.right{text-align:right}
+table.dg-tbl tbody tr{border-bottom:1px solid var(--g1);transition:background .06s}
+table.dg-tbl tbody tr:last-child{border-bottom:none}
+table.dg-tbl tbody tr:hover{background:var(--g0)}
+table.dg-tbl tbody td{padding:8px 16px;font-size:12.5px;white-space:nowrap;vertical-align:middle;color:var(--g7)}
+table.dg-tbl tbody td.right{text-align:right;font-variant-numeric:tabular-nums}
+table.dg-tbl tbody td.c-date{color:var(--g5);font-weight:500;font-size:12px}
+table.dg-tbl tbody td.c-name{min-width:220px;white-space:normal;word-break:break-word;line-height:1.4;font-weight:500}
+table.dg-tbl tbody td.c-num{font-weight:600}
+table.dg-tbl tbody td.c-num.neg{color:var(--red)}
+table.dg-tbl tbody td.c-num.pos{color:var(--g6)}
+table.dg-tbl tbody td.c-num.zero{color:var(--g3);font-weight:400}
+table.dg-tbl tbody td.c-dg{font-weight:700;color:var(--blue)}
+table.dg-tbl tbody td.c-dg.zero{color:var(--g3);font-weight:400}
+table.dg-tbl tbody td.c-status{font-weight:600;font-size:11.5px}
+
+/* Status badges */
+.st-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;line-height:1.5}
+.st-badge.st-open{background:var(--amber-lt);color:var(--amber);border:1px solid #fde68a}
+.st-badge.st-partial{background:var(--blue-lt);color:var(--blue);border:1px solid #c7d2fe}
+.st-badge.st-done{background:var(--emr-lt);color:var(--emr);border:1px solid #a7f3d0}
+.st-badge.st-default{background:var(--g0);color:var(--g5);border:1px solid var(--g2)}
+
+/* Footer summary */
+.dg-footer{padding:12px 24px;border-top:1px solid var(--g1);display:flex;align-items:center;gap:16px;font-size:12px;color:var(--g4);flex-shrink:0;flex-wrap:wrap}
+.dg-footer b{color:var(--g6)}
+
+/* Loading / empty state inside modal */
+.dg-state{padding:48px 20px;text-align:center;color:var(--g4)}
+.dg-state .state-spin{width:24px;height:24px;border:3px solid var(--g1);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+.dg-state-msg{font-weight:600;font-size:13px;color:var(--g5)}
+
+@media(max-width:640px){
+  .dg-modal{max-width:100%;max-height:90vh;border-radius:12px 12px 0 0;align-self:flex-end}
+  .dg-header{padding:14px 16px 10px}
+  table.dg-tbl thead th{padding:9px 12px}
+  table.dg-tbl tbody td{padding:7px 12px;font-size:11.5px}
+  .dg-footer{padding:10px 16px}
+}
+</style>
+
+<div class="dg-overlay" id="dgOverlay" onclick="dgClickOutside(event)">
+  <div class="dg-modal">
+    <div class="dg-header">
+      <div class="dg-header-info">
+        <div class="dg-title" id="dgTitle">Chi tiết đang giao</div>
+        <div class="dg-subtitle" id="dgSubtitle"></div>
+      </div>
+      <button class="dg-close" onclick="dgClose()" title="Đóng (ESC)">✕</button>
+    </div>
+    <div class="dg-body" id="dgBody">
+      <div class="dg-state" id="dgState">
+        <div class="state-spin"></div>
+        <div class="dg-state-msg">Đang tải...</div>
+      </div>
+    </div>
+    <div class="dg-footer" id="dgFooter"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var DG_FMT=new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:4});
+var DG_FMT_INT=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
+function dgFN(v){
+  if(v==null||isNaN(v))return'';
+  var abs=Math.abs(v);
+  if(abs===Math.floor(abs))return DG_FMT_INT.format(v);
+  return DG_FMT.format(v);
+}
+function dgEsc(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function dgEscAttr(s){return dgEsc(s).replace(/"/g,'&quot;')}
+
+function formatDate(s){
+  if(!s)return'';
+  var p=String(s).substring(0,10).split('-');
+  if(p.length===3)return p[2]+'/'+p[1]+'/'+p[0];
+  return s;
+}
+
+function statusBadge(v){
+  var t=dgEsc(v||'');
+  if(!t)return'';
+  var lower=t.toLowerCase();
+  var cls='st-default';
+  if(lower.indexOf('chưa')>=0||lower.indexOf('chờ')>=0||lower.indexOf('mở')>=0)cls='st-open';
+  else if(lower.indexOf('phần')>=0||lower.indexOf('1 phần')>=0||lower.indexOf('partial')>=0)cls='st-partial';
+  else if(lower.indexOf('xong')>=0||lower.indexOf('hoàn')>=0||lower.indexOf('đủ')>=0||lower.indexOf('done')>=0)cls='st-done';
+  return'<span class="st-badge '+cls+'">'+t+'</span>';
+}
+
+window.dgOpen=function(ma_vt, ten_vt){
+  var overlay=document.getElementById('dgOverlay');
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+
+  document.getElementById('dgTitle').textContent='Đang giao — '+ma_vt;
+  document.getElementById('dgSubtitle').textContent=ten_vt||'';
+  document.getElementById('dgFooter').innerHTML='';
+  document.getElementById('dgBody').innerHTML='<div class="dg-state"><div class="state-spin"></div><div class="dg-state-msg">Đang tải...</div></div>';
+
+  var ngay=document.getElementById('dateNgay').value;
+  var ngayDH1=document.getElementById('dateDH1').value;
+
+  var url='/reports/canh-bao-ton-kho/api/danggiao?ma_vt='+encodeURIComponent(ma_vt)
+    +'&ngay='+encodeURIComponent(ngay||'')
+    +'&ngay_dh1='+encodeURIComponent(ngayDH1||'');
+
+  fetch(url)
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+    .then(function(d){
+      if(!d.ok){
+        document.getElementById('dgBody').innerHTML='<div class="dg-state"><div class="dg-state-msg" style="color:var(--red)">'+dgEsc(d.error||'Lỗi')+'</div></div>';
+        return;
+      }
+      var rows=d.rows||[];
+      if(!rows.length){
+        document.getElementById('dgBody').innerHTML='<div class="dg-state"><div class="dg-state-msg">Không có đơn đang giao</div></div>';
+        document.getElementById('dgFooter').innerHTML='<span>0 đơn</span>';
+        return;
+      }
+      dgRender(rows);
+    })
+    .catch(function(e){
+      document.getElementById('dgBody').innerHTML='<div class="dg-state"><div class="dg-state-msg" style="color:var(--red)">'+dgEsc(e.message||'Lỗi kết nối')+'</div></div>';
+    });
+};
+
+function dgRender(rows){
+  var html='<table class="dg-tbl"><thead><tr>'
+    +'<th>Ngày đặt</th>'
+    +'<th>Khách hàng</th>'
+    +'<th>Nhà sản xuất</th>'
+    +'<th class="right">Đang giao</th>'
+    +'</tr></thead><tbody>';
+
+  var sumDat=0,sumNhap=0,sumGiao=0;
+  for(var i=0;i<rows.length;i++){
+    var r=rows[i];
+    var dg=r.dang_giao||0;
+    sumDat+=r.sl_dat||0;
+    sumNhap+=r.sl_da_nhap||0;
+    sumGiao+=dg;
+
+    function numCls(v){if(v<0)return'neg';if(v===0)return'zero';return'pos'}
+
+    html+='<tr>'
+      +'<td class="c-date">'+formatDate(r.ngay_dat)+'</td>'
+      +'<td class="c-name" title="'+dgEscAttr(r.ten_kh)+'">'+dgEsc(r.ten_kh)+'</td>'
+      +'<td class="c-name" title="'+dgEscAttr(r.ten_nha_sx)+'">'+dgEsc(r.ten_nha_sx)+'</td>'
+      +'<td class="right c-dg '+(dg===0?'zero':'')+'">'+dgFN(dg)+'</td>'
+      +'</tr>';
+  }
+  html+='</tbody></table>';
+  document.getElementById('dgBody').innerHTML=html;
+
+  document.getElementById('dgFooter').innerHTML=
+    '<span><b>'+rows.length+'</b> đơn</span>'
+    +'<span>SL đặt: <b>'+dgFN(sumDat)+'</b></span>'
+    +'<span>Đã nhập: <b>'+dgFN(sumNhap)+'</b></span>'
+    +'<span>Đang giao: <b style="color:var(--blue)">'+dgFN(sumGiao)+'</b></span>';
+}
+
+window.dgClose=function(){
+  document.getElementById('dgOverlay').classList.remove('open');
+  document.body.style.overflow='';
+};
+
+window.dgClickOutside=function(e){
+  if(e.target===document.getElementById('dgOverlay'))dgClose();
+};
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&document.getElementById('dgOverlay').classList.contains('open'))dgClose();
+});
+
+})();
+</script>
