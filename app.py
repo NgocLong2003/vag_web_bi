@@ -30,6 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger('app')
 
 app = Flask(__name__)
+app.json.ensure_ascii = False
 app.secret_key = SECRET_KEY
 app.permanent_session_lifetime = timedelta(minutes=SESSION_TIMEOUT_MINUTES)
 app.config['SESSION_COOKIE_HTTPONLY'] = True

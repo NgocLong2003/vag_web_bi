@@ -1,10 +1,19 @@
-/* ═══ Component CSS ═══ */
-@import './components/header.css';
+/* ═══ Layout ═══ */
+@import './layout/header.css';
+
+/* ═══ Components (UI tái sử dụng) ═══ */
+@import './components/modal.css';
 @import './components/kbc-picker.css';
 @import './components/bp-slicer.css';
 @import './components/bp-dropdown.css';
-@import './components/modal.css';
-@import './components/dashboard-list.css';
+
+/* ═══ Pages ═══ */
+@import './pages/dashboard-list.css';
+
+/* ═══ Admin ═══ */
+@import './admin/admin.css';
+@import './admin/shared.css';
+@import './admin/dashboards.css';
 
 @tailwind base;
 @tailwind components;

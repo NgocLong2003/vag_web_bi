@@ -1,0 +1,180 @@
+/* ═══════════════════════════════════════
+   ADMIN — Shared components (dùng chung cho mọi tab)
+   Bảng, input, select, badge, modal, toolbar, flash, toggle
+   ═══════════════════════════════════════ */
+
+/* ═══ Bảng ═══ */
+.adm-table-wrap { overflow-x: auto; }
+.adm-table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  background: var(--white); border-radius: 12px;
+  border: 1px solid var(--g1); overflow: hidden;
+}
+.adm-table th {
+  padding: 10px 12px; font-size: 10px; font-weight: 700;
+  color: var(--g4); text-transform: uppercase; letter-spacing: .5px;
+  text-align: left; border-bottom: 2px solid var(--g1);
+  background: var(--g0); white-space: nowrap;
+}
+.adm-table td {
+  padding: 10px 12px; font-size: 12px; color: var(--g6);
+  border-bottom: 1px solid var(--g1); vertical-align: top;
+}
+.adm-table tr:last-child td { border-bottom: none; }
+.adm-table tr:hover td { background: rgba(0,0,0,.01); }
+.adm-table tr.editing td { background: var(--accent-lt, #f0fdfa); }
+
+.adm-td-num { font-size: 11px; color: var(--g3); text-align: center; font-weight: 700; }
+.adm-td-name { font-weight: 700; color: var(--g7); font-size: 13px; }
+.adm-td-slug { font-size: 10px; color: var(--g3); font-family: var(--mono); margin-top: 2px; }
+.adm-td-desc { font-size: 11px; color: var(--g4); max-width: 200px; line-height: 1.4; }
+.adm-td-center { text-align: center; }
+
+/* ═══ Input / Select ═══ */
+.adm-input {
+  width: 100%; height: 30px; padding: 0 8px;
+  border: 1px solid var(--g2); border-radius: 6px;
+  font-size: 12px; font-family: var(--sans); color: var(--g7); outline: none;
+}
+.adm-input:focus { border-color: var(--accent, #0d9488); }
+.adm-input-slug { font-family: var(--mono); font-size: 11px; margin-top: 4px; color: var(--g4); }
+.adm-input-sm { padding: 0 4px; text-align: center; }
+
+.adm-select {
+  height: 30px; padding: 0 6px; border: 1px solid var(--g2);
+  border-radius: 6px; font-size: 11px; font-family: var(--sans);
+  color: var(--g6); outline: none; background: var(--white);
+}
+
+.adm-textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--g2);
+  border-radius: 8px; font-size: 11px; font-family: var(--mono);
+  color: var(--g6); outline: none; resize: vertical; line-height: 1.5;
+}
+.adm-textarea:focus { border-color: var(--accent, #0d9488); }
+
+/* ═══ Badges ═══ */
+.adm-type-badge {
+  font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.adm-type-badge.report { background: #eef2ff; color: #4f46e5; }
+.adm-type-badge.powerbi { background: #fffbeb; color: #d97706; }
+.adm-type-badge.analytics { background: #ecfeff; color: #0891b2; }
+
+.adm-live-badge { font-size: 10px; font-weight: 600; color: #059669; }
+.adm-sched-badge { font-size: 10px; font-weight: 600; color: var(--g4); }
+
+.adm-color-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--g5); }
+.adm-color-circle { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+
+.adm-status-on { display: flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: #059669; }
+.adm-status-off { display: flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: var(--red); }
+
+/* ═══ Nút thao tác ═══ */
+.adm-actions { display: flex; gap: 4px; }
+.adm-btn-edit, .adm-btn-save, .adm-btn-cancel, .adm-btn-delete {
+  width: 28px; height: 28px; border-radius: 6px; border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.adm-btn-edit { background: var(--g0); color: var(--g4); }
+.adm-btn-edit:hover { background: var(--g1); color: var(--g6); }
+.adm-btn-save { background: #059669; color: #fff; }
+.adm-btn-save:hover { background: #047857; }
+.adm-btn-save:disabled { opacity: .5; cursor: not-allowed; }
+.adm-btn-cancel { background: var(--g0); color: var(--g4); }
+.adm-btn-cancel:hover { background: var(--red-lt, #fef2f2); color: var(--red); }
+.adm-btn-delete { background: var(--g0); color: var(--g3); }
+.adm-btn-delete:hover { background: var(--red-lt, #fef2f2); color: var(--red); }
+
+/* ═══ Toolbar ═══ */
+.adm-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.adm-toolbar-count { font-size: 12px; color: var(--g4); font-weight: 600; }
+.adm-btn-add {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 8px; border: none;
+  background: var(--accent, #0d9488); color: #fff;
+  font-size: 12px; font-weight: 700; font-family: var(--sans);
+  cursor: pointer; transition: background .15s;
+}
+.adm-btn-add:hover { background: #0f766e; }
+
+/* ═══ Flash message ═══ */
+.adm-flash {
+  padding: 8px 14px; border-radius: 8px; font-size: 12px;
+  font-weight: 600; margin-bottom: 12px; text-align: center;
+}
+.adm-flash.ok { background: var(--emr-lt, #eafaf4); color: var(--emr); }
+.adm-flash.err { background: var(--red-lt, #fef2f2); color: var(--red); }
+
+/* ═══ Toggle switch ═══ */
+.adm-toggle { position: relative; display: inline-block; width: 32px; height: 18px; }
+.adm-toggle input { opacity: 0; width: 0; height: 0; }
+.adm-toggle-slider {
+  position: absolute; inset: 0; border-radius: 9px;
+  background: var(--g2); cursor: pointer; transition: .2s;
+}
+.adm-toggle-slider::before {
+  content: ''; position: absolute; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--white); left: 2px; top: 2px;
+  transition: .2s; box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+.adm-toggle input:checked + .adm-toggle-slider { background: #059669; }
+.adm-toggle input:checked + .adm-toggle-slider::before { transform: translateX(14px); }
+
+/* ═══ Modal ═══ */
+.adm-modal-overlay {
+  position: fixed; inset: 0; z-index: 9980;
+  background: rgba(15, 22, 35, 0.4); backdrop-filter: blur(4px);
+}
+.adm-modal {
+  position: fixed; z-index: 9985;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 520px; max-width: calc(100vw - 32px);
+  background: var(--white); border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.18);
+  display: flex; flex-direction: column; overflow: hidden;
+  animation: adm-pop .25s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes adm-pop {
+  from { opacity: 0; transform: translate(-50%,-48%) scale(.96); }
+  to { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+}
+.adm-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--g1);
+}
+.adm-modal-head h3 { font-size: 15px; font-weight: 700; color: var(--g7); margin: 0; }
+.adm-modal-body { padding: 20px; overflow-y: auto; max-height: 60vh; }
+.adm-modal-foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 14px 20px; border-top: 1px solid var(--g1);
+}
+
+.adm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.adm-fg { display: flex; flex-direction: column; }
+.adm-fg-full { grid-column: 1 / -1; }
+.adm-fg label { font-size: 11px; font-weight: 700; color: var(--g5); margin-bottom: 4px; }
+
+.adm-btn-cancel-lg {
+  padding: 8px 18px; border-radius: 8px; border: 1px solid var(--g2);
+  background: var(--white); color: var(--g5); font-size: 12px; font-weight: 600;
+  font-family: var(--sans); cursor: pointer;
+}
+.adm-btn-cancel-lg:hover { background: var(--g0); }
+.adm-btn-save-lg {
+  padding: 8px 18px; border-radius: 8px; border: none;
+  background: var(--accent, #0d9488); color: #fff; font-size: 12px; font-weight: 700;
+  font-family: var(--sans); cursor: pointer;
+}
+.adm-btn-save-lg:hover { background: #0f766e; }
+.adm-btn-save-lg:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ═══ Responsive ═══ */
+@media (max-width: 768px) {
+  .adm-form-grid { grid-template-columns: 1fr; }
+}

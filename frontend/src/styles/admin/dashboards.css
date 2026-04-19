@@ -1,0 +1,87 @@
+/* ═══════════════════════════════════════
+   ADMIN — Tab Dashboard
+   Hàng mở rộng, chỉnh sửa icon SVG, URL Power BI
+   ═══════════════════════════════════════ */
+
+/* Các cột riêng cho tab Dashboard */
+.adm-td-interval { font-size: 11px; color: var(--g4); }
+.adm-td-cat { font-size: 11px; }
+
+/* ═══ Hàng mở rộng (inline trong bảng khi đang sửa) ═══ */
+.adm-expand-row td {
+  padding: 0 !important;
+  border-bottom: 2px solid var(--accent, #0d9488) !important;
+  background: #fafbfd !important;
+}
+.adm-expand-content {
+  padding: 12px 16px 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.adm-expand-field label {
+  font-size: 11px; font-weight: 700; color: var(--g5);
+  margin-bottom: 4px; display: block;
+}
+
+/* URL Power BI */
+.adm-expand-url {
+  display: flex; align-items: center; gap: 8px;
+}
+.adm-expand-url .adm-input {
+  flex: 1; font-family: var(--mono); font-size: 11px;
+}
+
+/* Icon SVG editor */
+.adm-expand-icon {
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.adm-expand-icon .adm-textarea { flex: 1; }
+
+.adm-icon-editor-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.adm-icon-editor-head label {
+  font-size: 11px; font-weight: 700; color: var(--g5);
+}
+.adm-btn-reset-icon {
+  font-size: 10px; font-weight: 600; color: var(--accent, #0d9488);
+  background: none; border: none; cursor: pointer; font-family: var(--sans);
+  padding: 2px 6px; border-radius: 4px;
+}
+.adm-btn-reset-icon:hover { background: var(--accent-lt, #f0fdfa); }
+
+/* Xem trước icon */
+.adm-icon-preview-box {
+  width: 64px; height: 64px; border-radius: 10px;
+  background: var(--g0); display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--g2); flex-shrink: 0;
+}
+.adm-icon-preview-box svg { width: 52px; height: 52px; }
+.adm-icon-preview-box [fill="currentFill"] { fill: var(--fill, #f0fdfa); }
+.adm-icon-preview-box [stroke="currentStroke"] { stroke: var(--stroke, #0d9488); }
+.adm-icon-preview-box [fill="currentStroke"] { fill: var(--stroke, #0d9488); }
+
+.adm-icon-preview-box-sm {
+  width: 56px; height: 56px; flex-shrink: 0; border-radius: 10px;
+  background: var(--g0); display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--g2);
+}
+.adm-icon-preview-box-sm svg { width: 44px; height: 44px; }
+.adm-icon-preview-box-sm [fill="currentFill"] { fill: var(--fill, #f0fdfa); }
+.adm-icon-preview-box-sm [stroke="currentStroke"] { stroke: var(--stroke, #0d9488); }
+.adm-icon-preview-box-sm [fill="currentStroke"] { fill: var(--stroke, #0d9488); }
+
+/* URL bar (dùng chung cho Power BI URL bên ngoài bảng nếu cần) */
+.adm-url-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--white); border: 1px solid var(--g1); border-radius: 10px;
+}
+.adm-url-bar label { font-size: 11px; font-weight: 700; color: var(--g4); white-space: nowrap; }
+.adm-url-bar .adm-input { flex: 1; font-family: var(--mono); font-size: 11px; }
+.adm-url-link {
+  width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--g0); color: var(--g4); text-decoration: none;
+}
+.adm-url-link:hover { background: var(--g1); color: var(--g6); }
