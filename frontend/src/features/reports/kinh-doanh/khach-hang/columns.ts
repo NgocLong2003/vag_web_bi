@@ -14,7 +14,7 @@
 // ============================================================================
 
 import type { ColumnDef, KyBaoCao } from '../../shared/components/TreeTable/types'
-import { fmtD, toISO } from '../../shared/utils/formatters'
+import { fmtDate as fmtD, isoDate as toISO } from '@shared/utils/format'
 
 /** ID tất cả các cột gốc (dùng để fetch data) */
 export const COLUMN_IDS = ['du_no_dk', 'ban_ra', 'tt1', 'tt2', 'du_no_tk', 'du_no_ct', 'du_no_ck'] as const

@@ -153,3 +153,43 @@ export function firstDayOfMonth(): string {
   const now = new Date()
   return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`
 }
+
+// --- HTML render helpers (cho dangerouslySetInnerHTML trong report tables) ---
+
+/** Render số thành HTML string với class pos/neg/zero */
+export function numHTML(
+  value: number | null | undefined,
+  extraClass = '',
+  isInverse = false,
+): string {
+  if (value == null) return '<span class="dash">—</span>'
+  const n = Math.round(value)
+  let cls: string
+  if (isInverse) {
+    cls = n > 0 ? 'neg' : n < 0 ? 'pos' : 'zero'
+  } else {
+    cls = numClass(n)
+  }
+  return `<span class="n ${cls} ${extraClass}">${fmtNumber(value)}</span>`
+}
+
+/** Shimmer skeleton HTML cho ô đang loading */
+export function shimmerHTML(): string {
+  return '<span class="skeleton" style="width:55px;height:10px"></span>'
+}
+
+/** Thời gian tương đối: "5 phút trước" */
+export function timeAgo(dateStr: string | null | undefined): string {
+  if (!dateStr || dateStr === 'None') return ''
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const m = Math.floor(diff / 60000)
+    if (m < 1) return 'vừa xong'
+    if (m < 60) return `${m} phút trước`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h} giờ trước`
+    return `${Math.floor(h / 24)} ngày trước`
+  } catch {
+    return ''
+  }
+}

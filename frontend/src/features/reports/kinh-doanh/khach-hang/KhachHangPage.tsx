@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useAuth } from '@shared/auth/AuthProvider'
 import { useReportStore } from '@shared/stores/useReportStore'
 import { BPSlicerStrip } from '@shared/ui/slicers/BPSlicerStrip'
@@ -6,7 +6,7 @@ import { KBCPicker } from '@shared/ui/slicers/KBCPicker'
 import type { KBCRecord, MergedKBC } from '@shared/ui/slicers/kbc-picker.types'
 import { useHierarchy } from '../../shared/hooks/useHierarchy'
 import { computeAllowedNV, getAllowedBP, parseList } from '../../shared/utils/permissions'
-import { fmtV, fmtD, numHTML, shimmerHTML, escHTML } from '../../shared/utils/formatters'
+import { fmtNumber as fmtV, fmtDate as fmtD, numHTML, shimmerHTML, escHtml as escHTML } from '@shared/utils/format'
 import { useKhachHangData } from './useKhachHangData'
 import { COLUMN_IDS, buildDisplayColumns, computeDates } from './columns'
 import type { NVNode, FlatRow, ColumnDef, KyBaoCao } from '../../shared/components/TreeTable/types'
@@ -132,6 +132,17 @@ export default function KhachHangPage() {
   // ── Handlers ──
   function toggleNV(id: string) { setExpState(p => ({ ...p, [id]: !p[id] })) }
   useEffect(() => { (window as any).__togNV = toggleNV; return () => { delete (window as any).__togNV } })
+
+  // ── Refs for sticky NV row offset ──
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const theadRef = useRef<HTMLTableSectionElement>(null)
+
+  // Measure thead height → set CSS var for sticky NV rows
+  useEffect(() => {
+    if (!theadRef.current || !wrapRef.current) return
+    const h = theadRef.current.getBoundingClientRect().height
+    wrapRef.current.style.setProperty('--thead-h', `${h}px`)
+  }, [flatRows, displayCols])
 
   function toggleAllExp() {
     const next = !allExp; setAllExp(next)
@@ -334,9 +345,9 @@ export default function KhachHangPage() {
         ) : emptyMsg ? (
           <div className="rpt-state">{emptyMsg}</div>
         ) : flatRows.length > 0 && displayCols.length > 0 ? (
-          <div className="tt-wrap">
+          <div className="tt-wrap" ref={wrapRef}>
             <table className="tt-table">
-              <thead>
+              <thead ref={theadRef}>
                 <tr>
                   <th style={{ textAlign: 'left', minWidth: 220 }}>
                     NV / Khách hàng
@@ -472,16 +483,6 @@ function buildFlatRows(
 // RENDER HELPERS (string HTML for performance)
 // ═══════════════════════════════════════════════════════════════
 
-function treeLines(ancestors: { cont: boolean }[], isLast: boolean, depth: number): string {
-  if (depth === 0) return ''
-  let h = ''
-  for (const anc of ancestors) {
-    h += anc.cont ? '<span class="tree-seg vline"></span>' : '<span class="tree-seg"></span>'
-  }
-  h += isLast ? '<span class="tree-seg branch"></span>' : '<span class="tree-seg branch-cont"></span>'
-  return h
-}
-
 function renderBody(
   rows: FlatRow[],
   cols: ColumnDef[],
@@ -489,15 +490,32 @@ function renderBody(
   khNames: Map<string, string>,
 ): string {
   let html = ''
+  const INDENT = 24 // px mỗi cấp
+  const ROW_H = 34  // px chiều cao mỗi hàng
+
+  // Track parent stack cho sticky top tính toán
+  const stickyStack: number[] = []
+
   rows.forEach(row => {
     if (row.type === 'nv' && row.node) {
       const nd = row.node
       const lv = 'lv' + Math.min(row.depth, 5)
-      const tl = row.depth > 0 ? '<span class="tree-lines">' + treeLines(row.ancestors, row.isLast, row.depth) + '</span>' : ''
+      const indent = row.depth * INDENT
       const togSvg = row.expanded ? '<path d="M1.5 3L4.5 6.5L7.5 3"/>' : '<path d="M3 1.5L6.5 4.5L3 7.5"/>'
       const tog = row.hasKids
         ? `<button class="tog" onclick="window.__togNV&&window.__togNV('${nd.ma_nvkd}')"><svg viewBox="0 0 9 9">${togSvg}</svg></button>`
         : '<span class="tog-sp"></span>'
+
+      // Cập nhật sticky stack: pop tất cả level >= current
+      while (stickyStack.length > 0 && stickyStack[stickyStack.length - 1] >= row.depth) {
+        stickyStack.pop()
+      }
+
+      // Tất cả NV đều sticky — kể cả NV lá (có KH dài bên dưới)
+      const stickyTop = stickyStack.length * ROW_H
+      const stickyStyle = `--sticky-top:calc(var(--thead-h, 70px) + ${stickyTop}px)`
+      stickyStack.push(row.depth)
+
       let tds = ''
       cols.forEach(col => {
         if (data.isLoading(col.id)) { tds += `<td style="text-align:right">${shimmerHTML()}</td>`; return }
@@ -508,10 +526,10 @@ function renderBody(
           tds += '<td style="text-align:right"><span class="dash">—</span></td>'
         }
       })
-      html += `<tr class="row-nv ${lv}"><td><div class="cell-name">${tl}${tog}<span class="nametxt">${escHTML(nd.ten_nvkd || nd.ma_nvkd)}</span></div></td><td><span class="code">${escHTML(nd.ma_nvkd)}</span></td>${tds}</tr>`
+      html += `<tr class="row-nv ${lv} row-sticky" style="${stickyStyle}"><td><div class="cell-name" style="padding-left:${12 + indent}px">${tog}<span class="nametxt">${escHTML(nd.ten_nvkd || nd.ma_nvkd)}</span></div></td><td><span class="code">${escHTML(nd.ma_nvkd)}</span></td>${tds}</tr>`
     } else if (row.type === 'kh' && row.parentNV) {
       const mk = row.maKH!
-      const tl = row.depth > 0 ? '<span class="tree-lines">' + treeLines(row.ancestors, row.isLast, row.depth) + '</span>' : ''
+      const indent = row.depth * INDENT
       let tds = ''
       cols.forEach(col => {
         if (data.isLoading(col.id)) { tds += `<td style="text-align:right">${shimmerHTML()}</td>`; return }
@@ -522,7 +540,7 @@ function renderBody(
           tds += '<td style="text-align:right"><span class="dash">—</span></td>'
         }
       })
-      html += `<tr class="row-kh"><td><div class="cell-name">${tl}<span class="tog-sp"></span><span class="nametxt">${escHTML(row.tenKH || mk)}</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">${escHTML(mk)}</span></td>${tds}</tr>`
+      html += `<tr class="row-kh"><td><div class="cell-name" style="padding-left:${12 + indent}px"><span class="tog-sp"></span><span class="nametxt">${escHTML(row.tenKH || mk)}</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">${escHTML(mk)}</span></td>${tds}</tr>`
     }
   })
   return html
