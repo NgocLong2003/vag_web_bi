@@ -1,5 +1,5 @@
 import type { NVNode } from '@/types'
-import type { ColumnData, AggregatedValues } from '@features/reports/_shared/report.types'
+import type { ColumnData, AggregatedValues } from '@/features/reports/shared/report.types'
 
 /**
  * Aggregate column data into tree nodes.

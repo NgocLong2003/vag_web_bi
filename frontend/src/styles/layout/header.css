@@ -99,6 +99,7 @@
   padding: 3px 10px 3px 7px; border-radius: 7px;
   font-size: 9px; font-weight: 600; letter-spacing: 0.3px;
   transition: all 0.15s; border: 0.5px solid transparent;
+  background: none; font-family: var(--sans); cursor: default;
 }
 .ub-pill.realtime { color: var(--hdr-emerald); }
 .ub-pill.realtime .ub-dot {
@@ -110,6 +111,11 @@
 .ub-pill.scheduled:hover { background: var(--g0, #f7f8fa); border-color: var(--hdr-bdr); }
 .ub-pill.scheduled .ub-dot { background: var(--hdr-amber); }
 .ub-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* Two-line text for scheduled badge */
+.ub-text { display: flex; flex-direction: column; align-items: flex-start; gap: 0; line-height: 1.2; }
+.ub-interval { font-size: 9px; font-weight: 700; color: var(--hdr-t2); }
+.ub-ago { font-size: 8px; font-weight: 500; color: var(--hdr-t3); }
 @keyframes hdr-pulse-dot {
   0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
   50% { box-shadow: 0 0 0 5px rgba(52,211,153,0); }
@@ -262,4 +268,4 @@
 .alert-list { padding: 6px; max-height: 260px; overflow-y: auto; }
 .alert-list::-webkit-scrollbar { width: 4px; }
 .alert-list::-webkit-scrollbar-track { background: transparent; margin: 4px 0; }
-.alert-list::-webkit-scrollbar-thumb { background: var(--g2, #d8dce6); border-radius: 4px; }  
+.alert-list::-webkit-scrollbar-thumb { background: var(--g2, #d8dce6); border-radius: 4px; }

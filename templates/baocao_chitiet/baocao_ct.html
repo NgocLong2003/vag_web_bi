@@ -232,7 +232,6 @@ function renderAll(){
         if(!hasAny(nd))return;
         const ownKHKeys=tree[nd.ma_nvkd]?Object.keys(tree[nd.ma_nvkd]):[];
         const visChildren=nd.children.filter(c=>allowedNV.has(c.ma_nvkd)&&hasAny(c));
-        if(ownKHKeys.length===0&&visChildren.length===1){walkNV(visChildren[0],depth+(visChildren[0].level-nd.level));return}
         const rd=depth-baseLevel,exp=expState[nd.ma_nvkd]!==false;
         const[nvDS,nvDT]=nvTotal(nd),nvVal=mode==='ds'?nvDS:mode==='dt'?nvDT:nvDS+nvDT;
         const lv='lv'+Math.min(rd,3),khKeys=tree[nd.ma_nvkd]?Object.keys(tree[nd.ma_nvkd]):[];

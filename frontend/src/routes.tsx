@@ -14,12 +14,13 @@ const DashboardViewPage = lazy(() => import('@features/dashboard/DashboardViewPa
 const AdminPage = lazy(() => import('@features/admin/AdminPage'))
 const AnalyticsPage = lazy(() => import('@features/analytics/AnalyticsPage'))
 
-// Reports
-const KinhDoanhPage = lazy(() => import('@features/reports/kinh-doanh/KinhDoanhPage'))
-const KhachHangPage = lazy(() => import('@features/reports/khach-hang/KhachHangPage'))
-const ChiTietPage = lazy(() => import('@features/reports/chi-tiet/ChiTietPage'))
-const BanRaPage = lazy(() => import('@features/reports/ban-ra/BanRaPage'))
-const KPIReportPage = lazy(() => import('@features/reports/kpi/KPIReportPage'))
+// Reports — Kinh doanh
+const KhachHangPage = lazy(() => import('@features/reports/kinh-doanh/khach-hang/KhachHangPage'))
+const KinhDoanhPage = lazy(() => import('@features/reports/kinh-doanh/kinh-doanh/KinhDoanhPage'))
+const ChiTietPage = lazy(() => import('@features/reports/kinh-doanh/chi-tiet/ChiTietPage'))
+const BanRaPage = lazy(() => import('@features/reports/kinh-doanh/ban-ra/BanRaPage'))
+const KPIReportPage = lazy(() => import('@features/reports/kinh-doanh/kpi/KPIReportPage'))
+// Reports — Sản xuất
 const NguyenLieuPage = lazy(() => import('@features/reports/san-xuat/nguyen-lieu/NguyenLieuPage'))
 
 function SuspenseWrap({ children }: { children: React.ReactNode }) {

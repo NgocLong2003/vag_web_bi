@@ -267,7 +267,6 @@ function buildRows(){
         function walk(nd,anc,isL,depthOffset){
             if(!hasData(nd))return;
             const fk=getKH(nd),vc=[...nd.children].sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).filter(c=>hasData(c));
-            if(fk.length===0&&vc.length===1){walk(vc[0],anc,isL,depthOffset+(vc[0].level-nd.level));return}
             const rd=nd.level-depthOffset,exp=expState[nd.ma_nvkd]!==false;
             rows.push({type:'nv',node:nd,expanded:exp,hasKids:vc.length>0||fk.length>0,depth:rd,ancestors:[...anc],isLast:isL});
             if(exp){const tot=fk.length+vc.length;let si=0;

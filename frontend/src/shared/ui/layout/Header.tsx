@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@shared/auth/AuthProvider'
+import { useReportStore } from '@shared/stores/useReportStore'
 import { SettingsModal } from '@shared/ui/modals/SettingsModal'
 import { HelpModal } from '@shared/ui/modals/HelpModal'
 import {
@@ -65,10 +66,10 @@ export interface HeaderProps {
 }
 
 export function Header({
-  dashboardName = 'Dashboard',
-  dashboards = [],
-  updateMode = 'realtime',
-  lastUpdateText = 'Cập nhật 5 phút trước',
+  dashboardName: propName,
+  dashboards: propDashboards = [],
+  updateMode: propUpdateMode,
+  lastUpdateText: propLastUpdateText,
   updateLog = [],
   defaultDownloadFormat = 'xlsx',
   onDownload,
@@ -80,6 +81,27 @@ export function Header({
   const navigate = useNavigate()
   const location = useLocation()
   const isListPage = location.pathname === '/dashboards' || location.pathname === '/'
+
+  // ── Read from store (page sets these on mount) ──
+  const storeReportName = useReportStore(s => s.reportName)
+  const storeUpdateMode = useReportStore(s => s.updateMode)
+  const storeUpdateInterval = useReportStore(s => s.updateInterval)
+  const storeLastUpdateText = useReportStore(s => s.lastUpdateText)
+  const reportDownloadHandler = useReportStore(s => s.downloadHandler)
+  const reportDownloading = useReportStore(s => s.downloading)
+  const storeDashboards = useReportStore(s => s.dashboards) as any[]
+
+  // Store overrides props
+  const dashboardName = storeReportName || propName || 'Dashboard'
+  const updateMode = propUpdateMode || storeUpdateMode || 'realtime'
+  const lastUpdateText = propLastUpdateText || storeLastUpdateText || ''
+  const updateInterval = storeUpdateInterval || ''
+  const dashboards: DashboardOption[] = (storeDashboards.length ? storeDashboards : propDashboards).map((d: any) => ({
+    id: d.id?.toString() || d.slug || '',
+    name: d.name,
+    group: d.group || d.category || 'Khác',
+  }))
+
   const [fullscreen, setFullscreen] = useState(false)
   const [openDD, setOpenDD] = useState<string | null>(null)
   const [dbSearch, setDbSearch] = useState('')
@@ -178,7 +200,22 @@ export function Header({
                       <div
                         key={d.id}
                         className={`db-item ${d.name === dashboardName ? 'active' : ''}`}
-                        onClick={() => { onDashboardChange?.(d.id); closeAll() }}
+                        onClick={() => {
+                          // Navigate to dashboard/report
+                          const sd = storeDashboards.find((sd: any) => (sd.id?.toString() || sd.slug) === d.id)
+                          if (sd) {
+                            const slug = (sd as any).slug || ''
+                            if ((sd as any).dashboard_type === 'report' && slug) {
+                              navigate(`/r/${slug}`)
+                            } else if ((sd as any).dashboard_type === 'powerbi' && slug) {
+                              navigate(`/d/${slug}`)
+                            } else if (slug) {
+                              navigate(`/r/${slug}`)
+                            }
+                          }
+                          onDashboardChange?.(d.id)
+                          closeAll()
+                        }}
                       >
                         {d.name}
                       </div>
@@ -196,18 +233,23 @@ export function Header({
 
         {/* Update badge */}
         {updateMode === 'realtime' ? (
-          <div className="ub-pill realtime">
+          <button className="ub-pill realtime" title="Dữ liệu cập nhật real-time">
             <div className="ub-dot" />
             Real-time
-          </div>
+          </button>
         ) : (
           <div className="relative">
             <button
               className="ub-pill scheduled"
               onClick={(e) => { e.stopPropagation(); toggle('update') }}
+              title="Nhấn để xem lịch sử cập nhật"
             >
               <div className="ub-dot" />
-              {lastUpdateText}
+              <div className="ub-text">
+                {updateInterval && <span className="ub-interval">{updateInterval}</span>}
+                {lastUpdateText && <span className="ub-ago">{lastUpdateText}</span>}
+                {!updateInterval && !lastUpdateText && <span>Định kỳ</span>}
+              </div>
             </button>
             {openDD === 'update' && (
               <div className="dropdown show ub-modal" onClick={(e) => e.stopPropagation()}>
@@ -274,9 +316,16 @@ export function Header({
 
         {/* Tải xuống — split button */}
         <div className="dl-group relative">
-          <button className="hb dl-main" onClick={() => onDownload?.(defaultDownloadFormat)}>
+          <button
+            className="hb dl-main"
+            disabled={reportDownloading}
+            onClick={() => {
+              const handler = reportDownloadHandler || onDownload
+              handler?.(defaultDownloadFormat)
+            }}
+          >
             <Download className="h-3.5 w-3.5" />
-            <span>Tải xuống</span>
+            <span>{reportDownloading ? 'Đang tải...' : 'Tải xuống'}</span>
           </button>
           <button
             className="dl-drop"
@@ -290,7 +339,10 @@ export function Header({
                 <div
                   key={fmt}
                   className="dl-item"
-                  onClick={() => { onDownload?.(fmt); closeAll() }}
+                  onClick={() => {
+                    const handler = reportDownloadHandler || onDownload
+                    handler?.(fmt); closeAll()
+                  }}
                 >
                   <Download className="h-4 w-4" />
                   {fmt === 'xlsx' ? 'Excel' : fmt === 'pdf' ? 'PDF' : 'CSV'}

@@ -1,0 +1,92 @@
+/* ═══════════════════════════════════════
+   REPORT — Layout chung cho mọi báo cáo
+   ═══════════════════════════════════════ */
+
+.rpt-layout {
+  display: flex; flex-direction: column; height: 100%;
+}
+
+/* ═══ Slicer bar — floating centered, dưới header z-index ═══ */
+.rpt-slicer-bar {
+  position: fixed; top: calc(var(--header-h, 60px) + 8px);
+  left: 0; right: 0;
+  z-index: 40;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 5px 12px; width: fit-content;
+  margin: 0 auto;
+  border-radius: 10px;
+  background: var(--white);
+  border: 1px solid var(--g2);
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  pointer-events: auto;
+}
+
+/* Ensure report page fills main exactly — prevents main from scrolling */
+.rpt-page {
+  display: flex; flex-direction: column;
+  height: 100%; min-height: 0; overflow: hidden;
+}
+
+/* Content — fill remaining height */
+.rpt-content {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; position: relative;
+  padding-top: 48px; min-height: 0;
+}
+
+/* States */
+.rpt-state {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  height: 100%; color: var(--g4); font-size: 13px;
+}
+.rpt-state-err { color: var(--red); }
+
+.rpt-spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2.5px solid var(--g2); border-top-color: var(--accent, #0d9488);
+  animation: rpt-spin .8s linear infinite;
+}
+@keyframes rpt-spin { to { transform: rotate(360deg) } }
+
+/* ═══ Toolbar buttons ═══ */
+.rpt-btn {
+  height: 30px; padding: 0 10px; border-radius: 6px;
+  border: 1px solid var(--g2); background: var(--white);
+  font-size: 11px; font-weight: 600; font-family: var(--sans);
+  color: var(--g5); cursor: pointer; display: flex;
+  align-items: center; gap: 4px; transition: all .12s;
+  white-space: nowrap;
+}
+.rpt-btn:hover { background: var(--g0); border-color: var(--g3); }
+.rpt-btn.green { background: #059669; color: #fff; border-color: #059669; }
+.rpt-btn.green:hover { background: #047857; }
+.rpt-btn svg {
+  width: 14px; height: 14px; stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* Status dot */
+.rpt-status {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--g4); font-weight: 600;
+}
+.rpt-status-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
+.rpt-status-dot.ok { background: #10b981; }
+.rpt-status-dot.busy { background: #f59e0b; animation: rpt-pulse 1s infinite; }
+.rpt-status-dot.err { background: #ef4444; }
+@keyframes rpt-pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+
+/* Divider */
+.rpt-vdiv {
+  width: 1px; height: 18px; background: var(--g2);
+  margin: 0 2px; flex-shrink: 0;
+}
+
+/* BP Slicer Strip — nằm giữa toolbar và bảng */
+.rpt-bp-strip {
+  border-bottom: 1px solid var(--g1);
+  background: var(--white);
+  flex-shrink: 0;
+}

@@ -1,0 +1,163 @@
+/* ═══════════════════════════════════════
+   TREE TABLE — Bảng cây NV → KH
+   ═══════════════════════════════════════ */
+
+.tt-wrap { overflow: auto; flex: 1; position: relative; min-height: 0; }
+
+.tt-table {
+  width: max-content; min-width: 100%;
+  border-collapse: separate; border-spacing: 0;
+}
+
+/* ═══ HEADER — sticky top, dark, bold ═══ */
+.tt-table thead th {
+  position: sticky; top: 0; z-index: 10;
+  background: #2d3748; color: #e2e8f0;
+  padding: 10px 14px; vertical-align: middle;
+  font-size: 11px; font-weight: 800;
+  text-transform: uppercase; text-align: center;
+  letter-spacing: .3px; white-space: nowrap;
+  border-bottom: 3px solid #4a5568;
+  border-right: 1px solid #4a5568;
+}
+.tt-table thead th:last-child { border-right: none; }
+
+/* Cột NV/KH — căn trái, relative cho col-grip */
+.tt-table thead th:first-child {
+  text-align: left; position: sticky; left: 0; z-index: 12;
+  background: #2d3748; min-width: 220px;
+}
+/* col-grip needs th as positioning context — sticky already does this */
+.tt-table thead th:nth-child(2) { text-align: left; }
+
+.tt-th-main { font-size: 11px; font-weight: 800; color: #fff; }
+.tt-th-date {
+  font-size: 9px; font-weight: 500; color: #a0aec0;
+  margin-top: 3px; line-height: 1.35;
+}
+
+/* ═══ BODY ROWS ═══ */
+.tt-table td {
+  padding: 0 12px; height: var(--row-h, 34px);
+  font-size: 12px; vertical-align: middle;
+  border-bottom: 1px solid var(--g1);
+  border-right: 1px solid rgba(0,0,0,.02);
+  white-space: nowrap;
+}
+.tt-table td:last-child { border-right: none; }
+
+/* Cột đầu — sticky */
+.tt-table td:first-child {
+  position: sticky; left: 0; z-index: 5;
+  box-shadow: 2px 0 8px rgba(0,0,0,.05);
+}
+
+/* ═══ NV ROWS — phân biệt theo cấp ═══ */
+.row-nv { font-weight: 600; }
+
+.row-nv.lv0 { background: #d6dce8; }
+.row-nv.lv0 td:first-child { background: #d6dce8; }
+.row-nv.lv0 td { font-weight: 800; font-size: 12px; }
+.row-nv.lv0 .nametxt { color: var(--g7); }
+
+.row-nv.lv1 { background: #e2e7f0; }
+.row-nv.lv1 td:first-child { background: #e2e7f0; }
+.row-nv.lv1 td { font-weight: 700; }
+
+.row-nv.lv2 { background: #ebeef4; }
+.row-nv.lv2 td:first-child { background: #ebeef4; }
+
+.row-nv.lv3 { background: #f1f3f8; }
+.row-nv.lv3 td:first-child { background: #f1f3f8; }
+
+.row-nv.lv4, .row-nv.lv5 { background: #f6f7fa; }
+.row-nv.lv4 td:first-child, .row-nv.lv5 td:first-child { background: #f6f7fa; }
+
+/* ═══ KH ROWS ═══ */
+.row-kh { background: var(--white); }
+.row-kh td:first-child { background: var(--white); }
+.row-kh:hover { background: #f8f9fc; }
+.row-kh:hover td:first-child { background: #f8f9fc; }
+
+/* ═══ CELL NAME (tên + tree lines + toggle) ═══ */
+.cell-name {
+  display: flex; align-items: center; min-width: 180px;
+}
+
+/* Toggle expand/collapse */
+.tog {
+  width: 18px; height: 18px; border: none; background: none;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; padding: 0; color: var(--g4);
+  border-radius: 4px; transition: all .12s;
+}
+.tog:hover { color: var(--g7); background: rgba(0,0,0,.05); }
+.tog svg { width: 9px; height: 9px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+.tog-sp { width: 18px; flex-shrink: 0; }
+
+/* Name text */
+.nametxt {
+  font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding-left: 4px;
+}
+.row-nv .nametxt { font-weight: 700; color: var(--g7); }
+.row-kh .nametxt { font-weight: 500; color: var(--g6); font-size: 11.5px; }
+
+/* Code column */
+.code { font-family: var(--mono); font-size: 10px; color: var(--g4); }
+
+/* ═══ Column resize grip (3 chấm dọc) ═══ */
+.col-grip {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 8px; cursor: col-resize; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+}
+.col-grip::before {
+  content: '⋮'; font-size: 10px; color: rgba(255,255,255,.25);
+  transition: color .15s;
+}
+.col-grip:hover::before, .col-grip.active::before { color: rgba(255,255,255,.7); }
+.col-grip.active { background: rgba(255,255,255,.08); }
+
+/* ═══ TT Split button (trong header cột THANH TOÁN) ═══ */
+.tt-split-btn {
+  display: inline-flex; align-items: center;
+  margin-left: 5px; padding: 1px 5px;
+  border: 1px solid rgba(124,58,237,.4);
+  background: rgba(124,58,237,.12);
+  color: #c4b5fd; cursor: pointer;
+  border-radius: 3px; font-family: var(--sans);
+  font-size: 8px; font-weight: 700;
+  white-space: nowrap; vertical-align: middle;
+  transition: all .15s;
+}
+.tt-split-btn:hover { background: rgba(124,58,237,.25); color: #ddd6fe; }
+
+/* ═══ FOOTER — sticky bottom ═══ */
+.tt-table tfoot td {
+  position: sticky; bottom: 0; z-index: 8;
+  background: #2d3748; color: #e2e8f0;
+  border-top: none; font-weight: 800; font-size: 12px;
+  height: 38px;
+  border-right: 1px solid #4a5568;
+}
+.tt-table tfoot td:first-child {
+  position: sticky; left: 0; z-index: 10;
+  background: #2d3748;
+}
+.tt-table tfoot td:last-child { border-right: none; }
+.foot-lbl { font-size: 12px; font-weight: 800; color: #fff; text-transform: uppercase; }
+.tt-table tfoot .n { color: #e2e8f0 !important; }
+.tt-table tfoot .n.neg { color: #fc8181 !important; }
+.tt-table tfoot .n.grand { color: #fff !important; font-size: 13px; }
+
+/* ═══ Dash placeholder ═══ */
+.dash { color: var(--g3); font-size: 11px; }
+
+/* ═══ MOBILE ═══ */
+@media (max-width: 768px) {
+  .tt-table td { padding: 0 7px; font-size: 11px; height: 30px; }
+  .tt-table thead th { padding: 6px 7px; font-size: 9px; }
+  .nametxt { font-size: 11px; }
+  .code { font-size: 9px; }
+}
