@@ -46,68 +46,126 @@
 }
 .tt-table td:last-child { border-right: none; }
 
-/* Cột đầu — sticky */
+/* Cột đầu (hierarchy) — trắng xóa, không border, overflow visible cho tree lines */
 .tt-table td:first-child {
   position: sticky; left: 0; z-index: 5;
-  box-shadow: 2px 0 8px rgba(0,0,0,.05);
+  border-bottom: none;
+  background: var(--white);
+  overflow: visible;
+}
+.cell-name { overflow: visible; }
+/* Cột mã — cũng bỏ border cho sạch */
+.tt-table td:nth-child(2) {
+  border-bottom: 1px solid var(--g1);
 }
 
-/* ═══ NV ROWS — phân biệt theo cấp ═══ */
-.row-nv { font-weight: 600; }
+/* ═══ NV ROWS — nền trắng cho td:first-child, data cells có nền theo level ═══ */
+.row-nv { font-weight: 600; background: var(--white); }
+.row-nv td:first-child { background: var(--white); }
 
-/* Sticky parent rows — freeze NV cha khi scroll xuống con */
+/* NV data cells — nền đậm + số bold theo cấp */
+.row-nv.lv0 td { background: #3b5178; font-weight: 800; font-size: 12px; }
+.row-nv.lv0 td:first-child { background: var(--white); }
+.row-nv.lv0 .n { font-weight: 800 !important; color: #fff !important; }
+.row-nv.lv0 .n.neg { color: #fca5a5 !important; }
+.row-nv.lv0 .n.zero { color: rgba(255,255,255,.35) !important; }
+
+.row-nv.lv1 td { background: #5a7099; font-weight: 700; }
+.row-nv.lv1 td:first-child { background: var(--white); }
+.row-nv.lv1 .n { font-weight: 700 !important; color: #fff !important; }
+.row-nv.lv1 .n.neg { color: #fca5a5 !important; }
+.row-nv.lv1 .n.zero { color: rgba(255,255,255,.3) !important; }
+
+.row-nv.lv2 td { background: #4e6a92; font-weight: 700; }
+.row-nv.lv2 td:first-child { background: var(--white); }
+.row-nv.lv2 .n { font-weight: 700 !important; color: #fff !important; }
+.row-nv.lv2 .n.neg { color: #fca5a5 !important; }
+.row-nv.lv2 .n.zero { color: rgba(255,255,255,.3) !important; }
+
+.row-nv.lv3 td { background: #7b90b0; font-weight: 600; }
+.row-nv.lv3 td:first-child { background: var(--white); }
+.row-nv.lv3 .n { font-weight: 700 !important; color: #fff !important; }
+.row-nv.lv3 .n.neg { color: #fecaca !important; }
+.row-nv.lv3 .n.zero { color: rgba(255,255,255,.3) !important; }
+
+.row-nv.lv4 td, .row-nv.lv5 td { background: #cdd5e3; font-weight: 600; }
+.row-nv.lv4 td:first-child, .row-nv.lv5 td:first-child { background: var(--white); }
+.row-nv.lv4 .n, .row-nv.lv5 .n { font-weight: 700 !important; }
+
+/* ═══ Sticky NV rows — mỗi cấp ở top khác nhau ═══ */
 .row-nv.row-sticky {
   position: sticky;
   top: var(--sticky-top, 0px);
   z-index: 6;
 }
-.row-nv.row-sticky td {
-  border-bottom: 1px solid var(--g3);
-}
-/* Sticky first-child td cần z-index cao hơn */
-.row-nv.row-sticky td:first-child {
-  z-index: 7;
-}
+.row-nv.row-sticky td:first-child { z-index: 7; }
 
-/* Sticky parent rows — lv0, lv1, lv2 dính lại khi scroll */
-.row-sticky td {
-  position: sticky;
-  top: var(--sticky-top, 0);
-  z-index: 6;
+/* JS scroll handler hides NV rows from wrong branches */
+.row-nv.row-sticky.sticky-hidden {
+  opacity: 0; pointer-events: none; height: 0;
+  overflow: hidden; padding: 0; border: none;
+  position: sticky; /* keep sticky so it doesn't take space visually */
 }
-.row-sticky td:first-child {
-  z-index: 7; /* trên cả sticky left */
-}
-/* Border dưới đậm hơn cho sticky rows để tách biệt */
-.row-sticky td {
-  border-bottom: 1.5px solid rgba(0,0,0,.1);
-  box-shadow: 0 2px 4px rgba(0,0,0,.06);
+.row-nv.row-sticky.sticky-hidden td {
+  padding: 0; height: 0; border: none; line-height: 0; font-size: 0;
 }
 
-.row-nv.lv0 { background: #d6dce8; }
-.row-nv.lv0 td:first-child { background: #d6dce8; }
-.row-nv.lv0 td { font-weight: 800; font-size: 12px; background: #d6dce8; }
-.row-nv.lv0 .nametxt { color: var(--g7); }
-
-.row-nv.lv1 { background: #e2e7f0; }
-.row-nv.lv1 td:first-child { background: #e2e7f0; }
-.row-nv.lv1 td { font-weight: 700; background: #e2e7f0; }
-
-.row-nv.lv2 { background: #ebeef4; }
-.row-nv.lv2 td:first-child { background: #ebeef4; }
-.row-nv.lv2 td { background: #ebeef4; }
-
-.row-nv.lv3 { background: #f1f3f8; }
-.row-nv.lv3 td:first-child { background: #f1f3f8; }
-
-.row-nv.lv4, .row-nv.lv5 { background: #f6f7fa; }
-.row-nv.lv4 td:first-child, .row-nv.lv5 td:first-child { background: #f6f7fa; }
-
-/* ═══ KH ROWS ═══ */
-.row-kh { background: var(--white); }
+/* KH data cells — trắng, nhẹ */
+.row-kh td { background: var(--white); }
 .row-kh td:first-child { background: var(--white); }
-.row-kh:hover { background: #f8f9fc; }
-.row-kh:hover td:first-child { background: #f8f9fc; }
+.row-kh:hover .cell-block { background: #eef0f5; }
+
+/* ═══ Spacer + Block structure ═══ */
+.cell-spacer { flex-shrink: 0; }
+
+/* ═══ Tree lines (inside td.td-tree — covers full row height) ═══ */
+.td-tree { position: relative; }
+
+.tl-v {
+  position: absolute; top: 0; bottom: 0;
+  border-left: 1px solid var(--g3);
+  pointer-events: none;
+}
+.tl-v.tl-half {
+  bottom: auto; height: 50%;
+}
+.tl-h {
+  position: absolute; top: 50%;
+  border-top: 1px solid var(--g3);
+  pointer-events: none;
+}
+
+.cell-block {
+  display: flex; align-items: center;
+  padding: 4px 8px 4px 2px;
+  border-radius: 6px; flex: 1; min-width: 0;
+}
+
+/* NV block backgrounds — đậm, rõ phân cấp */
+.cell-block.lv0 { background: #3b5178; font-weight: 800; font-size: 12.5px; color: #fff; }
+.cell-block.lv0 .nametxt { color: #fff; }
+.cell-block.lv0 .tog { color: rgba(255,255,255,.6); }
+.cell-block.lv0 .tog:hover { color: #fff; background: rgba(255,255,255,.15); }
+
+.cell-block.lv1 { background: #5a7099; font-weight: 700; font-size: 12px; color: #fff; }
+.cell-block.lv1 .nametxt { color: #fff; }
+.cell-block.lv1 .tog { color: rgba(255,255,255,.5); }
+.cell-block.lv1 .tog:hover { color: #fff; background: rgba(255,255,255,.15); }
+
+.cell-block.lv2 { background: #4e6a92; font-weight: 700; color: #fff; }
+.cell-block.lv2 .nametxt { color: #fff; }
+.cell-block.lv2 .tog { color: rgba(255,255,255,.5); }
+
+.cell-block.lv3 { background: #7b90b0; font-weight: 600; color: #fff; }
+.cell-block.lv3 .nametxt { color: #fff; }
+.cell-block.lv3 .tog { color: rgba(255,255,255,.5); }
+
+.cell-block.lv4, .cell-block.lv5 { background: #d4dbe8; font-weight: 600; }
+.cell-block.lv4 .nametxt, .cell-block.lv5 .nametxt { color: var(--g7); }
+
+/* KH block — nhẹ nhàng, nền xám rất nhạt */
+.cell-block.kh { background: #f0f1f4; }
+.cell-block.kh .nametxt { color: var(--g6); font-weight: 500; }
 
 /* ═══ CELL NAME (tên + tree lines + toggle) ═══ */
 

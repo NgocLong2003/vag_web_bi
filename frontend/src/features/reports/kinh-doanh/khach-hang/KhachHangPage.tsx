@@ -133,16 +133,89 @@ export default function KhachHangPage() {
   function toggleNV(id: string) { setExpState(p => ({ ...p, [id]: !p[id] })) }
   useEffect(() => { (window as any).__togNV = toggleNV; return () => { delete (window as any).__togNV } })
 
-  // ── Refs for sticky NV row offset ──
+  // ── Refs ──
   const wrapRef = useRef<HTMLDivElement>(null)
   const theadRef = useRef<HTMLTableSectionElement>(null)
 
-  // Measure thead height → set CSS var for sticky NV rows
+  // Measure thead height
   useEffect(() => {
     if (!theadRef.current || !wrapRef.current) return
     const h = theadRef.current.getBoundingClientRect().height
     wrapRef.current.style.setProperty('--thead-h', `${h}px`)
   }, [flatRows, displayCols])
+
+  // ── Scroll handler: hide stale sticky NV rows from wrong branches ──
+  useEffect(() => {
+    const wrap = wrapRef.current
+    const thead = theadRef.current
+    if (!wrap || !thead) return
+
+    let ticking = false
+    function onScroll() {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        ticking = false
+        const theadH = thead!.offsetHeight
+        const scrollTop = wrap!.scrollTop
+        const cutoff = scrollTop + theadH
+        const allNV = wrap!.querySelectorAll<HTMLTableRowElement>('tr.row-nv.row-sticky')
+
+        // Find the "current" NV: last NV whose offsetTop <= cutoff
+        // Then find its ancestor chain by walking backwards through NV rows
+        let currentIdx = -1
+        for (let i = 0; i < allNV.length; i++) {
+          if (allNV[i].offsetTop <= cutoff) {
+            currentIdx = i
+          }
+        }
+
+        if (currentIdx < 0) {
+          // No NV scrolled past → show all normally
+          allNV.forEach(r => r.classList.remove('sticky-hidden'))
+          return
+        }
+
+        // Build ancestor chain: walk backwards, collect depths that decrease
+        const currentDepth = parseInt(allNV[currentIdx].dataset.depth || '0')
+        const ancestorIndices = new Set<number>()
+        ancestorIndices.add(currentIdx)
+
+        let needDepth = currentDepth - 1
+        for (let i = currentIdx - 1; i >= 0 && needDepth >= 0; i--) {
+          const d = parseInt(allNV[i].dataset.depth || '0')
+          if (d === needDepth) {
+            ancestorIndices.add(i)
+            needDepth--
+          } else if (d < needDepth) {
+            // Skipped a level — still add this as ancestor
+            ancestorIndices.add(i)
+            needDepth = d - 1
+          }
+        }
+
+        // Show ancestors, hide others that are in sticky position (scrolled past)
+        allNV.forEach((r, i) => {
+          const rowTop = r.offsetTop
+          const rowBottom = rowTop + r.offsetHeight
+          if (rowBottom <= cutoff) {
+            // This row is scrolled past thead — should it stick?
+            if (ancestorIndices.has(i)) {
+              r.classList.remove('sticky-hidden')
+            } else {
+              r.classList.add('sticky-hidden')
+            }
+          } else {
+            // Row is below cutoff — visible normally
+            r.classList.remove('sticky-hidden')
+          }
+        })
+      })
+    }
+
+    wrap.addEventListener('scroll', onScroll, { passive: true })
+    return () => wrap.removeEventListener('scroll', onScroll)
+  }, [flatRows])
 
   function toggleAllExp() {
     const next = !allExp; setAllExp(next)
@@ -490,13 +563,10 @@ function renderBody(
   khNames: Map<string, string>,
 ): string {
   let html = ''
-  const INDENT = 24 // px mỗi cấp
-  const ROW_H = 34  // px chiều cao mỗi hàng
+  const INDENT = 24
+  const ROW_H = 34
 
-  // Track parent stack cho sticky top tính toán
-  const stickyStack: number[] = []
-
-  rows.forEach(row => {
+  rows.forEach((row, rowIdx) => {
     if (row.type === 'nv' && row.node) {
       const nd = row.node
       const lv = 'lv' + Math.min(row.depth, 5)
@@ -506,15 +576,12 @@ function renderBody(
         ? `<button class="tog" onclick="window.__togNV&&window.__togNV('${nd.ma_nvkd}')"><svg viewBox="0 0 9 9">${togSvg}</svg></button>`
         : '<span class="tog-sp"></span>'
 
-      // Cập nhật sticky stack: pop tất cả level >= current
-      while (stickyStack.length > 0 && stickyStack[stickyStack.length - 1] >= row.depth) {
-        stickyStack.pop()
-      }
-
-      // Tất cả NV đều sticky — kể cả NV lá (có KH dài bên dưới)
-      const stickyTop = stickyStack.length * ROW_H
+      // Tất cả NV đều sticky — mỗi depth ở 1 top khác nhau
+      // CSS sticky tự nhả khi scroll ra khỏi parent tbody section
+      const stickyTop = row.depth * ROW_H
       const stickyStyle = `--sticky-top:calc(var(--thead-h, 70px) + ${stickyTop}px)`
-      stickyStack.push(row.depth)
+
+      const treeHtml = row.depth > 0 ? buildTreeLines(row, INDENT) : ''
 
       let tds = ''
       cols.forEach(col => {
@@ -526,10 +593,12 @@ function renderBody(
           tds += '<td style="text-align:right"><span class="dash">—</span></td>'
         }
       })
-      html += `<tr class="row-nv ${lv} row-sticky" style="${stickyStyle}"><td><div class="cell-name" style="padding-left:${12 + indent}px">${tog}<span class="nametxt">${escHTML(nd.ten_nvkd || nd.ma_nvkd)}</span></div></td><td><span class="code">${escHTML(nd.ma_nvkd)}</span></td>${tds}</tr>`
+      html += `<tr class="row-nv ${lv} row-sticky" style="${stickyStyle}" data-depth="${row.depth}"><td class="td-tree">${treeHtml}<div class="cell-name"><span class="cell-spacer" style="width:${indent}px"></span><div class="cell-block ${lv}">${tog}<span class="nametxt">${escHTML(nd.ten_nvkd || nd.ma_nvkd)}</span></div></div></td><td><span class="code">${escHTML(nd.ma_nvkd)}</span></td>${tds}</tr>`
     } else if (row.type === 'kh' && row.parentNV) {
       const mk = row.maKH!
       const indent = row.depth * INDENT
+      const passLines = buildPassthroughLines(row, INDENT)
+
       let tds = ''
       cols.forEach(col => {
         if (data.isLoading(col.id)) { tds += `<td style="text-align:right">${shimmerHTML()}</td>`; return }
@@ -540,10 +609,61 @@ function renderBody(
           tds += '<td style="text-align:right"><span class="dash">—</span></td>'
         }
       })
-      html += `<tr class="row-kh"><td><div class="cell-name" style="padding-left:${12 + indent}px"><span class="tog-sp"></span><span class="nametxt">${escHTML(row.tenKH || mk)}</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">${escHTML(mk)}</span></td>${tds}</tr>`
+      html += `<tr class="row-kh"><td class="td-tree">${passLines}<div class="cell-name"><span class="cell-spacer" style="width:${indent}px"></span><div class="cell-block kh"><span class="tog-sp"></span><span class="nametxt">${escHTML(row.tenKH || mk)}</span></div></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">${escHTML(mk)}</span></td>${tds}</tr>`
     }
   })
   return html
+}
+
+/**
+ * Vẽ tree lines trong cell-spacer (position:relative).
+ * X của toggle tại depth d = d * INDENT + 9px (giữa slot 24px).
+ *
+ * - tl-v: đường dọc full height tại ancestor X (ancestor còn sibling)
+ * - tl-v tl-half: đường dọc nửa trên (last child — L-shape)
+ * - tl-h: đường ngang từ parent X tới cell-block
+ */
+function buildTreeLines(row: FlatRow, INDENT: number): string {
+  if (row.depth <= 0) return ''
+  let lines = ''
+  const parentX = (row.depth - 1) * INDENT + 9
+
+  // Đường dọc xuyên suốt cho ancestors còn sibling bên dưới
+  row.ancestors.forEach((anc, i) => {
+    if (anc.cont) {
+      const x = i * INDENT + 9
+      lines += `<span class="tl-v" style="left:${x}px"></span>`
+    }
+  })
+
+  // Hook dọc: last child = nửa trên, not last = full
+  if (row.isLast) {
+    lines += `<span class="tl-v tl-half" style="left:${parentX}px"></span>`
+  } else {
+    lines += `<span class="tl-v" style="left:${parentX}px"></span>`
+  }
+
+  // Hook ngang: từ parentX tới cell-block
+  const hookW = row.depth * INDENT - parentX
+  if (hookW > 0) {
+    lines += `<span class="tl-h" style="left:${parentX}px;width:${hookW}px"></span>`
+  }
+
+  return lines
+}
+
+/** KH rows: chỉ vẽ đường dọc xuyên suốt của ancestors NV, không vẽ hook */
+function buildPassthroughLines(row: FlatRow, INDENT: number): string {
+  let lines = ''
+  // Chỉ vẽ vlines cho NV ancestors còn sibling — bỏ qua ancestor cuối (NV→KH)
+  row.ancestors.forEach((anc, i) => {
+    if (i >= row.depth - 1) return // bỏ ancestor cuối (là NV cha trực tiếp → KH)
+    if (anc.cont) {
+      const x = i * INDENT + 9
+      lines += `<span class="tl-v" style="left:${x}px"></span>`
+    }
+  })
+  return lines
 }
 
 function renderFooterCell(
