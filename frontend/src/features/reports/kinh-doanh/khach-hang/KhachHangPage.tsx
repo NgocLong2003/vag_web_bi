@@ -145,77 +145,135 @@ export default function KhachHangPage() {
   }, [flatRows, displayCols])
 
   // ── Scroll handler: hide stale sticky NV rows from wrong branches ──
-  useEffect(() => {
-    const wrap = wrapRef.current
-    const thead = theadRef.current
-    if (!wrap || !thead) return
+useEffect(() => {
+  const wrap = wrapRef.current
+  const thead = theadRef.current
+  if (!wrap || !thead) return
 
-    let ticking = false
-    function onScroll() {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(() => {
-        ticking = false
-        const theadH = thead!.offsetHeight
-        const scrollTop = wrap!.scrollTop
-        const cutoff = scrollTop + theadH
-        const allNV = wrap!.querySelectorAll<HTMLTableRowElement>('tr.row-nv.row-sticky')
+  let ticking = false
+  function onScroll() {
+    if (ticking) return
+    ticking = true
+    requestAnimationFrame(() => {
+      ticking = false
 
-        // Find the "current" NV: last NV whose offsetTop <= cutoff
-        // Then find its ancestor chain by walking backwards through NV rows
-        let currentIdx = -1
-        for (let i = 0; i < allNV.length; i++) {
-          if (allNV[i].offsetTop <= cutoff) {
-            currentIdx = i
-          }
+      const allNV = wrap!.querySelectorAll<HTMLTableRowElement>('tr.row-nv.row-sticky')
+
+      // Reset toàn bộ trạng thái
+      allNV.forEach(r => {
+  const el = r as HTMLElement
+  el.classList.remove('sticky-hidden')
+})
+      void wrap!.offsetHeight
+
+      const wrapRect = wrap!.getBoundingClientRect()
+
+      // Bước 1: active NV tại mỗi depth - cái này quan trọng, đừng sửa. Sửa là nó bị hiện ông này trong slot ông kia, nhìn rất sai.
+      const activeByDepth = new Map<number, HTMLTableRowElement>()
+      allNV.forEach(r => {
+        const rect = r.getBoundingClientRect()
+        const depth = parseInt(r.dataset.depth || '0')
+        const stickyTopPx = parseFloat(getComputedStyle(r).top) || 0
+        const stickyY = wrapRect.top + stickyTopPx
+        if (rect.top <= stickyY + 1) {
+          activeByDepth.set(depth, r)
         }
-
-        if (currentIdx < 0) {
-          // No NV scrolled past → show all normally
-          allNV.forEach(r => r.classList.remove('sticky-hidden'))
-          return
-        }
-
-        // Build ancestor chain: walk backwards, collect depths that decrease
-        const currentDepth = parseInt(allNV[currentIdx].dataset.depth || '0')
-        const ancestorIndices = new Set<number>()
-        ancestorIndices.add(currentIdx)
-
-        let needDepth = currentDepth - 1
-        for (let i = currentIdx - 1; i >= 0 && needDepth >= 0; i--) {
-          const d = parseInt(allNV[i].dataset.depth || '0')
-          if (d === needDepth) {
-            ancestorIndices.add(i)
-            needDepth--
-          } else if (d < needDepth) {
-            // Skipped a level — still add this as ancestor
-            ancestorIndices.add(i)
-            needDepth = d - 1
-          }
-        }
-
-        // Show ancestors, hide others that are in sticky position (scrolled past)
-        allNV.forEach((r, i) => {
-          const rowTop = r.offsetTop
-          const rowBottom = rowTop + r.offsetHeight
-          if (rowBottom <= cutoff) {
-            // This row is scrolled past thead — should it stick?
-            if (ancestorIndices.has(i)) {
-              r.classList.remove('sticky-hidden')
-            } else {
-              r.classList.add('sticky-hidden')
-            }
-          } else {
-            // Row is below cutoff — visible normally
-            r.classList.remove('sticky-hidden')
-          }
-        })
       })
-    }
 
-    wrap.addEventListener('scroll', onScroll, { passive: true })
-    return () => wrap.removeEventListener('scroll', onScroll)
-  }, [flatRows])
+      // Bước 2: build chain hợp lệ
+      const sortedDepths = [...activeByDepth.keys()].sort((a, b) => a - b)
+      const validIds = new Set<string>()
+      const chainIds: string[] = []
+      for (const d of sortedDepths) {
+        const r = activeByDepth.get(d)!
+        const ancStr = r.dataset.ancestors || ''
+        const ancestors = ancStr ? ancStr.split('|').filter(Boolean) : []
+        const match = ancestors.length === chainIds.length &&
+          ancestors.every((a, i) => a === chainIds[i])
+        if (!match) break
+        chainIds.push(r.dataset.id || '')
+        validIds.add(r.dataset.id || '')
+      }
+
+      // Bước 3: ẩn NV đã qua slot mà không thuộc chain
+      allNV.forEach(r => {
+        const id = r.dataset.id || ''
+        if (validIds.has(id)) return
+        const rect = r.getBoundingClientRect()
+        const stickyTopPx = parseFloat(getComputedStyle(r).top) || 0
+        const stickyY = wrapRect.top + stickyTopPx
+        if (rect.top <= stickyY + 1) {
+          r.classList.add('sticky-hidden')
+        }
+      })
+
+      // Bước 4: đẩy NV cuối chain xuống theo KH nếu KH chưa xuống đủ
+const wrapRectForPush = wrap!.getBoundingClientRect()
+
+// Build map id → NV một lần (tránh find() nhiều lần)
+const nvById = new Map<string, HTMLTableRowElement>()
+allNV.forEach(r => { nvById.set(r.dataset.id || '', r) })
+
+const lastId = chainIds[chainIds.length - 1]
+const lastNV = lastId ? nvById.get(lastId) : null
+
+// Tập KH thuộc NV cuối chain
+const activeKHSet = new Set<HTMLElement>()
+if (lastNV) {
+  let c: Element | null = lastNV.nextElementSibling
+  while (c && c.classList.contains('row-kh')) {
+    activeKHSet.add(c as HTMLElement)
+    c = c.nextElementSibling
+  }
+}
+
+// Clear padding cho KH không thuộc active
+wrap!.querySelectorAll<HTMLTableRowElement>('tr.row-kh').forEach(r => {
+  if (activeKHSet.has(r)) return
+  r.querySelectorAll<HTMLElement>('td').forEach(td => {
+    if (td.style.paddingTop) td.style.paddingTop = ''
+    if (td.style.height) td.style.height = ''
+  })
+})
+
+// Push KH đầu xuống
+if (lastNV) {
+  const nvRect = lastNV.getBoundingClientRect()
+  const nvBottom = nvRect.top + nvRect.height
+
+  let cur: Element | null = lastNV.nextElementSibling
+  while (cur && cur.classList.contains('row-kh')) {
+    const khEl = cur as HTMLElement
+    const khOffsetTop = khEl.offsetTop
+    const khNaturalY = khOffsetTop - wrap!.scrollTop + wrapRectForPush.top
+    const overlap = nvBottom - khNaturalY
+    if (overlap <= 0) {
+      khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
+        if (td.style.paddingTop) td.style.paddingTop = ''
+        if (td.style.height) td.style.height = ''
+      })
+      break
+    }
+    const cappedOverlap = Math.round(Math.min(overlap, 200) / 8) * 8
+    const newHeight = `${34 + cappedOverlap}px`
+const newPad = `${cappedOverlap}px`
+khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
+  const curPad = parseFloat(td.style.paddingTop) || 0
+  if (Math.abs(curPad - cappedOverlap) > 8) {
+    td.style.height = newHeight
+    td.style.paddingTop = newPad
+  }
+})
+    break
+  }
+}
+    })
+  }
+
+  wrap.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+  return () => wrap.removeEventListener('scroll', onScroll)
+}, [flatRows])
 
   function toggleAllExp() {
     const next = !allExp; setAllExp(next)
@@ -518,36 +576,47 @@ function buildFlatRows(
   const visRoots = roots.filter(r => hasData(r))
   const baseLevel = visRoots.length ? Math.min(...visRoots.map(r => r.level)) : 0
 
-  function walk(nd: NVNode, ancestors: { cont: boolean }[], isLast: boolean) {
-    if (!hasData(nd)) return
-    const fk = getKHKeys(nd)
-    const vc = [...nd.children].sort((a, b) => a.stt_nhom.localeCompare(b.stt_nhom)).filter(c => hasData(c))
-    const depth = nd.level - baseLevel
-    const expanded = expState[nd.ma_nvkd] !== false
+  function walk(
+  nd: NVNode,
+  ancestors: { cont: boolean }[],
+  isLast: boolean,
+  ancestorIds: string[],
+) {
+  if (!hasData(nd)) return
+  const fk = getKHKeys(nd)
+  const vc = [...nd.children].sort((a, b) => a.stt_nhom.localeCompare(b.stt_nhom)).filter(c => hasData(c))
+  const depth = nd.level - baseLevel
+  const expanded = expState[nd.ma_nvkd] !== false
 
-    rows.push({ type: 'nv', node: nd, expanded, hasKids: vc.length > 0 || fk.length > 0, depth, ancestors: [...ancestors], isLast })
+  rows.push({
+    type: 'nv', node: nd, expanded,
+    hasKids: vc.length > 0 || fk.length > 0,
+    depth, ancestors: [...ancestors], isLast,
+    ancestorIds: [...ancestorIds],
+  })
 
-    if (expanded) {
-      const total = fk.length + vc.length
-      let idx = 0
-      fk.forEach(k => {
-        const il = idx === total - 1
-        rows.push({
-          type: 'kh', maKH: k, tenKH: hier.khNames.get(k) || k,
-          parentNV: nd, depth: depth + 1,
-          ancestors: [...ancestors, { cont: !il }], isLast: il,
-        })
-        idx++
+  if (expanded) {
+    const total = fk.length + vc.length
+    let idx = 0
+    const nextAncestors = [...ancestorIds, nd.ma_nvkd]
+    fk.forEach(k => {
+      const il = idx === total - 1
+      rows.push({
+        type: 'kh', maKH: k, tenKH: hier.khNames.get(k) || k,
+        parentNV: nd, depth: depth + 1,
+        ancestors: [...ancestors, { cont: !il }], isLast: il,
       })
-      vc.forEach(child => {
-        const il = idx === total - 1
-        walk(child, [...ancestors, { cont: !il }], il)
-        idx++
-      })
-    }
+      idx++
+    })
+    vc.forEach(child => {
+      const il = idx === total - 1
+      walk(child, [...ancestors, { cont: !il }], il, nextAncestors)
+      idx++
+    })
   }
+}
 
-  visRoots.forEach((r, ri) => walk(r, [], ri === visRoots.length - 1))
+visRoots.forEach((r, ri) => walk(r, [], ri === visRoots.length - 1, []))
   return rows
 }
 
@@ -568,32 +637,34 @@ function renderBody(
 
   rows.forEach((row, rowIdx) => {
     if (row.type === 'nv' && row.node) {
-      const nd = row.node
-      const lv = 'lv' + Math.min(row.depth, 5)
-      const indent = row.depth * INDENT
-      const togSvg = row.expanded ? '<path d="M1.5 3L4.5 6.5L7.5 3"/>' : '<path d="M3 1.5L6.5 4.5L3 7.5"/>'
-      const tog = row.hasKids
-        ? `<button class="tog" onclick="window.__togNV&&window.__togNV('${nd.ma_nvkd}')"><svg viewBox="0 0 9 9">${togSvg}</svg></button>`
-        : '<span class="tog-sp"></span>'
+  const nd = row.node
+  const lv = 'lv' + Math.min(row.depth, 5)
+  const indent = row.depth * INDENT
+  const togSvg = row.expanded ? '<path d="M1.5 3L4.5 6.5L7.5 3"/>' : '<path d="M3 1.5L6.5 4.5L3 7.5"/>'
+  const tog = row.hasKids
+    ? `<button class="tog" onclick="window.__togNV&&window.__togNV('${nd.ma_nvkd}')"><svg viewBox="0 0 9 9">${togSvg}</svg></button>`
+    : '<span class="tog-sp"></span>'
 
-      // Tất cả NV đều sticky — mỗi depth ở 1 top khác nhau
-      // CSS sticky tự nhả khi scroll ra khỏi parent tbody section
-      const stickyTop = row.depth * ROW_H
-      const stickyStyle = `--sticky-top:calc(var(--thead-h, 70px) + ${stickyTop}px)`
+  const stickyTop = row.depth * ROW_H
+  const stickyStyle = `--sticky-top:calc(var(--thead-h, 70px) + ${stickyTop}px)`
 
-      const treeHtml = row.depth > 0 ? buildTreeLines(row, INDENT) : ''
+  const treeHtml = row.depth > 0 ? buildTreeLines(row, INDENT) : ''
 
-      let tds = ''
-      cols.forEach(col => {
-        if (data.isLoading(col.id)) { tds += `<td style="text-align:right">${shimmerHTML()}</td>`; return }
-        const v = data.getCellNV(nd, col.id)
-        if (data.isLoaded(col.id)) {
-          tds += `<td style="text-align:right">${v != null ? numHTML(v, 'sub', !!col.isInverse) : '<span class="n zero">0</span>'}</td>`
-        } else {
-          tds += '<td style="text-align:right"><span class="dash">—</span></td>'
-        }
-      })
-      html += `<tr class="row-nv ${lv} row-sticky" style="${stickyStyle}" data-depth="${row.depth}"><td class="td-tree">${treeHtml}<div class="cell-name"><span class="cell-spacer" style="width:${indent}px"></span><div class="cell-block ${lv}">${tog}<span class="nametxt">${escHTML(nd.ten_nvkd || nd.ma_nvkd)}</span></div></div></td><td><span class="code">${escHTML(nd.ma_nvkd)}</span></td>${tds}</tr>`
+  // THÊM: attribute cho scroll handler
+  const ancAttr = (row.ancestorIds || []).join('|')
+  const idAttr = escHTML(nd.ma_nvkd)
+
+  let tds = ''
+  cols.forEach(col => {
+    if (data.isLoading(col.id)) { tds += `<td style="text-align:right">${shimmerHTML()}</td>`; return }
+    const v = data.getCellNV(nd, col.id)
+    if (data.isLoaded(col.id)) {
+      tds += `<td style="text-align:right">${v != null ? numHTML(v, 'sub', !!col.isInverse) : '<span class="n zero">0</span>'}</td>`
+    } else {
+      tds += '<td style="text-align:right"><span class="dash">—</span></td>'
+    }
+  })
+  html += `<tr class="row-nv ${lv} row-sticky" style="${stickyStyle}" data-depth="${row.depth}" data-id="${idAttr}" data-ancestors="${escHTML(ancAttr)}"><td class="td-tree">${treeHtml}<div class="cell-name"><span class="cell-spacer" style="width:${indent}px"></span><div class="cell-block ${lv}">${tog}<span class="nametxt">${escHTML(nd.ten_nvkd || nd.ma_nvkd)}</span></div></div></td><td><span class="code">${escHTML(nd.ma_nvkd)}</span></td>${tds}</tr>`
     } else if (row.type === 'kh' && row.parentNV) {
       const mk = row.maKH!
       const indent = row.depth * INDENT

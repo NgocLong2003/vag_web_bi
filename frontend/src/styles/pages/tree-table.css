@@ -43,6 +43,7 @@
   border-bottom: 1px solid var(--g1);
   border-right: 1px solid rgba(0,0,0,.02);
   white-space: nowrap;
+  overflow: hidden;  /* THÊM */
 }
 .tt-table td:last-child { border-right: none; }
 
@@ -102,12 +103,25 @@
 
 /* JS scroll handler hides NV rows from wrong branches */
 .row-nv.row-sticky.sticky-hidden {
-  opacity: 0; pointer-events: none; height: 0;
-  overflow: hidden; padding: 0; border: none;
-  position: sticky; /* keep sticky so it doesn't take space visually */
+  /* Bỏ sticky hoàn toàn khi ẩn */
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
 }
+
 .row-nv.row-sticky.sticky-hidden td {
-  padding: 0; height: 0; border: none; line-height: 0; font-size: 0;
+  padding: 0;
+  height: 0;
+  border: none;
+  line-height: 0;
+  font-size: 0;
+}
+
+.row-nv.row-sticky.sticky-off {
+  position: static !important;
 }
 
 /* KH data cells — trắng, nhẹ */

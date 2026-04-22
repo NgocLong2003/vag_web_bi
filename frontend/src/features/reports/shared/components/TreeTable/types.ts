@@ -70,6 +70,8 @@ export interface FlatRow {
   expanded?: boolean
   /** Có con không (chỉ NV) */
   hasKids?: boolean
+
+  ancestorIds?: string[]
 }
 
 /** Trạng thái loading của từng cột */
