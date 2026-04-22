@@ -43,7 +43,7 @@
   border-bottom: 1px solid var(--g1);
   border-right: 1px solid rgba(0,0,0,.02);
   white-space: nowrap;
-  overflow: hidden;  /* THÊM */
+  overflow: hidden;
 }
 .tt-table td:last-child { border-right: none; }
 
@@ -55,7 +55,7 @@
   overflow: visible;
 }
 .cell-name { overflow: visible; }
-/* Cột mã — cũng bỏ border cho sạch */
+/* Cột mã */
 .tt-table td:nth-child(2) {
   border-bottom: 1px solid var(--g1);
 }
@@ -93,7 +93,7 @@
 .row-nv.lv4 td:first-child, .row-nv.lv5 td:first-child { background: var(--white); }
 .row-nv.lv4 .n, .row-nv.lv5 .n { font-weight: 700 !important; }
 
-/* ═══ Sticky NV rows — mỗi cấp ở top khác nhau ═══ */
+/* ═══ Sticky NV rows ═══ */
 .row-nv.row-sticky {
   position: sticky;
   top: var(--sticky-top, 0px);
@@ -103,7 +103,6 @@
 
 /* JS scroll handler hides NV rows from wrong branches */
 .row-nv.row-sticky.sticky-hidden {
-  /* Bỏ sticky hoàn toàn khi ẩn */
   position: absolute !important;
   top: -9999px !important;
   left: -9999px !important;
@@ -181,7 +180,7 @@
 .cell-block.kh { background: #f0f1f4; }
 .cell-block.kh .nametxt { color: var(--g6); font-weight: 500; }
 
-/* ═══ CELL NAME (tên + tree lines + toggle) ═══ */
+/* ═══ CELL NAME ═══ */
 
 /* Toggle expand/collapse */
 .tog {
@@ -205,7 +204,7 @@
 /* Code column */
 .code { font-family: var(--sans); font-size: 10px; color: var(--g4); }
 
-/* ═══ Column resize grip (3 chấm dọc) ═══ */
+/* ═══ Column resize grip ═══ */
 .col-grip {
   position: absolute; right: 0; top: 0; bottom: 0;
   width: 8px; cursor: col-resize; z-index: 2;
@@ -231,6 +230,17 @@
   transition: all .15s;
 }
 .tt-split-btn:hover { background: rgba(124,58,237,.25); color: #ddd6fe; }
+
+/* ═══ Thu gọn/Mở rộng KH button (trong header cột NV/KH) ═══ */
+.th-exp-btn {
+  padding: 2px 8px; border-radius: 4px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.08);
+  color: #a0aec0; cursor: pointer;
+  font-family: var(--sans); font-size: 9px; font-weight: 600;
+  white-space: nowrap; transition: all .15s; flex-shrink: 0;
+}
+.th-exp-btn:hover { background: rgba(255,255,255,.15); color: #e2e8f0; }
 
 /* ═══ FOOTER — sticky bottom ═══ */
 .tt-table tfoot td {

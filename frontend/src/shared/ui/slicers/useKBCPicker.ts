@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { KBCRecord, MergedKBC } from './kbc-picker.types'
 
 // ============================================================================
@@ -9,7 +9,7 @@ import type { KBCRecord, MergedKBC } from './kbc-picker.types'
 // - Single-click = select 1, close
 // - Checkbox = multi-select toggle
 // - Merge multiple months into 1 MergedKBC
-// - Auto-select current month on init
+// - Auto-select current month based on [ngay_bd_thu_tien, ngay_kt_thu_tien]
 // - Search/filter
 // ============================================================================
 
@@ -47,6 +47,33 @@ function mergeKBCs(months: KBCRecord[]): MergedKBC {
   }
 }
 
+/** Tìm kỳ Tháng mà hôm nay nằm trong [ngay_bd_thu_tien, ngay_kt_thu_tien] */
+function findCurrentMonthKBC(kbcList: KBCRecord[]): KBCRecord | null {
+  if (!kbcList.length) return null
+  const today = new Date().toISOString().substring(0, 10)
+  const months = kbcList.filter((k) => k.loai_kbc === 'Tháng')
+
+  // Ưu tiên kỳ Tháng chứa hôm nay
+  const found = months.find((k) => {
+    const bd = iso(k.ngay_bd_thu_tien)
+    const kt = iso(k.ngay_kt_thu_tien)
+    return bd && kt && today >= bd && today <= kt
+  })
+  if (found) return found
+
+  // Fallback: kỳ Tháng gần hôm nay nhất (theo ngay_kt_thu_tien ≤ today, lấy cái gần nhất)
+  // Nếu không có kỳ nào trong quá khứ, lấy kỳ Tháng đầu tiên.
+  const past = months
+    .filter((k) => {
+      const kt = iso(k.ngay_kt_thu_tien)
+      return kt && kt <= today
+    })
+    .sort((a, b) => iso(b.ngay_kt_thu_tien).localeCompare(iso(a.ngay_kt_thu_tien)))
+  if (past.length) return past[0]
+
+  return months[0] || null
+}
+
 export function useKBCPicker(kbcList: KBCRecord[], onChange: (kbc: MergedKBC | null) => void) {
   // Build tree maps
   const { byParent, kbcMap } = useMemo(() => {
@@ -72,39 +99,44 @@ export function useKBCPicker(kbcList: KBCRecord[], onChange: (kbc: MergedKBC | n
   }, [kbcList])
 
   // Checked set (month IDs only)
-  const [checked, setChecked] = useState<Set<number>>(() => {
-    // Auto-select current month
-    const today = new Date().toISOString().substring(0, 10)
-    const months = kbcList.filter((k) => k.loai_kbc === 'Tháng')
-
-    let found = months.find((k) => {
-      const bd = iso(k.ngay_bd_thu_tien)
-      const kt = iso(k.ngay_kt_thu_tien)
-      return bd && kt && today >= bd && today <= kt
-    })
-    if (!found && months.length) found = months[0]
-
-    return found ? new Set([found.id]) : new Set()
-  })
+  const [checked, setChecked] = useState<Set<number>>(new Set())
 
   // Expanded nodes
-  const [expanded, setExpanded] = useState<Record<number, boolean>>(() => {
-    // Auto-expand parents of initially checked
-    const exp: Record<number, boolean> = {}
-    checked.forEach((id) => {
-      let k = kbcMap[id]
-      if (!k) return
-      let pid = k.parent_id
-      while (pid && kbcMap[pid]) {
-        exp[pid] = true
-        pid = kbcMap[pid].parent_id
-      }
-    })
-    return exp
-  })
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({})
+
+  // Flag: đã auto-select lần đầu chưa (tránh override khi user clear selection)
+  const autoSelectedRef = useRef(false)
 
   // Search
   const [query, setQuery] = useState('')
+
+  // ── AUTO-SELECT: chạy khi kbcList load xong ──
+  useEffect(() => {
+    if (autoSelectedRef.current) return
+    if (!kbcList.length) return
+
+    const found = findCurrentMonthKBC(kbcList)
+    if (!found) return
+
+    autoSelectedRef.current = true
+
+    // Set checked
+    const nextChecked = new Set([found.id])
+    setChecked(nextChecked)
+
+    // Auto-expand ancestors
+    const exp: Record<number, boolean> = {}
+    let pid = found.parent_id
+    while (pid && kbcList.find((k) => k.id === pid)) {
+      exp[pid] = true
+      const parent = kbcList.find((k) => k.id === pid)
+      pid = parent?.parent_id ?? null
+    }
+    setExpanded((prev) => ({ ...prev, ...exp }))
+
+    // Apply ngay → trigger onChange để parent load data
+    onChange(mergeKBCs([found]))
+  }, [kbcList, onChange])
 
   // Helpers: check if all/some descendants are checked
   function getDescendantMonthIds(id: number): number[] {

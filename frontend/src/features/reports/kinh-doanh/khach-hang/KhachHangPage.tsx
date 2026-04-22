@@ -135,49 +135,89 @@ export default function KhachHangPage() {
 
   // ── Refs ──
   const wrapRef = useRef<HTMLDivElement>(null)
-  const theadRef = useRef<HTMLTableSectionElement>(null)
+  const tableRef = useRef<HTMLTableElement>(null)
 
-  // Measure thead height
+  // Measure thead height + wire event handlers after table renders
   useEffect(() => {
-    if (!theadRef.current || !wrapRef.current) return
-    const h = theadRef.current.getBoundingClientRect().height
-    wrapRef.current.style.setProperty('--thead-h', `${h}px`)
-  }, [flatRows, displayCols])
+    const table = tableRef.current
+    const wrap = wrapRef.current
+    if (!table || !wrap) return
+    const thead = table.querySelector('thead')
+    if (thead) {
+      const h = thead.getBoundingClientRect().height
+      wrap.style.setProperty('--thead-h', `${h}px`)
+    }
+    // Wire TT split button
+    const ttBtn = table.querySelector('.tt-split-btn')
+    if (ttBtn) {
+      (ttBtn as HTMLElement).onclick = () => setTtSplit(prev => !prev)
+    }
+    // Wire Thu gọn/Mở rộng KH button
+    const expBtn = table.querySelector('.th-exp-btn') as HTMLElement
+    if (expBtn) {
+      expBtn.textContent = allExp ? '△ Thu gọn KH' : '▽ Mở rộng KH'
+      expBtn.onclick = () => toggleAllExp()
+    }
+    // Wire col-grip
+    const grip = table.querySelector('.col-grip') as HTMLElement
+    if (grip) {
+      grip.onmousedown = (e: MouseEvent) => {
+        e.preventDefault(); e.stopPropagation()
+        const th = grip.parentElement!
+        const startX = e.clientX, startW = th.offsetWidth
+        grip.classList.add('active')
+        function onMove(ev: MouseEvent) {
+          const nw = Math.max(160, startW + (ev.clientX - startX))
+          th.style.width = nw + 'px'; th.style.minWidth = nw + 'px'
+        }
+        function onUp() {
+          grip.classList.remove('active')
+          document.removeEventListener('mousemove', onMove)
+          document.removeEventListener('mouseup', onUp)
+        }
+        document.addEventListener('mousemove', onMove)
+        document.addEventListener('mouseup', onUp)
+      }
+    }
+  }, [flatRows, displayCols, ttSplit, allExp])
 
   // ── Scroll handler: hide stale sticky NV rows from wrong branches ──
 useEffect(() => {
   const wrap = wrapRef.current
-  const thead = theadRef.current
+  const thead = tableRef.current?.querySelector('thead')
   if (!wrap || !thead) return
 
   let ticking = false
-  function onScroll() {
-    if (ticking) return
-    ticking = true
-    requestAnimationFrame(() => {
-      ticking = false
+function onScroll() {
+  if (ticking) return
+  ticking = true
+  requestAnimationFrame(() => {
+    ticking = false
 
-      const allNV = wrap!.querySelectorAll<HTMLTableRowElement>('tr.row-nv.row-sticky')
+    const allNV = wrap!.querySelectorAll<HTMLTableRowElement>('tr.row-nv.row-sticky')
+    console.log('onScroll: NV count:', allNV.length, 'scrollTop:', wrap!.scrollTop, 'scrollHeight:', wrap!.scrollHeight)
 
       // Reset toàn bộ trạng thái
-      allNV.forEach(r => {
+      let wasHidden = 0
+allNV.forEach(r => {
   const el = r as HTMLElement
+  if (el.classList.contains('sticky-hidden')) wasHidden++
   el.classList.remove('sticky-hidden')
 })
-      void wrap!.offsetHeight
+void wrap!.offsetHeight
 
       const wrapRect = wrap!.getBoundingClientRect()
 
-      // Bước 1: active NV tại mỗi depth - cái này quan trọng, đừng sửa. Sửa là nó bị hiện ông này trong slot ông kia, nhìn rất sai.
+      // Bước 1: active NV tại mỗi depth
       const activeByDepth = new Map<number, HTMLTableRowElement>()
       allNV.forEach(r => {
         const rect = r.getBoundingClientRect()
         const depth = parseInt(r.dataset.depth || '0')
         const stickyTopPx = parseFloat(getComputedStyle(r).top) || 0
         const stickyY = wrapRect.top + stickyTopPx
-        if (rect.top <= stickyY + 1) {
-          activeByDepth.set(depth, r)
-        }
+        if (Math.abs(rect.top - stickyY) < 1) {
+  activeByDepth.set(depth, r)
+}
       })
 
       // Bước 2: build chain hợp lệ
@@ -196,75 +236,104 @@ useEffect(() => {
       }
 
       // Bước 3: ẩn NV đã qua slot mà không thuộc chain
-      allNV.forEach(r => {
-        const id = r.dataset.id || ''
-        if (validIds.has(id)) return
-        const rect = r.getBoundingClientRect()
-        const stickyTopPx = parseFloat(getComputedStyle(r).top) || 0
-        const stickyY = wrapRect.top + stickyTopPx
-        if (rect.top <= stickyY + 1) {
-          r.classList.add('sticky-hidden')
-        }
-      })
+      let nowHidden = 0
+allNV.forEach(r => {
+  const id = r.dataset.id || ''
+  if (validIds.has(id)) return
+  const stickyTopPx = parseFloat(getComputedStyle(r).top) || 0
+  const naturalTopPx = (r as HTMLElement).offsetTop - wrap!.scrollTop
+  // Chỉ ẩn nếu natural position của NV đã ở trên slot sticky (đã scroll qua)
+  if (naturalTopPx < stickyTopPx - 1) {
+    r.classList.add('sticky-hidden')
+    nowHidden++
+  }
+})
+console.log('HIDDEN:', 'was:', wasHidden, 'now:', nowHidden, 'scrollHeight:', wrap!.scrollHeight)
 
       // Bước 4: đẩy NV cuối chain xuống theo KH nếu KH chưa xuống đủ
 const wrapRectForPush = wrap!.getBoundingClientRect()
 
-// Build map id → NV một lần (tránh find() nhiều lần)
-const nvById = new Map<string, HTMLTableRowElement>()
-allNV.forEach(r => { nvById.set(r.dataset.id || '', r) })
+// Lấy trực tiếp element cuối từ activeByDepth (không dùng id, tránh trùng)
+const lastDepthInChain = sortedDepths[chainIds.length - 1]
+const lastNV = lastDepthInChain !== undefined ? activeByDepth.get(lastDepthInChain) : null
+console.log('CHAIN IDS:', chainIds.join(' > '))
 
-const lastId = chainIds[chainIds.length - 1]
-const lastNV = lastId ? nvById.get(lastId) : null
 
-// Tập KH thuộc NV cuối chain
 const activeKHSet = new Set<HTMLElement>()
 if (lastNV) {
-  let c: Element | null = lastNV.nextElementSibling
-  while (c && c.classList.contains('row-kh')) {
-    activeKHSet.add(c as HTMLElement)
-    c = c.nextElementSibling
-  }
+  const c = lastNV.nextElementSibling as HTMLElement | null
+  if (c) activeKHSet.add(c)
 }
 
-// Clear padding cho KH không thuộc active
-wrap!.querySelectorAll<HTMLTableRowElement>('tr.row-kh').forEach(r => {
-  if (activeKHSet.has(r)) return
-  r.querySelectorAll<HTMLElement>('td').forEach(td => {
-    if (td.style.paddingTop) td.style.paddingTop = ''
-    if (td.style.height) td.style.height = ''
-  })
+// Clear hết padding/height cũ trước khi tính mới
+wrap!.querySelectorAll<HTMLElement>('td').forEach(td => {
+  if (td.style.paddingTop || td.style.height) {
+    td.style.paddingTop = ''
+    td.style.height = ''
+  }
 })
 
-// Push KH đầu xuống
 if (lastNV) {
   const nvRect = lastNV.getBoundingClientRect()
   const nvBottom = nvRect.top + nvRect.height
 
-  let cur: Element | null = lastNV.nextElementSibling
-  while (cur && cur.classList.contains('row-kh')) {
-    const khEl = cur as HTMLElement
-    const khOffsetTop = khEl.offsetTop
-    const khNaturalY = khOffsetTop - wrap!.scrollTop + wrapRectForPush.top
-    const overlap = nvBottom - khNaturalY
+  const cur = lastNV.nextElementSibling as HTMLElement | null
+  const lastDepth = parseInt(lastNV.dataset.depth || '0')
+  const curDepth = cur ? parseInt(cur.dataset.depth || '999') : -1
+  
+  console.log('CHAIN:',
+    'lastNV:', lastNV.querySelector('.nametxt')?.textContent, 'depth:', lastDepth,
+    'cur:', cur?.querySelector('.nametxt')?.textContent || '(null)',
+    'curClass:', cur?.className || '',
+    'curDepth:', curDepth
+  )
+  // Chỉ đẩy nếu cur là KH, hoặc là NV con (depth > lastDepth)
+  const shouldPush = !!cur && (
+  cur.classList.contains('row-kh') ||
+  (cur.classList.contains('row-nv') && curDepth >= lastDepth)
+)
+
+  if (shouldPush && cur) {
+  const khOffsetTop = cur.offsetTop
+  const khNaturalY = khOffsetTop - wrap!.scrollTop + wrapRectForPush.top
+  const overlap = nvBottom - khNaturalY
+  console.log('PUSH:',
+    'lastNV:', lastNV.querySelector('.nametxt')?.textContent,
+    'cur:', cur.querySelector('.nametxt')?.textContent,
+    'curIsNV:', cur.classList.contains('row-nv'),
+    'cur.offsetTop:', khOffsetTop,
+    'khNaturalY:', khNaturalY.toFixed(0),
+    'nvBottom:', nvBottom.toFixed(0),
+    'overlap:', overlap.toFixed(0)
+  )
     if (overlap <= 0) {
-      khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
+      cur.querySelectorAll<HTMLElement>('td').forEach(td => {
         if (td.style.paddingTop) td.style.paddingTop = ''
         if (td.style.height) td.style.height = ''
       })
-      break
+      ;(wrap as any).__prevPushedRow = null
+    } else {
+      const cappedOverlap = Math.round(Math.min(overlap, 200) / 8) * 8
+      const newHeight = `${34 + cappedOverlap}px`
+      const newPad = `${cappedOverlap}px`
+      cur.querySelectorAll<HTMLElement>('td').forEach(td => {
+        const curPad = parseFloat(td.style.paddingTop) || 0
+        if (Math.abs(curPad - cappedOverlap) > 8) {
+          td.style.height = newHeight
+          td.style.paddingTop = newPad
+        }
+      })
+      ;(wrap as any).__prevPushedRow = cur
     }
-    const cappedOverlap = Math.round(Math.min(overlap, 200) / 8) * 8
-    const newHeight = `${34 + cappedOverlap}px`
-const newPad = `${cappedOverlap}px`
-khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
-  const curPad = parseFloat(td.style.paddingTop) || 0
-  if (Math.abs(curPad - cappedOverlap) > 8) {
-    td.style.height = newHeight
-    td.style.paddingTop = newPad
-  }
-})
-    break
+  } else {
+    // Không đẩy (cur là NV khác nhánh, hoặc không có cur) → clear padding nếu có
+    if (cur) {
+      cur.querySelectorAll<HTMLElement>('td').forEach(td => {
+        if (td.style.paddingTop) td.style.paddingTop = ''
+        if (td.style.height) td.style.height = ''
+      })
+    }
+    ;(wrap as any).__prevPushedRow = null
   }
 }
     })
@@ -277,6 +346,7 @@ khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
 
   function toggleAllExp() {
     const next = !allExp; setAllExp(next)
+    // Chỉ toggle KH visibility, NV tree luôn mở
     const exp: Record<string, boolean> = {}
     hier.hierarchy.forEach(h => { exp[h.ma_nvkd] = next })
     setExpState(exp)
@@ -315,18 +385,15 @@ khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
 
   // Set report name + update mode on mount
   useEffect(() => {
-    // Load dashboard list → find this report's metadata
     fetch('/api/dashboards').then(r => r.json()).then(res => {
       if (!res.success) return
       setStoreDashboards(res.data)
-      // Tìm dashboard hiện tại theo slug
       const current = res.data.find((d: any) => d.slug === 'bao-cao-khach-hang')
       if (current) {
         setReportName(current.name || 'Báo cáo Khách hàng')
         setUpdateMode(current.update_mode === 'realtime' ? 'realtime' : 'scheduled')
         if (current.update_interval) setUpdateInterval(current.update_interval)
         if (current.updated_at) {
-          // Tính thời gian tương đối
           const diff = Date.now() - new Date(current.updated_at).getTime()
           const m = Math.floor(diff / 60000)
           if (m < 1) setLastUpdateText('Vừa cập nhật')
@@ -363,7 +430,6 @@ khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
       }
       const colHeaders = dispCols.map(c => colHeaderMap[c.id] || c.label)
 
-      // Build payload rows
       const payload: any[] = []
       flatRows.forEach(row => {
         if (row.type === 'nv' && row.node) {
@@ -381,7 +447,6 @@ khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
         }
       })
 
-      // Total row
       let roots: NVNode[]
       if (userNvkdList.length) {
         roots = userNvkdList.filter(id => hier.nvMap.has(id)).map(id => hier.nvMap.get(id)!)
@@ -397,7 +462,6 @@ khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
         }),
       })
 
-      // POST to Flask API → download blob
       const resp = await fetch(API_BASE + '/api/export_excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -455,13 +519,6 @@ khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
             </div>
           </>
         )}
-
-        <span className="rpt-vdiv" />
-
-        <button className="rpt-btn" onClick={toggleAllExp}>
-          <svg viewBox="0 0 16 16"><polyline points={allExp ? '4,10 8,6 12,10' : '4,6 8,10 12,6'} /></svg>
-          {allExp ? 'Thu gọn' : 'Mở rộng'}
-        </button>
       </div>
 
       {/* Content */}
@@ -477,53 +534,13 @@ khEl.querySelectorAll<HTMLElement>('td').forEach(td => {
           <div className="rpt-state">{emptyMsg}</div>
         ) : flatRows.length > 0 && displayCols.length > 0 ? (
           <div className="tt-wrap" ref={wrapRef}>
-            <table className="tt-table">
-              <thead ref={theadRef}>
-                <tr>
-                  <th style={{ textAlign: 'left', minWidth: 220 }}>
-                    NV / Khách hàng
-                    <div className="col-grip" onMouseDown={startResize} />
-                  </th>
-                  <th style={{ textAlign: 'left', minWidth: 60, width: 70 }}>Mã</th>
-                  {displayCols.map(col => {
-                    const isTT = col.id === 'tt_merged' || col.id === 'tt1'
-                    return (
-                      <th key={col.id} className={col.className} style={{ minWidth: col.minWidth }}>
-                        <div className="tt-th-main">
-                          {col.label}
-                          {isTT && (
-                            <button className="tt-split-btn" onClick={() => setTtSplit(!ttSplit)}>
-                              {ttSplit ? '⟨ Gộp ⟩' : '⟩ Tách ⟨'}
-                            </button>
-                          )}
-                        </div>
-                        {col.subLabel && (
-                          <div className="tt-th-date">
-                            {col.subLabel.split('\n').map((l, i) => <span key={i}>{l}<br /></span>)}
-                          </div>
-                        )}
-                      </th>
-                    )
-                  })}
-                </tr>
-              </thead>
-              <tbody dangerouslySetInnerHTML={{
-                __html: renderBody(flatRows, displayCols, dataLoader, hier.khNames),
-              }} />
-              <tfoot>
-                <tr>
-                  <td><span className="foot-lbl">Tổng cộng</span></td>
-                  <td></td>
-                  {displayCols.map(col => (
-                    <td key={col.id} style={{ textAlign: 'right' }}
-                      dangerouslySetInnerHTML={{
-                        __html: renderFooterCell(col, hier, dataLoader, userNvkdList),
-                      }}
-                    />
-                  ))}
-                </tr>
-              </tfoot>
-            </table>
+            <table
+              className="tt-table"
+              ref={tableRef}
+              dangerouslySetInnerHTML={{
+                __html: renderFullTable(flatRows, displayCols, dataLoader, hier, userNvkdList, ttSplit, setTtSplit),
+              }}
+            />
           </div>
         ) : null}
       </div>
@@ -577,46 +594,49 @@ function buildFlatRows(
   const baseLevel = visRoots.length ? Math.min(...visRoots.map(r => r.level)) : 0
 
   function walk(
-  nd: NVNode,
-  ancestors: { cont: boolean }[],
-  isLast: boolean,
-  ancestorIds: string[],
-) {
-  if (!hasData(nd)) return
-  const fk = getKHKeys(nd)
-  const vc = [...nd.children].sort((a, b) => a.stt_nhom.localeCompare(b.stt_nhom)).filter(c => hasData(c))
-  const depth = nd.level - baseLevel
-  const expanded = expState[nd.ma_nvkd] !== false
+    nd: NVNode,
+    ancestors: { cont: boolean }[],
+    isLast: boolean,
+    ancestorIds: string[],
+  ) {
+    if (!hasData(nd)) return
+    const fk = getKHKeys(nd)
+    const vc = [...nd.children].sort((a, b) => a.stt_nhom.localeCompare(b.stt_nhom)).filter(c => hasData(c))
+    const depth = nd.level - baseLevel
+    const expanded = expState[nd.ma_nvkd] !== false
 
-  rows.push({
-    type: 'nv', node: nd, expanded,
-    hasKids: vc.length > 0 || fk.length > 0,
-    depth, ancestors: [...ancestors], isLast,
-    ancestorIds: [...ancestorIds],
-  })
+    rows.push({
+      type: 'nv', node: nd, expanded,
+      hasKids: vc.length > 0 || fk.length > 0,
+      depth, ancestors: [...ancestors], isLast,
+      ancestorIds: [...ancestorIds],
+    })
 
-  if (expanded) {
-    const total = fk.length + vc.length
-    let idx = 0
-    const nextAncestors = [...ancestorIds, nd.ma_nvkd]
-    fk.forEach(k => {
-      const il = idx === total - 1
-      rows.push({
-        type: 'kh', maKH: k, tenKH: hier.khNames.get(k) || k,
-        parentNV: nd, depth: depth + 1,
-        ancestors: [...ancestors, { cont: !il }], isLast: il,
+    // KH chỉ hiện khi expanded, child NV luôn hiện
+    const visKH = expanded ? fk : []
+    const total = visKH.length + vc.length
+
+    if (total > 0) {
+      let idx = 0
+      const nextAncestors = [...ancestorIds, nd.ma_nvkd]
+      visKH.forEach(k => {
+        const il = idx === total - 1
+        rows.push({
+          type: 'kh', maKH: k, tenKH: hier.khNames.get(k) || k,
+          parentNV: nd, depth: depth + 1,
+          ancestors: [...ancestors, { cont: !il }], isLast: il,
+        })
+        idx++
       })
-      idx++
-    })
-    vc.forEach(child => {
-      const il = idx === total - 1
-      walk(child, [...ancestors, { cont: !il }], il, nextAncestors)
-      idx++
-    })
+      vc.forEach(child => {
+        const il = idx === total - 1
+        walk(child, [...ancestors, { cont: !il }], il, nextAncestors)
+        idx++
+      })
+    }
   }
-}
 
-visRoots.forEach((r, ri) => walk(r, [], ri === visRoots.length - 1, []))
+  visRoots.forEach((r, ri) => walk(r, [], ri === visRoots.length - 1, []))
   return rows
 }
 
@@ -624,6 +644,46 @@ visRoots.forEach((r, ri) => walk(r, [], ri === visRoots.length - 1, []))
 // ═══════════════════════════════════════════════════════════════
 // RENDER HELPERS (string HTML for performance)
 // ═══════════════════════════════════════════════════════════════
+
+/** Build entire table innerHTML: thead + tbody + tfoot */
+function renderFullTable(
+  rows: FlatRow[],
+  cols: ColumnDef[],
+  data: ReturnType<typeof useKhachHangData>,
+  hier: ReturnType<typeof useHierarchy>,
+  userNvkdList: string[],
+  ttSplit: boolean,
+  setTtSplit: (fn: (prev: boolean) => boolean) => void,
+): string {
+  // THEAD
+  let thead = '<thead><tr>'
+  thead += '<th style="text-align:left;min-width:220px">'
+  thead += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px">'
+  thead += '<span>NV / Khách hàng</span>'
+  thead += '<button class="th-exp-btn">KH</button>'
+  thead += '</div>'
+  thead += '<div class="col-grip"></div></th>'
+  thead += '<th style="text-align:left;min-width:60px;width:70px">Mã</th>'
+  cols.forEach(col => {
+    const isTT = col.id === 'tt_merged' || col.id === 'tt1'
+    const splitBtn = isTT ? `<button class="tt-split-btn">${ttSplit ? '⟨ Gộp ⟩' : '⟩ Tách ⟨'}</button>` : ''
+    const subLabel = col.subLabel ? '<div class="tt-th-date">' + col.subLabel.split('\n').map(l => l + '<br/>').join('') + '</div>' : ''
+    thead += `<th class="${col.className || ''}" style="min-width:${col.minWidth || 120}px"><div class="tt-th-main">${col.label}${splitBtn}</div>${subLabel}</th>`
+  })
+  thead += '</tr></thead>'
+
+  // TBODY
+  const body = renderBody(rows, cols, data, hier.khNames)
+
+  // TFOOT
+  let tfoot = '<tfoot><tr><td><span class="foot-lbl">Tổng cộng</span></td><td></td>'
+  cols.forEach(col => {
+    tfoot += `<td style="text-align:right">${renderFooterCell(col, hier, data, userNvkdList)}</td>`
+  })
+  tfoot += '</tr></tfoot>'
+
+  return thead + body + tfoot
+}
 
 function renderBody(
   rows: FlatRow[],
@@ -650,7 +710,6 @@ function renderBody(
 
   const treeHtml = row.depth > 0 ? buildTreeLines(row, INDENT) : ''
 
-  // THÊM: attribute cho scroll handler
   const ancAttr = (row.ancestorIds || []).join('|')
   const idAttr = escHTML(nd.ma_nvkd)
 
@@ -686,20 +745,11 @@ function renderBody(
   return html
 }
 
-/**
- * Vẽ tree lines trong cell-spacer (position:relative).
- * X của toggle tại depth d = d * INDENT + 9px (giữa slot 24px).
- *
- * - tl-v: đường dọc full height tại ancestor X (ancestor còn sibling)
- * - tl-v tl-half: đường dọc nửa trên (last child — L-shape)
- * - tl-h: đường ngang từ parent X tới cell-block
- */
 function buildTreeLines(row: FlatRow, INDENT: number): string {
   if (row.depth <= 0) return ''
   let lines = ''
   const parentX = (row.depth - 1) * INDENT + 9
 
-  // Đường dọc xuyên suốt cho ancestors còn sibling bên dưới
   row.ancestors.forEach((anc, i) => {
     if (anc.cont) {
       const x = i * INDENT + 9
@@ -707,14 +757,12 @@ function buildTreeLines(row: FlatRow, INDENT: number): string {
     }
   })
 
-  // Hook dọc: last child = nửa trên, not last = full
   if (row.isLast) {
     lines += `<span class="tl-v tl-half" style="left:${parentX}px"></span>`
   } else {
     lines += `<span class="tl-v" style="left:${parentX}px"></span>`
   }
 
-  // Hook ngang: từ parentX tới cell-block
   const hookW = row.depth * INDENT - parentX
   if (hookW > 0) {
     lines += `<span class="tl-h" style="left:${parentX}px;width:${hookW}px"></span>`
@@ -726,9 +774,8 @@ function buildTreeLines(row: FlatRow, INDENT: number): string {
 /** KH rows: chỉ vẽ đường dọc xuyên suốt của ancestors NV, không vẽ hook */
 function buildPassthroughLines(row: FlatRow, INDENT: number): string {
   let lines = ''
-  // Chỉ vẽ vlines cho NV ancestors còn sibling — bỏ qua ancestor cuối (NV→KH)
   row.ancestors.forEach((anc, i) => {
-    if (i >= row.depth - 1) return // bỏ ancestor cuối (là NV cha trực tiếp → KH)
+    if (i >= row.depth - 1) return
     if (anc.cont) {
       const x = i * INDENT + 9
       lines += `<span class="tl-v" style="left:${x}px"></span>`
