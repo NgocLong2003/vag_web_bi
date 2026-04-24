@@ -52,6 +52,12 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 .reload-btn svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-linecap:round}
 .reload-btn .spin-mini{width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
 
+.excel-btn{height:34px;padding:0 14px;border-radius:7px;border:1.5px solid #107c41;background:#107c41;color:#fff;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.excel-btn:hover{background:#0d6b37;border-color:#0d6b37}
+.excel-btn:disabled{opacity:.5;cursor:not-allowed}
+.excel-btn svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.excel-btn .spin-mini{width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+
 .stats-wrap{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:11px;color:var(--g4);font-weight:600;flex-wrap:wrap}
 .stat-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--g0);border-radius:12px;border:1px solid var(--g1);white-space:nowrap}
 .stat-chip b{font-size:12px;color:var(--g6)}
@@ -178,6 +184,7 @@ table.data-tbl tbody td mark{background:#fef08a;padding:0 1px;border-radius:2px;
     <input class="date-inp" id="dateDH1" type="date">
   </div>
   <button class="reload-btn" id="reloadBtn" onclick="loadData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg><span id="reloadLbl">Tải</span></button>
+  <button class="excel-btn" id="btnExcel" onclick="exportExcel()" style="display:none" title="Xuất Excel theo dữ liệu đang hiển thị"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg><span id="excelLbl">Xuất Excel</span></button>
   <div class="stats-wrap" id="statsWrap"></div>
 </div>
 
@@ -229,6 +236,7 @@ var severity='all';
 var searchQ='';
 var vtList=[];
 var loading=false;
+var exporting=false;
 
 var FMT=new Intl.NumberFormat('en-US',{minimumFractionDigits:0,maximumFractionDigits:4});
 var FMT_INT=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
@@ -328,6 +336,7 @@ function applyFilter(){
   filtered=out;
   renderBody();
   renderStats();
+  document.getElementById('btnExcel').style.display = filtered.length > 0 ? 'flex' : 'none';
 }
 
 function renderStats(){
@@ -511,6 +520,56 @@ window.loadData=function(){
     .finally(function(){loading=false;btn.disabled=false;document.getElementById('reloadLbl').textContent='Tải'});
 };
 
+window.exportExcel=function(){
+  if(exporting)return;
+  if(!filtered||filtered.length===0){toast('Không có dữ liệu để xuất','err');return}
+
+  exporting=true;
+  var btn=document.getElementById('btnExcel');
+  var lbl=document.getElementById('excelLbl');
+  btn.disabled=true;
+  lbl.innerHTML='<span class="spin-mini"></span>';
+
+  var ngay=document.getElementById('dateNgay').value;
+  var ngayDH1=document.getElementById('dateDH1').value;
+
+  var payload={
+    rows: filtered,
+    meta: {ngay:ngay, ngay_dh1:ngayDH1, severity:severity, search:searchQ}
+  };
+
+  var t0=performance.now();
+  reportFetch(API+'/api/export-excel',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){
+    if(!r.ok){
+      return r.json().then(function(d){throw new Error(d.error||('HTTP '+r.status))}).catch(function(){throw new Error('HTTP '+r.status)});
+    }
+    var cd=r.headers.get('Content-Disposition')||'';
+    var m=cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    var fname=m?decodeURIComponent(m[1]):('CanhBaoTonKho_'+(ngay||'').replace(/-/g,'')+'.xlsx');
+    return r.blob().then(function(blob){return {blob:blob,fname:fname}});
+  })
+  .then(function(res){
+    var url=URL.createObjectURL(res.blob);
+    var a=document.createElement('a');
+    a.href=url;a.download=res.fname;
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url)},100);
+    var ms=Math.round(performance.now()-t0);
+    toast('Đã xuất '+FMT_INT.format(filtered.length)+' dòng ('+ms+'ms)','ok');
+  })
+  .catch(function(e){
+    console.error('[cbtk] export error:',e);
+    toast('Lỗi xuất Excel: '+(e.message||e),'err');
+  })
+  .finally(function(){
+    exporting=false;btn.disabled=false;lbl.textContent='Xuất Excel';
+  });
+};
 document.addEventListener('DOMContentLoaded',function(){updateSortHeaders();loadVattu();loadData()});
 })();
 </script>

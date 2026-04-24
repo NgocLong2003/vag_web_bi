@@ -41,10 +41,11 @@ def api_data():
             SELECT
                 YEAR(b.ngay_ct) AS nam,
                 MONTH(b.ngay_ct) AS thang,
+                DAY(b.ngay_ct) AS ngay,
                 b.ma_vt, b.ten_vt,
                 CASE WHEN b.ma_nvkd = 'NVQ02' AND b.ma_bp = 'VB' THEN 'NVQ03'
                      ELSE b.ma_nvkd END AS ma_nvkd,
-                b.ma_bp, b.ma_kh,
+                b.ma_bp, b.ma_kh, b.ma_kho,
                 SUM(b.so_luong) AS tong_so_luong,
                 SUM(b.tien_nt2 - b.tien_ck_nt) AS tong_doanhso
             FROM BKHDBANHANG b
@@ -62,7 +63,7 @@ def api_data():
               AND ($8 = '' OR kh.ten_plkh1 IN (SELECT TRIM(unnest(string_split($8, ',')))))
               AND ($9 = '' OR kh.ten_plkh2 IN (SELECT TRIM(unnest(string_split($9, ',')))))
               AND ($10 = '' OR kh.ten_plkh3 IN (SELECT TRIM(unnest(string_split($10, ',')))))
-            GROUP BY YEAR(b.ngay_ct), MONTH(b.ngay_ct), b.ma_vt, b.ten_vt, b.ma_bp, b.ma_kh,
+            GROUP BY YEAR(b.ngay_ct), MONTH(b.ngay_ct), DAY(b.ngay_ct), b.ma_vt, b.ten_vt, b.ma_bp, b.ma_kh, b.ma_kho,
                 CASE WHEN b.ma_nvkd = 'NVQ02' AND b.ma_bp = 'VB' THEN 'NVQ03'
                      ELSE b.ma_nvkd END
             ORDER BY nam, thang, b.ma_vt
@@ -79,6 +80,7 @@ def api_data():
                 r[k] = float(v) if v is not None else 0.0
             r['nam'] = int(r.get('nam', 0))
             r['thang'] = int(r.get('thang', 0))
+            r['ngay'] = int(r.get('ngay', 0))
 
         return api_response(ok=True, data=rows, count=len(rows),
                             meta={'ngay_a': ngay_a, 'ngay_b': ngay_b, 'ma_bp': ma_bp})
@@ -129,22 +131,25 @@ def api_filters():
         kho_rows = store.query(kho_sql, [ma_bp or ''])
 
         # Miền/Vùng/Tỉnh + KH — từ DMKHACHHANG, filter theo ma_bp
-        kv_sql = """
-            SELECT DISTINCT
-                ma_kh, ten_kh, ma_bp, ma_nvkd,
-                COALESCE(ten_plkh1, '') AS ten_plkv1,
-                COALESCE(ten_plkh2, '') AS ten_plkv2,
-                COALESCE(ten_plkh3, '') AS ten_plkv3
-            FROM DMKHACHHANG
-            WHERE ($1 = '' OR ma_bp IN (SELECT TRIM(unnest(string_split($1, ',')))))
-            ORDER BY ma_kh
-        """
-        kh_rows = store.query(kv_sql, [ma_bp or ''])
-
-        # Extract distinct values
-        plkv1 = sorted(set(r['ten_plkv1'] for r in kh_rows if r['ten_plkv1']))
-        plkv2 = sorted(set(r['ten_plkv2'] for r in kh_rows if r['ten_plkv2']))
-        plkv3 = sorted(set(r['ten_plkv3'] for r in kh_rows if r['ten_plkv3']))
+        kh_rows = []
+        plkv1, plkv2, plkv3 = [], [], []
+        try:
+            kv_sql = """
+                SELECT DISTINCT
+                    ma_kh, ten_kh, ma_bp, ma_nvkd,
+                    COALESCE(ten_plkh1, '') AS ten_plkv1,
+                    COALESCE(ten_plkh2, '') AS ten_plkv2,
+                    COALESCE(ten_plkh3, '') AS ten_plkv3
+                FROM DMKHACHHANG
+                WHERE ($1 = '' OR ma_bp IN (SELECT TRIM(unnest(string_split($1, ',')))))
+                ORDER BY ma_kh
+            """
+            kh_rows = store.query(kv_sql, [ma_bp or ''])
+            plkv1 = sorted(set(r['ten_plkv1'] for r in kh_rows if r['ten_plkv1']))
+            plkv2 = sorted(set(r['ten_plkv2'] for r in kh_rows if r['ten_plkv2']))
+            plkv3 = sorted(set(r['ten_plkv3'] for r in kh_rows if r['ten_plkv3']))
+        except Exception as e:
+            logger.warning(f'[ptsp] DMKHACHHANG query failed (table may not exist): {e}')
 
         return api_response(ok=True,
                             kho=[r['ma_kho'] for r in kho_rows],

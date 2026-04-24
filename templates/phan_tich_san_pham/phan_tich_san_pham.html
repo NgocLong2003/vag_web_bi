@@ -46,6 +46,37 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 .card-value{font-size:28px;font-weight:800;color:var(--g7);font-variant-numeric:tabular-nums;line-height:1.1}
 .card-sub{font-size:11px;color:var(--g4);margin-top:4px;font-weight:600}
 
+/* ═══ Khu vực dropdown panel ═══ */
+.kv-wrap{position:relative}
+.kv-trigger{height:32px;padding:0 12px;border:1.5px solid var(--g2);border-radius:7px;background:var(--white);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--g6);transition:.15s;white-space:nowrap}
+.kv-trigger:hover{border-color:var(--blue-md)}
+.kv-wrap.has-filter .kv-trigger{border-color:var(--blue);border-width:2px}
+.kv-badge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 5px;border-radius:9px;font-size:10px;font-weight:700;margin-left:auto}
+.kv-badge.all{background:var(--g1);color:var(--g4)}
+.kv-badge.active{background:var(--blue);color:#fff}
+.kv-panel{display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--white);border:1.5px solid var(--g2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.14);z-index:200;overflow:hidden;width:520px}
+.kv-panel.open{display:block}
+.kv-cols{display:grid;grid-template-columns:1fr 1fr 1fr}
+.kv-col{border-right:1px solid var(--g1);display:flex;flex-direction:column}
+.kv-col:last-child{border-right:none}
+.kv-col-head{padding:10px 12px 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--g4);display:flex;align-items:center;justify-content:space-between}
+.kv-col-reset{height:16px;padding:0 6px;border:1px solid var(--g2);border-radius:3px;background:var(--g0);font-size:9px;font-weight:600;color:var(--g4);cursor:pointer;font-family:var(--sans);display:none;align-items:center}
+.kv-col.has-filter .kv-col-reset{display:flex}
+.kv-col-reset:hover{background:var(--red-lt);color:var(--red);border-color:#fca5a5}
+.kv-col-search{padding:4px 10px 6px}
+.kv-col-search input{width:100%;height:26px;padding:0 8px;border:1px solid var(--g2);border-radius:5px;font-size:11px;font-family:var(--sans);outline:none}
+.kv-col-search input:focus{border-color:var(--blue)}
+.kv-col-body{overflow-y:auto;max-height:240px;padding:2px 0}
+.kv-item{display:flex;align-items:center;gap:6px;padding:4px 12px;cursor:pointer;font-size:11.5px;transition:background .06s;user-select:none}
+.kv-item:hover{background:var(--g0)}
+.kv-item.checked{background:var(--blue-lt)}
+.kv-item.unchecked .kv-name{color:var(--g3)}
+.kv-item .kv-cb{width:13px;height:13px;border:1.5px solid var(--g3);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.kv-item.checked .kv-cb{background:var(--blue);border-color:var(--blue)}
+.kv-item.checked .kv-cb::after{content:'';width:6px;height:3.5px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg) translate(0.5px,-0.5px)}
+.kv-item .kv-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:var(--g6)}
+.kv-item mark{background:#fef08a;padding:0 1px;border-radius:2px;font-style:normal}
+
 /* ═══ Slicer panels (checkbox + inline bar) ═══ */
 .sl-row{display:grid;grid-template-columns:3fr 3fr 4fr;gap:12px;margin-bottom:20px}
 .sl-panel{background:var(--white);border:1.5px solid var(--g2);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .15s;position:relative}
@@ -94,9 +125,31 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 
 /* Line chart */
 .chart-card{background:var(--white);border:1.5px solid var(--g2);border-radius:14px;padding:20px 24px}
-.chart-title{font-size:13px;font-weight:800;color:var(--g6);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em}
-.chart-wrap{position:relative;width:100%;height:360px}
+.chart-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.chart-title{font-size:13px;font-weight:800;color:var(--g6);text-transform:uppercase;letter-spacing:.04em}
+.chart-controls{display:flex;align-items:center;gap:8px;margin-left:auto}
+.chart-toggle{height:26px;padding:0 10px;border:1.5px solid var(--g2);border-radius:6px;background:var(--white);font-size:10px;font-weight:700;color:var(--g5);cursor:pointer;font-family:var(--sans);transition:.1s;display:flex;align-items:center;gap:4px}
+.chart-toggle:hover{background:var(--g0)}
+.chart-toggle.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chart-pills{display:flex;border:1.5px solid var(--g2);border-radius:6px;overflow:hidden;height:26px}
+.chart-pill{padding:0 9px;border:none;background:var(--white);font-size:10px;font-weight:700;color:var(--g4);cursor:pointer;font-family:var(--sans);transition:.1s;border-right:1px solid var(--g2)}
+.chart-pill:last-child{border-right:none}
+.chart-pill.active{background:var(--blue);color:#fff}
+.chart-pill:hover:not(.active){background:var(--g0)}
+.chart-scroll{overflow-x:auto;overflow-y:hidden;position:relative;-webkit-overflow-scrolling:touch}
+.chart-scroll::-webkit-scrollbar{height:8px}
+.chart-scroll::-webkit-scrollbar-track{background:var(--g0);border-radius:4px}
+.chart-scroll::-webkit-scrollbar-thumb{background:var(--g2);border-radius:4px}
+.chart-scroll::-webkit-scrollbar-thumb:hover{background:var(--g3)}
+.chart-canvas-wrap{height:400px;min-width:100%;position:relative}
 .chart-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--g3);font-size:13px;font-weight:600}
+/* Multi-level x-axis drawn below canvas */
+.chart-xaxis{overflow:hidden;font-family:var(--sans)}
+.chart-xaxis-row{display:flex;align-items:center;height:20px;border-top:1px solid var(--g1)}
+.chart-xaxis-row:first-child{border-top:none}
+.chart-xaxis-cell{text-align:center;font-size:10px;font-weight:600;color:var(--g4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-sizing:border-box;position:relative}
+.chart-xaxis-cell.has-border{border-left:1px solid var(--g2)}
+.chart-xaxis-row.top .chart-xaxis-cell{font-size:10px;font-weight:700;color:var(--g5)}
 
 /* Toast */
 #toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none}
@@ -117,11 +170,81 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
   .sl-item .si-bar-wrap{max-width:none}
   .sl-item{grid-template-columns:18px 1fr 80px 60px}
 }
+/* ═══ Floating dimension panel ═══ */
+.dim-float{position:fixed;left:20px;top:50%;transform:translateY(-50%);z-index:100;display:flex;flex-direction:column;gap:0;width:52px;transition:width .2s ease}
+.dim-float.expanded{width:180px}
+
+.dim-panel{background:var(--white);border:1.5px solid var(--g2);border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.08);overflow:hidden;display:flex;flex-direction:column}
+
+/* Merge button */
+.dim-merge{padding:10px;border-bottom:1px solid var(--g1);cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s}
+.dim-merge:hover{background:var(--g0)}
+.dim-merge.active{background:var(--blue);border-bottom-color:var(--blue)}
+.dim-merge-icon{width:20px;height:20px;border-radius:6px;background:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s}
+.dim-merge.active .dim-merge-icon{background:#fff}
+.dim-merge-icon svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}
+.dim-merge.active .dim-merge-icon svg{stroke:var(--blue)}
+.dim-merge-label{font-size:12px;font-weight:800;color:var(--blue);white-space:nowrap;overflow:hidden}
+.dim-merge.active .dim-merge-label{color:#fff}
+.dim-float:not(.expanded) .dim-merge-label{display:none}
+
+/* Dimension items */
+.dim-list{padding:6px 0}
+.dim-item{padding:6px 10px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .08s;user-select:none}
+.dim-item:hover{background:var(--g0)}
+.dim-item .di-cb{width:18px;height:18px;border:1.5px solid var(--g3);border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.15s}
+.dim-item.checked .di-cb{background:var(--blue);border-color:var(--blue)}
+.dim-item.checked .di-cb::after{content:'';width:8px;height:4.5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.dim-item.disabled .di-cb{background:var(--g1);border-color:var(--g2)}
+.dim-item .di-label{font-size:11px;font-weight:600;color:var(--g6);white-space:nowrap;overflow:hidden}
+.dim-item.checked .di-label{color:var(--blue);font-weight:700}
+.dim-item.disabled .di-label{color:var(--g3)}
+.dim-float:not(.expanded) .di-label{display:none}
+
+/* Expand toggle */
+.dim-expand{position:absolute;right:-12px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;background:var(--white);border:1.5px solid var(--g2);box-shadow:0 2px 6px rgba(0,0,0,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;transition:.15s}
+.dim-expand:hover{background:var(--g0);border-color:var(--blue-md)}
+.dim-expand svg{width:10px;height:10px;stroke:var(--g4);fill:none;stroke-width:2;stroke-linecap:round;transition:transform .2s}
+.dim-float.expanded .dim-expand svg{transform:rotate(180deg)}
+
+/* Color legend for multi-line */
+.chart-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding:4px 0;justify-content:center}
+.chart-legend-item{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--g5)}
+.chart-legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+@media(max-width:900px){
+  .dim-float{left:8px;width:44px}
+  .dim-float.expanded{width:160px}
+  .dim-item{padding:5px 8px}
+}
 </style>
 </head>
 <body>
 {% include "_sidebar.html" %}
 <div class="app">
+
+<!-- Floating dimension split panel -->
+<div class="dim-float" id="dimFloat">
+  <div class="dim-panel">
+    <div class="dim-merge active" id="dimMerge" onclick="dimSetMerge()">
+      <div class="dim-merge-icon"><svg viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6"/><line x1="6" y1="2" x2="6" y2="10"/></svg></div>
+      <div class="dim-merge-label">Gộp</div>
+    </div>
+    <div class="dim-list" id="dimList">
+      <div class="dim-item disabled" data-dim="ma_bp" onclick="dimToggle('ma_bp')"><div class="di-cb"></div><div class="di-label">Bộ phận</div></div>
+      <div class="dim-item disabled" data-dim="ma_kho" onclick="dimToggle('ma_kho')"><div class="di-cb"></div><div class="di-label">Kho</div></div>
+      <div class="dim-item disabled" data-dim="ten_plkv3" onclick="dimToggle('ten_plkv3')"><div class="di-cb"></div><div class="di-label">Miền</div></div>
+      <div class="dim-item disabled" data-dim="ten_plkv2" onclick="dimToggle('ten_plkv2')"><div class="di-cb"></div><div class="di-label">Vùng</div></div>
+      <div class="dim-item disabled" data-dim="ten_plkv1" onclick="dimToggle('ten_plkv1')"><div class="di-cb"></div><div class="di-label">Tỉnh</div></div>
+      <div class="dim-item disabled" data-dim="ma_nvkd" onclick="dimToggle('ma_nvkd')"><div class="di-cb"></div><div class="di-label">Nhân viên</div></div>
+      <div class="dim-item disabled" data-dim="ma_kh" onclick="dimToggle('ma_kh')"><div class="di-cb"></div><div class="di-label">Khách hàng</div></div>
+      <div class="dim-item disabled" data-dim="ten_nhvt" onclick="dimToggle('ten_nhvt')"><div class="di-cb"></div><div class="di-label">Thành phần chính</div></div>
+      <div class="dim-item disabled" data-dim="ten_thuoc" onclick="dimToggle('ten_thuoc')"><div class="di-cb"></div><div class="di-label">Dòng SP</div></div>
+      <div class="dim-item disabled" data-dim="ma_vt" onclick="dimToggle('ma_vt')"><div class="di-cb"></div><div class="di-label">Sản phẩm</div></div>
+    </div>
+  </div>
+  <button class="dim-expand" onclick="dimToggleExpand()"><svg viewBox="0 0 10 10"><polyline points="3,1 7,5 3,9"/></svg></button>
+</div>
 <div class="toolbar-slim">
   <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
   <div class="v-div"></div>
@@ -135,6 +258,33 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
     <div class="sl-group"><span class="sl-label">Đến</span><input class="sl-input" id="dateB" type="date"></div>
     <div class="sl-group"><span class="sl-label">BP</span><select class="sl-select" id="bpSelect" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select></div>
     <div class="sl-group"><span class="sl-label">Kho</span><select class="sl-select" id="khoSelect"><option value="">Tất cả</option></select></div>
+    <div class="kv-wrap" id="kvWrap">
+      <div class="kv-trigger" onclick="toggleKvPanel()">
+        <svg viewBox="0 0 16 16" stroke-width="1.8" style="width:14px;height:14px;stroke:var(--g4);fill:none;flex-shrink:0"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+        <span id="kvLabel">Khu vực: Tất cả</span>
+        <span class="kv-badge all" id="kvBadge">—</span>
+        <svg viewBox="0 0 10 6" style="width:10px;height:6px;stroke:var(--g4);fill:none;stroke-width:1.5;flex-shrink:0"><polyline points="1,1 5,5 9,1"/></svg>
+      </div>
+      <div class="kv-panel" id="kvPanel">
+        <div class="kv-cols">
+          <div class="kv-col">
+            <div class="kv-col-head">Miền<button class="kv-col-reset" id="kvReset0" onclick="kvResetAll(0);event.stopPropagation()">✕</button></div>
+            <div class="kv-col-search"><input type="text" id="kvQ0" placeholder="Tìm..." oninput="onKvSearch(0)"></div>
+            <div class="kv-col-body" id="kvBody0"></div>
+          </div>
+          <div class="kv-col">
+            <div class="kv-col-head">Vùng<button class="kv-col-reset" id="kvReset1" onclick="kvResetAll(1);event.stopPropagation()">✕</button></div>
+            <div class="kv-col-search"><input type="text" id="kvQ1" placeholder="Tìm..." oninput="onKvSearch(1)"></div>
+            <div class="kv-col-body" id="kvBody1"></div>
+          </div>
+          <div class="kv-col">
+            <div class="kv-col-head">Tỉnh<button class="kv-col-reset" id="kvReset2" onclick="kvResetAll(2);event.stopPropagation()">✕</button></div>
+            <div class="kv-col-search"><input type="text" id="kvQ2" placeholder="Tìm..." oninput="onKvSearch(2)"></div>
+            <div class="kv-col-body" id="kvBody2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <button class="sl-btn" id="loadBtn" onclick="loadData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg><span id="loadLbl">Tải</span></button>
   </div>
 
@@ -147,25 +297,6 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
   <div class="cards">
     <div class="card active" id="cardDS" onclick="setMetric('ds')"><div class="card-label">Doanh số</div><div class="card-value" id="valDS">—</div><div class="card-sub" id="subDS"></div></div>
     <div class="card" id="cardSL" onclick="setMetric('sl')"><div class="card-label">Số lượng</div><div class="card-value" id="valSL">—</div><div class="card-sub" id="subSL"></div></div>
-  </div>
-
-  <!-- Khu vực slicer: 3 cột cross-filter -->
-  <div class="sl-row" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:12px">
-    <div class="sl-panel" id="kvPanel0">
-      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Miền</span><button class="sl-reset" id="kvReset0" onclick="kvResetAll(0)">✕ Bỏ lọc</button></div>
-      <div class="sl-search"><input type="text" id="kvQ0" placeholder="Tìm miền..." oninput="onKvSearch(0)"></div>
-      <div class="sl-body" id="kvBody0"></div>
-    </div>
-    <div class="sl-panel" id="kvPanel1">
-      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Vùng</span><button class="sl-reset" id="kvReset1" onclick="kvResetAll(1)">✕ Bỏ lọc</button></div>
-      <div class="sl-search"><input type="text" id="kvQ1" placeholder="Tìm vùng..." oninput="onKvSearch(1)"></div>
-      <div class="sl-body" id="kvBody1"></div>
-    </div>
-    <div class="sl-panel" id="kvPanel2">
-      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Tỉnh</span><button class="sl-reset" id="kvReset2" onclick="kvResetAll(2)">✕ Bỏ lọc</button></div>
-      <div class="sl-search"><input type="text" id="kvQ2" placeholder="Tìm tỉnh..." oninput="onKvSearch(2)"></div>
-      <div class="sl-body" id="kvBody2"></div>
-    </div>
   </div>
 
   <!-- Sản phẩm slicers -->
@@ -188,8 +319,26 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
   </div>
 
   <div class="chart-card">
-    <div class="chart-title" id="chartTitle">Doanh số theo tháng</div>
-    <div class="chart-wrap"><canvas id="mainChart"></canvas><div class="chart-empty" id="chartEmpty">Nhấn "Tải" để xem dữ liệu</div></div>
+    <div class="chart-header">
+      <div class="chart-title" id="chartTitle">Doanh số theo tháng</div>
+      <div class="chart-controls">
+        <button class="chart-toggle" id="btnShowLabel" onclick="toggleLabels()">Hiện số</button>
+        <div class="chart-pills" id="granPills">
+          <button class="chart-pill" data-g="day" onclick="setGran('day')">Ngày</button>
+          <button class="chart-pill active" data-g="month" onclick="setGran('month')">Tháng</button>
+          <button class="chart-pill" data-g="quarter" onclick="setGran('quarter')">Quý</button>
+          <button class="chart-pill" data-g="year" onclick="setGran('year')">Năm</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-scroll" id="chartScroll">
+      <div class="chart-canvas-wrap" id="chartCanvasWrap">
+        <canvas id="mainChart"></canvas>
+      </div>
+      <div class="chart-xaxis" id="chartXaxis"></div>
+    </div>
+    <div class="chart-empty" id="chartEmpty" style="position:relative">Nhấn "Tải" để xem dữ liệu</div>
+    <div class="chart-legend" id="chartLegend"></div>
   </div>
 
 </div>
@@ -246,19 +395,66 @@ var spCatalog=[];
 var catalogMap={};
 var loading=false;
 var lineChart=null;
-var animateBars=true; // only on full reload
+var animateBars=true;
+var showLabels=false;
+var granularity='month';
+var MIN_PX_PER_POINT=40;
+
+// Dimension split state
+var dimSplits=[]; // active dimension keys, e.g. ['ma_bp','ma_kho']
+var dimExpanded=false;
+var DIM_COLORS=['#1a46c4','#e74c3c','#27ae60','#f39c12','#8e44ad','#16a085','#d35400','#2980b9','#c0392b','#2ecc71','#e67e22','#9b59b6','#1abc9c','#34495e','#f1c40f','#e91e63','#00bcd4','#ff5722','#795548','#607d8b'];
+var DIM_META={
+  ma_bp:{label:'Bộ phận',field:'ma_bp'},
+  ma_kho:{label:'Kho',field:'ma_kho'},
+  ten_plkv3:{label:'Miền',field:'ten_plkv3',fromKH:true},
+  ten_plkv2:{label:'Vùng',field:'ten_plkv2',fromKH:true},
+  ten_plkv1:{label:'Tỉnh',field:'ten_plkv1',fromKH:true},
+  ma_nvkd:{label:'Nhân viên',field:'ma_nvkd'},
+  ma_kh:{label:'Khách hàng',field:'ma_kh'},
+  ten_nhvt:{label:'Thành phần chính',field:'ten_nhvt',fromCatalog:true},
+  ten_thuoc:{label:'Dòng sản phẩm',field:'ten_thuoc',fromCatalog:true},
+  ma_vt:{label:'Sản phẩm',field:'ma_vt',useTenVt:true}
+};
+
+// ─── Dim panel controls ───
+window.dimToggleExpand=function(){
+  dimExpanded=!dimExpanded;
+  document.getElementById('dimFloat').classList.toggle('expanded',dimExpanded);
+};
+window.dimSetMerge=function(){
+  dimSplits=[];
+  renderDimPanel();
+  renderLineChart();
+};
+window.dimToggle=function(dim){
+  var idx=dimSplits.indexOf(dim);
+  if(idx>=0)dimSplits.splice(idx,1);
+  else dimSplits.push(dim);
+  renderDimPanel();
+  renderLineChart();
+};
+function renderDimPanel(){
+  var isMerged=dimSplits.length===0;
+  var mergeEl=document.getElementById('dimMerge');
+  mergeEl.classList.toggle('active',isMerged);
+  document.querySelectorAll('#dimList .dim-item').forEach(function(el){
+    var dim=el.getAttribute('data-dim');
+    var isChecked=dimSplits.indexOf(dim)>=0;
+    el.classList.toggle('checked',isChecked);
+    el.classList.toggle('disabled',!isChecked&&isMerged);
+  });
+}
 
 // Slicer state: checked items per slicer (null=all checked, Set=only these checked)
 var slChecked=[null,null,null];
 var searchTimers=[null,null,null];
 
-// ─── Dates ───
+// ─── Dates: load ALL data, chart viewport handles window ───
 (function(){
   var now=new Date();
   var b=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  var ago=new Date(now.getFullYear(),now.getMonth()-17,1);
-  var a=ago.getFullYear()+'-'+String(ago.getMonth()+1).padStart(2,'0')+'-01';
-  document.getElementById('dateA').value=a;
+  document.getElementById('dateA').value='2020-01-01';
   document.getElementById('dateB').value=b;
 })();
 
@@ -301,48 +497,52 @@ function initHierarchyAndKH(){
 
 // ═══ Region slicer state: 0=miền, 1=vùng, 2=tỉnh ═══
 var kvChecked=[null,null,null];
-var kvAllItems=[[],[],[]]; // distinct values
-var kvAllKH=[]; // full KH list with region info
+var kvAllItems=[[],[],[]];
+var kvAllKH=[];
 var kvSearchTimers=[null,null,null];
+var kvPanelOpen=false;
 
-// ═══ Load filter data (Kho + KH with regions) ═══
+// ═══ Load filter data ═══
 function loadFilters(){
   var url=API+'/api/filters'+(selectedBP?'?ma_bp='+encodeURIComponent(selectedBP):'');
   reportFetch(url).then(function(r){return r.json()}).then(function(d){
     if(!d.ok)return;
-    // Kho dropdown
     var khoSel=document.getElementById('khoSelect');
     khoSel.innerHTML='<option value="">Tất cả</option>'+(d.kho||[]).map(function(k){return'<option value="'+esc(k)+'">'+esc(k)+'</option>'}).join('');
-    // Region data
     kvAllItems[0]=(d.mien||[]).sort();
     kvAllItems[1]=(d.vung||[]).sort();
     kvAllItems[2]=(d.tinh||[]).sort();
     kvAllKH=d.khachhang||[];
+    // Build KH→region lookup for dimension splitting
+    window._khRegionMap={};
+    kvAllKH.forEach(function(kh){
+      _khRegionMap[kh.ma_kh]={ten_plkv1:kh.ten_plkv1||'',ten_plkv2:kh.ten_plkv2||'',ten_plkv3:kh.ten_plkv3||''};
+    });
     kvChecked=[null,null,null];
     renderAllKvSlicers();
+    updateKvBadge();
   }).catch(function(){});
 }
 
-// ═══ Region slicer cross-filter: get pool for each level ═══
+// ═══ Panel toggle ═══
+window.toggleKvPanel=function(){kvPanelOpen?closeKvPanel():openKvPanel()};
+function openKvPanel(){kvPanelOpen=true;document.getElementById('kvPanel').classList.add('open');renderAllKvSlicers()}
+function closeKvPanel(){kvPanelOpen=false;document.getElementById('kvPanel').classList.remove('open')}
+document.addEventListener('mousedown',function(e){if(kvPanelOpen&&!e.target.closest('.kv-wrap'))closeKvPanel()});
+
+// ═══ Cross-filter pool ═══
 function getKvPoolForSlicer(idx){
   var pool=kvAllKH;
-  if(idx>0&&kvChecked[0]){
-    pool=pool.filter(function(kh){return kvChecked[0].has(kh.ten_plkv3||'')});
-  }
-  if(idx>1&&kvChecked[1]){
-    pool=pool.filter(function(kh){return kvChecked[1].has(kh.ten_plkv2||'')});
-  }
+  if(idx>0&&kvChecked[0])pool=pool.filter(function(kh){return kvChecked[0].has(kh.ten_plkv3||'')});
+  if(idx>1&&kvChecked[1])pool=pool.filter(function(kh){return kvChecked[1].has(kh.ten_plkv2||'')});
   return pool;
 }
-
 function getKvFilteredValues(idx){
   var pool=getKvPoolForSlicer(idx);
   var field=['ten_plkv3','ten_plkv2','ten_plkv1'][idx];
   var s=new Set();pool.forEach(function(kh){if(kh[field])s.add(kh[field])});
   return[...s].sort();
 }
-
-// Get selected region values for API call
 function getSelectedRegions(){
   var mien='',vung='',tinh='';
   if(kvChecked[0])mien=[...kvChecked[0]].join(',');
@@ -351,73 +551,70 @@ function getSelectedRegions(){
   return{mien:mien,vung:vung,tinh:tinh};
 }
 
-// ═══ Region slicer rendering ═══
+// ═══ Badge ═══
+function updateKvBadge(){
+  var total=0;for(var i=0;i<3;i++)if(kvChecked[i])total+=kvChecked[i].size;
+  var b=document.getElementById('kvBadge'),l=document.getElementById('kvLabel');
+  var wrap=document.getElementById('kvWrap');
+  if(total===0){b.textContent='Tất cả';b.className='kv-badge all';l.textContent='Khu vực: Tất cả';wrap.classList.remove('has-filter')}
+  else{b.textContent=total;b.className='kv-badge active';l.textContent='Khu vực: '+total+' đã chọn';wrap.classList.add('has-filter')}
+}
+
+// ═══ Render ═══
 function renderKvSlicer(idx){
   var available=getKvFilteredValues(idx);
   var q=(document.getElementById('kvQ'+idx).value||'').toLowerCase().trim();
   var items=available;
   if(q)items=items.filter(function(v){return v.toLowerCase().indexOf(q)>=0});
-
   var checked=kvChecked[idx];
   var hasFilter=checked!==null;
-
-  // Sort: checked first
   items.sort(function(a,b){
     if(hasFilter){var ac=checked.has(a)?1:0,bc=checked.has(b)?1:0;if(ac!==bc)return bc-ac}
     return a.localeCompare(b,'vi');
   });
-
   var html='';
-  items.slice(0,100).forEach(function(v){
+  items.forEach(function(v){
     var isChecked=!hasFilter||checked.has(v);
-    var cls=isChecked?'sl-item checked':'sl-item unchecked';
+    var cls=isChecked?'kv-item checked':'kv-item unchecked';
     var nameHtml=q?hlMark(v,q):esc(v);
     html+='<div class="'+cls+'" data-label="'+esc(v).replace(/"/g,'&quot;')+'" data-kvidx="'+idx+'" onclick="kvToggle(this)">'
-      +'<div class="si-cb"></div>'
-      +'<div class="si-name" title="'+esc(v).replace(/"/g,'&quot;')+'">'+nameHtml+'</div>'
-      +'</div>';
+      +'<div class="kv-cb"></div><div class="kv-name">'+nameHtml+'</div></div>';
   });
-  if(!html)html='<div style="padding:16px;text-align:center;color:var(--g3);font-size:11px">Không có dữ liệu</div>';
+  if(!html)html='<div style="padding:12px;text-align:center;color:var(--g3);font-size:10px">—</div>';
   document.getElementById('kvBody'+idx).innerHTML=html;
-
-  var panel=document.getElementById('kvPanel'+idx);
+  // Column filter indicator
+  var col=document.getElementById('kvBody'+idx).parentElement;
   var resetBtn=document.getElementById('kvReset'+idx);
-  if(hasFilter){panel.classList.add('has-filter');resetBtn.classList.add('show')}
-  else{panel.classList.remove('has-filter');resetBtn.classList.remove('show')}
+  if(hasFilter){col.classList.add('has-filter');resetBtn.style.display='flex'}
+  else{col.classList.remove('has-filter');resetBtn.style.display='none'}
 }
-
-function renderAllKvSlicers(){for(var i=0;i<3;i++)renderKvSlicer(i)}
+function renderAllKvSlicers(){for(var i=0;i<3;i++)renderKvSlicer(i);updateKvBadge()}
 
 window.kvToggle=function(el){
   var idx=parseInt(el.getAttribute('data-kvidx'));
   var label=el.getAttribute('data-label');
   var checked=kvChecked[idx];
-
   if(checked===null){
     var allItems=[];
-    document.querySelectorAll('#kvBody'+idx+' .sl-item').forEach(function(item){allItems.push(item.getAttribute('data-label'))});
+    document.querySelectorAll('#kvBody'+idx+' .kv-item').forEach(function(item){allItems.push(item.getAttribute('data-label'))});
     if(allItems.length<=1)return;
     checked=new Set([label]);
   }else if(checked.has(label)){
-    checked.delete(label);
-    if(checked.size===0)checked=null;
+    checked.delete(label);if(checked.size===0)checked=null;
   }else{
     checked.add(label);
-    var total=document.querySelectorAll('#kvBody'+idx+' .sl-item').length;
+    var total=document.querySelectorAll('#kvBody'+idx+' .kv-item').length;
     if(checked.size>=total)checked=null;
   }
   kvChecked[idx]=checked;
   for(var j=idx+1;j<3;j++){kvChecked[j]=null;document.getElementById('kvQ'+j).value=''}
   renderAllKvSlicers();
 };
-
 window.kvResetAll=function(idx){
-  kvChecked[idx]=null;
-  document.getElementById('kvQ'+idx).value='';
+  kvChecked[idx]=null;document.getElementById('kvQ'+idx).value='';
   for(var j=idx+1;j<3;j++){kvChecked[j]=null;document.getElementById('kvQ'+j).value=''}
   renderAllKvSlicers();
 };
-
 window.onKvSearch=function(idx){
   if(kvSearchTimers[idx])clearTimeout(kvSearchTimers[idx]);
   kvSearchTimers[idx]=setTimeout(function(){renderKvSlicer(idx)},150);
@@ -433,12 +630,28 @@ function loadCatalog(){
 }
 
 // ═══ Metric ═══
+var GRAN_LABELS={day:'ngày',month:'tháng',quarter:'quý',year:'năm'};
 window.setMetric=function(m){
   metric=m;
   document.getElementById('cardDS').classList.toggle('active',m==='ds');
   document.getElementById('cardSL').classList.toggle('active',m==='sl');
-  document.getElementById('chartTitle').textContent=m==='ds'?'Doanh số theo tháng':'Số lượng theo tháng';
+  document.getElementById('chartTitle').textContent=(m==='ds'?'Doanh số':'Số lượng')+' theo '+GRAN_LABELS[granularity];
   animateBars=false;renderAll();
+};
+
+// ═══ Chart controls ═══
+window.toggleLabels=function(){
+  showLabels=!showLabels;
+  var btn=document.getElementById('btnShowLabel');
+  btn.textContent=showLabels?'Ẩn số':'Hiện số';
+  btn.classList.toggle('active',showLabels);
+  renderLineChart();
+};
+window.setGran=function(g){
+  granularity=g;
+  document.querySelectorAll('#granPills .chart-pill').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-g')===g)});
+  document.getElementById('chartTitle').textContent=(metric==='ds'?'Doanh số':'Số lượng')+' theo '+GRAN_LABELS[g];
+  renderLineChart();
 };
 
 // ═══ Cross-filter: get allowed ma_vt for each slicer level ═══
@@ -686,37 +899,222 @@ function updateCards(){
 }
 
 // ═══ Line chart ═══
+
 function renderLineChart(){
   var allowed=getFilteredMaVts();
   var data=rawData.filter(function(r){return allowed.has(r.ma_vt)});
+
+  var scrollEl=document.getElementById('chartScroll');
+  var wrapEl=document.getElementById('chartCanvasWrap');
+  var emptyEl=document.getElementById('chartEmpty');
+  var legendEl=document.getElementById('chartLegend');
+  var xaxisEl=document.getElementById('chartXaxis');
+
   if(!data.length){
-    document.getElementById('chartEmpty').style.display='flex';
+    emptyEl.style.display='flex';scrollEl.style.display='none';legendEl.innerHTML='';xaxisEl.innerHTML='';
     if(lineChart){lineChart.destroy();lineChart=null}return;
   }
-  document.getElementById('chartEmpty').style.display='none';
-  var mm={};data.forEach(function(r){
-    var k=r.nam+'-'+String(r.thang).padStart(2,'0');
-    if(!mm[k])mm[k]={ds:0,sl:0};mm[k].ds+=r.tong_doanhso||0;mm[k].sl+=r.tong_so_luong||0;
+  emptyEl.style.display='none';scrollEl.style.display='block';
+
+  var pad=function(n){return String(n).padStart(2,'0')};
+  var ROMAN=['I','II','III','IV'];
+
+  function getDimKey(r){
+    if(!dimSplits.length)return'__all__';
+    var parts=[];
+    dimSplits.forEach(function(dim){
+      var meta=DIM_META[dim];if(!meta)return;
+      var val;
+      if(meta.fromKH){var ki=window._khRegionMap&&window._khRegionMap[r.ma_kh];val=ki?ki[meta.field]:''}
+      else if(meta.fromCatalog){var cat=catalogMap[r.ma_vt];val=cat?cat[meta.field]:''}
+      else if(meta.useTenVt){val=r.ten_vt||r.ma_vt||''}
+      else{val=r[meta.field]||''}
+      parts.push(val||'(Không rõ)');
+    });
+    return parts.join(' × ');
+  }
+
+  // Aggregate
+  var seriesMap={};var allTimeKeys=new Set();
+  data.forEach(function(r){
+    var dimKey=getDimKey(r);
+    var timeKey;
+    if(granularity==='day') timeKey=r.nam+'-'+pad(r.thang)+'-'+pad(r.ngay||1);
+    else if(granularity==='month') timeKey=r.nam+'-'+pad(r.thang);
+    else if(granularity==='quarter'){var q=Math.ceil(r.thang/3);timeKey=r.nam+'-Q'+q}
+    else timeKey=String(r.nam);
+    if(!seriesMap[dimKey])seriesMap[dimKey]={};
+    if(!seriesMap[dimKey][timeKey])seriesMap[dimKey][timeKey]={ds:0,sl:0};
+    seriesMap[dimKey][timeKey].ds+=r.tong_doanhso||0;
+    seriesMap[dimKey][timeKey].sl+=r.tong_so_luong||0;
+    allTimeKeys.add(timeKey);
   });
-  var keys=Object.keys(mm).sort();
-  var labels=keys.map(function(k){var p=k.split('-');return'T'+parseInt(p[1])+'/'+p[0].slice(2)});
-  var values=keys.map(function(k){return metric==='ds'?mm[k].ds:mm[k].sl});
+
+  var sortedTimeKeys=[...allTimeKeys].sort();
+  var totalPoints=sortedTimeKeys.length;
+
+  // Parse time keys for axis
+  function parseTimeKey(k){
+    if(granularity==='day'){var p=k.split('-');return{year:+p[0],month:+p[1],day:+p[2]}}
+    if(granularity==='month'){var p=k.split('-');return{year:+p[0],month:+p[1]}}
+    if(granularity==='quarter'){var p=k.split('-Q');return{year:+p[0],quarter:+p[1]}}
+    return{year:+k};
+  }
+  var axisParsed=sortedTimeKeys.map(parseTimeKey);
+
+  // Viewport window size
+  var viewportSize;
+  if(granularity==='day')viewportSize=30;
+  else if(granularity==='month')viewportSize=18;
+  else if(granularity==='quarter')viewportSize=12;
+  else viewportSize=totalPoints;
+
+  var containerW=scrollEl.clientWidth||800;
+  var pxPerPoint=totalPoints<=viewportSize?Math.max(MIN_PX_PER_POINT,Math.floor(containerW/Math.max(totalPoints,1))):Math.max(MIN_PX_PER_POINT,Math.floor(containerW/viewportSize));
+  var canvasW=Math.max(containerW,totalPoints*pxPerPoint);
+  wrapEl.style.width=canvasW+'px';
+  xaxisEl.style.width=canvasW+'px';
+
+  // Datasets
+  var seriesKeys=Object.keys(seriesMap).sort();
+  var isSingle=seriesKeys.length===1;
+  var ptRadius=totalPoints>100?1:totalPoints>50?2:totalPoints>25?3:4;
+
+  var datasets=seriesKeys.map(function(dk,si){
+    var color=isSingle?'#1a46c4':DIM_COLORS[si%DIM_COLORS.length];
+    var values=sortedTimeKeys.map(function(tk){var c=seriesMap[dk][tk];return c?(metric==='ds'?c.ds:c.sl):0});
+    return{label:dk==='__all__'?(metric==='ds'?'Doanh số':'Số lượng'):dk,data:values,borderColor:color,backgroundColor:isSingle?undefined:'transparent',borderWidth:isSingle?2:1.5,pointRadius:ptRadius,pointBackgroundColor:isSingle?'#fff':color,pointBorderColor:color,pointBorderWidth:1.5,pointHoverRadius:ptRadius+3,pointHoverBorderWidth:2,fill:isSingle,tension:0.3};
+  });
+
   if(lineChart)lineChart.destroy();
   var ctx=document.getElementById('mainChart').getContext('2d');
-  var gr=ctx.createLinearGradient(0,0,0,360);
-  gr.addColorStop(0,'rgba(26,70,196,0.15)');gr.addColorStop(1,'rgba(26,70,196,0.01)');
+  if(isSingle){var gr=ctx.createLinearGradient(0,0,0,400);gr.addColorStop(0,'rgba(26,70,196,0.15)');gr.addColorStop(1,'rgba(26,70,196,0.01)');datasets[0].backgroundColor=gr}
+
+  // Tooltip title
+  function getTooltipTitle(idx){
+    var p=axisParsed[idx];if(!p)return'';
+    if(granularity==='day')return pad(p.day)+'/'+pad(p.month)+'/'+p.year;
+    if(granularity==='month')return'Tháng '+p.month+'/'+p.year;
+    if(granularity==='quarter')return'Quý '+ROMAN[p.quarter-1]+'/'+p.year;
+    return String(p.year);
+  }
+
+  var emptyLabels=sortedTimeKeys.map(function(){return''});
   lineChart=new Chart(ctx,{
     type:'line',
-    data:{labels:labels,datasets:[{label:metric==='ds'?'Doanh số':'Số lượng',data:values,borderColor:'#1a46c4',backgroundColor:gr,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#fff',pointBorderColor:'#1a46c4',pointBorderWidth:2,pointHoverRadius:6,pointHoverBorderWidth:3,fill:true,tension:0.3}]},
+    data:{labels:emptyLabels,datasets:datasets},
     options:{
-      responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2a3a',titleFont:{family:'Nunito Sans',size:12,weight:'700'},bodyFont:{family:'Nunito Sans',size:12},padding:10,cornerRadius:8,callbacks:{label:function(ctx){return(metric==='ds'?'Doanh số: ':'Số lượng: ')+fN(Math.round(ctx.parsed.y))}}}},
-      scales:{
-        x:{grid:{display:false},ticks:{font:{family:'Nunito Sans',size:11,weight:'600'},color:'#8b95aa'}},
-        y:{grid:{color:'#eef0f4'},ticks:{font:{family:'Nunito Sans',size:11},color:'#8b95aa',callback:function(v){if(v>=1e9)return(v/1e9).toFixed(1)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'K';return v}}}
-      }
-    }
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2a3a',titleFont:{family:'Nunito Sans',size:12,weight:'700'},bodyFont:{family:'Nunito Sans',size:11},padding:10,cornerRadius:8,callbacks:{title:function(items){return items.length?getTooltipTitle(items[0].dataIndex):''},label:function(ctx){return ctx.dataset.label+': '+fN(Math.round(ctx.parsed.y))}}}},
+      scales:{x:{display:false},y:{grid:{color:'#eef0f4'},ticks:{font:{family:'Nunito Sans',size:11},color:'#8b95aa',callback:function(v){if(v>=1e9)return(v/1e9).toFixed(1)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'K';return v}}}},
+      animation:{onComplete:function(){if(showLabels)drawDataLabels(lineChart,isSingle)}}
+    },
+    plugins:[{id:'customLabels',afterDatasetsDraw:function(chart){if(showLabels)drawDataLabels(chart,isSingle)}}]
   });
+
+  // Multi-level x-axis
+  buildMultiLevelAxis(axisParsed,lineChart);
+
+  // Legend
+  if(isSingle){legendEl.innerHTML=''}
+  else{legendEl.innerHTML=seriesKeys.map(function(dk,si){var c=DIM_COLORS[si%DIM_COLORS.length];return'<div class="chart-legend-item"><div class="chart-legend-dot" style="background:'+c+'"></div>'+esc(dk)+'</div>'}).join('')}
+
+  requestAnimationFrame(function(){scrollEl.scrollLeft=scrollEl.scrollWidth});
+}
+
+function buildMultiLevelAxis(parsed,chart){
+  var xaxisEl=document.getElementById('chartXaxis');
+  if(!parsed.length){xaxisEl.innerHTML='';return}
+  var points=chart.getDatasetMeta(0).data;
+  var yAxisW=chart.chartArea?chart.chartArea.left:50;
+  var ROMAN=['I','II','III','IV'];
+
+  // Helpers
+  function cellW(i){return i<points.length-1&&points[i+1]?points[i+1].x-points[i].x:40}
+  function groupRow(groups){
+    var html='';
+    groups.forEach(function(g,gi){
+      var x1=points[g.start]?points[g.start].x:0;
+      var x2=points[g.end]?points[g.end].x:x1;
+      var w;
+      if(g.end<points.length-1&&points[g.end+1])w=points[g.end+1].x-x1;
+      else w=x2-x1+cellW(g.end);
+      var ml=gi===0?'margin-left:'+x1+'px;':'';
+      var border=gi>0?'has-border':'';
+      html+='<div class="chart-xaxis-cell '+border+'" style="width:'+w+'px;flex-shrink:0;'+ml+'">'+g.label+'</div>';
+    });
+    return html;
+  }
+
+  var html='';
+
+  if(granularity==='day'){
+    // Row 1: day number | Row 2: months | Row 3: years
+    var row1='';
+    parsed.forEach(function(p,i){row1+='<div class="chart-xaxis-cell" style="width:'+cellW(i)+'px;flex-shrink:0">'+p.day+'</div>'});
+
+    var monthGroups=[],yearGroups=[];
+    var pm=-1,py=-1,ms=0,ys=0;
+    parsed.forEach(function(p,i){
+      if(p.month!==pm||p.year!==py){if(i>0)monthGroups.push({label:'Tháng '+pm,start:ms,end:i-1});ms=i;pm=p.month;py=p.year}
+      if(i===parsed.length-1)monthGroups.push({label:'Tháng '+p.month,start:ms,end:i});
+    });
+    py=-1;ys=0;
+    parsed.forEach(function(p,i){
+      if(p.year!==py){if(i>0)yearGroups.push({label:String(py),start:ys,end:i-1});ys=i;py=p.year}
+      if(i===parsed.length-1)yearGroups.push({label:String(p.year),start:ys,end:i});
+    });
+
+    html='<div class="chart-xaxis-row" style="padding-left:'+yAxisW+'px">'+row1+'</div>'
+      +'<div class="chart-xaxis-row">'+groupRow(monthGroups)+'</div>'
+      +'<div class="chart-xaxis-row top">'+groupRow(yearGroups)+'</div>';
+
+  }else if(granularity==='month'){
+    // Row 1: Tháng N | Row 2: years
+    var row1='';
+    parsed.forEach(function(p,i){row1+='<div class="chart-xaxis-cell" style="width:'+cellW(i)+'px;flex-shrink:0">Tháng '+p.month+'</div>'});
+    var yearGroups=[];var py=-1,ys=0;
+    parsed.forEach(function(p,i){
+      if(p.year!==py){if(i>0)yearGroups.push({label:String(py),start:ys,end:i-1});ys=i;py=p.year}
+      if(i===parsed.length-1)yearGroups.push({label:String(p.year),start:ys,end:i});
+    });
+    html='<div class="chart-xaxis-row" style="padding-left:'+yAxisW+'px">'+row1+'</div>'
+      +'<div class="chart-xaxis-row top">'+groupRow(yearGroups)+'</div>';
+
+  }else if(granularity==='quarter'){
+    var row1='';
+    parsed.forEach(function(p,i){row1+='<div class="chart-xaxis-cell" style="width:'+cellW(i)+'px;flex-shrink:0">Quý '+ROMAN[p.quarter-1]+'</div>'});
+    var yearGroups=[];var py=-1,ys=0;
+    parsed.forEach(function(p,i){
+      if(p.year!==py){if(i>0)yearGroups.push({label:String(py),start:ys,end:i-1});ys=i;py=p.year}
+      if(i===parsed.length-1)yearGroups.push({label:String(p.year),start:ys,end:i});
+    });
+    html='<div class="chart-xaxis-row" style="padding-left:'+yAxisW+'px">'+row1+'</div>'
+      +'<div class="chart-xaxis-row top">'+groupRow(yearGroups)+'</div>';
+
+  }else{
+    var row1='';
+    parsed.forEach(function(p,i){row1+='<div class="chart-xaxis-cell" style="width:'+cellW(i)+'px;flex-shrink:0">'+p.year+'</div>'});
+    html='<div class="chart-xaxis-row top" style="padding-left:'+yAxisW+'px">'+row1+'</div>';
+  }
+
+  xaxisEl.innerHTML=html;
+}
+
+function drawDataLabels(chart,isSingle){
+  var ctx=chart.ctx;ctx.save();
+  ctx.font='600 9px Nunito Sans';ctx.textAlign='center';ctx.textBaseline='bottom';
+  chart.data.datasets.forEach(function(ds,di){
+    var meta=chart.getDatasetMeta(di);if(meta.hidden)return;
+    ctx.fillStyle=isSingle?'#3d4a63':(ds.borderColor||'#3d4a63');
+    meta.data.forEach(function(pt,i){
+      var v=ds.data[i];if(v==null||v===0)return;
+      var x=pt.x,y=pt.y-8;if(y<15)y=pt.y+14;
+      ctx.fillText(fShort(v),x,y);
+    });
+  });
+  ctx.restore();
 }
 
 // ═══ Init ═══
