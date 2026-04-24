@@ -144,18 +144,73 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 .chart-canvas-wrap{height:400px;min-width:100%;position:relative}
 .chart-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--g3);font-size:13px;font-weight:600}
 /* Multi-level x-axis drawn below canvas */
-.chart-xaxis{overflow:hidden;font-family:var(--sans)}
-.chart-xaxis-row{display:flex;align-items:center;height:20px;border-top:1px solid var(--g1)}
+.chart-xaxis{overflow:hidden;font-family:var(--sans);position:relative}
+.chart-xaxis-row{position:relative;height:20px;border-top:1px solid var(--g1)}
 .chart-xaxis-row:first-child{border-top:none}
-.chart-xaxis-cell{text-align:center;font-size:10px;font-weight:600;color:var(--g4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-sizing:border-box;position:relative}
-.chart-xaxis-cell.has-border{border-left:1px solid var(--g2)}
+.chart-xaxis-cell{font-size:10px;font-weight:600;color:var(--g4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-sizing:border-box}
+.chart-xaxis-cell.has-border{border-left:1.5px solid var(--g2)}
 .chart-xaxis-row.top .chart-xaxis-cell{font-size:10px;font-weight:700;color:var(--g5)}
+/* Year borders extend through all axis rows */
+.chart-xaxis-cell.has-border::before{content:'';position:absolute;top:0;left:-1px;width:1.5px;background:var(--g2);height:100px;transform:translateY(-100%);pointer-events:none}
 
 /* Toast */
 #toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none}
 .toast{background:var(--g7);color:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.2);font-size:12px;font-weight:600;animation:si .2s ease;pointer-events:all;max-width:320px}
 .toast.err{background:var(--red)}.toast.ok{background:var(--emr)}
 @keyframes si{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+
+/* ═══ Analysis table ═══ */
+.analysis-card{background:var(--white);border:1.5px solid var(--g2);border-radius:14px;padding:24px;margin-top:24px}
+.analysis-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.analysis-title{font-size:14px;font-weight:800;color:var(--g7);letter-spacing:.02em}
+.analysis-controls{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap}
+.an-dim-btn{height:28px;padding:0 12px;border:1.5px solid var(--g2);border-radius:14px;background:var(--white);font-size:10px;font-weight:700;color:var(--g5);cursor:pointer;font-family:var(--sans);transition:all .12s}
+.an-dim-btn:hover{background:var(--g0);border-color:var(--g3)}
+.an-dim-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 2px 6px rgba(26,70,196,.18)}
+.an-sort-btn{height:28px;padding:0 10px;border:1.5px solid var(--g2);border-radius:14px;background:var(--white);font-size:10px;font-weight:600;color:var(--g4);cursor:pointer;font-family:var(--sans);transition:.12s}
+.an-sort-btn:hover{background:var(--g0)}
+.an-sort-btn.active{color:var(--blue);border-color:var(--blue-md);background:var(--blue-lt)}
+.analysis-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--g1);border-radius:10px}
+.analysis-scroll::-webkit-scrollbar{height:6px;width:0}
+.analysis-scroll::-webkit-scrollbar-track{background:var(--g0);border-radius:3px}
+.analysis-scroll::-webkit-scrollbar-thumb{background:var(--g2);border-radius:3px}
+.an-body-scroll{overflow-y:auto;max-height:580px}
+.an-body-scroll::-webkit-scrollbar{width:5px}
+.an-body-scroll::-webkit-scrollbar-track{background:var(--g0)}
+.an-body-scroll::-webkit-scrollbar-thumb{background:var(--g2);border-radius:3px}
+.an-table{width:100%;border-collapse:collapse;font-size:12px;min-width:800px;table-layout:fixed}
+.an-table-body{border-top:none;border-bottom:none}
+.an-table-foot{border-top:2px solid var(--g2)}
+.an-table thead{z-index:2}
+.an-table th{background:var(--g0);padding:8px 12px;font-weight:800;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--g4);white-space:nowrap;text-align:center;vertical-align:middle;border-bottom:1px solid var(--g2)}
+.an-table th:first-child{text-align:left}
+.an-table th.left{text-align:left}
+.an-table th.group-a{background:#eef2ff;color:var(--blue);font-weight:800}
+.an-table th.group-b{background:#f0fdf4;color:#059669;font-weight:800}
+.an-table td{padding:7px 12px;border-bottom:1px solid var(--g1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.an-table td.name-cell{text-align:left;font-weight:600;color:var(--g6);max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.an-table td.num{text-align:right;font-weight:700;color:var(--g7)}
+.an-table td.share{text-align:center;font-size:10px;font-weight:700;color:var(--blue)}
+.an-table td.delta-cell{text-align:right;font-weight:700;padding-right:6px}
+.an-table td.delta-cell.pos{color:#059669}
+.an-table td.delta-cell.neg{color:#dc2626}
+.an-table td.delta-cell.zero{color:var(--g3)}
+.an-pct-badge{display:inline-block;padding:1px 5px;border-radius:8px;font-size:9px;font-weight:700;margin-left:4px;vertical-align:middle}
+.an-pct-badge.pos{background:#dcfce7;color:#059669}
+.an-pct-badge.neg{background:#fef2f2;color:#dc2626}
+.an-pct-badge.zero{background:var(--g1);color:var(--g3)}
+.an-table tr:hover td{background:#f8faff}
+.an-table tfoot td{background:var(--g0);font-weight:800;color:var(--g7);padding:8px 12px}
+/* Sort headers */
+.an-table th.sortable{cursor:pointer;user-select:none;transition:background .1s}
+.an-table th.sortable:hover{background:#e2e8f0}
+.an-table th.sortable .sort-icon{display:inline-block;margin-left:3px;font-size:7px;color:var(--g3);vertical-align:middle}
+.an-table th.sortable.sorted .sort-icon{color:var(--blue)}
+.an-table th.group-a.sortable:hover{background:#dbeafe}
+.an-table th.group-b.sortable:hover{background:#dcfce7}
+.an-badge-new{display:inline-block;padding:2px 6px;background:#dcfce7;color:#059669;border-radius:6px;font-size:8px;font-weight:800;margin-left:6px;letter-spacing:.03em;vertical-align:middle}
+.an-badge-lost{display:inline-block;padding:2px 6px;background:#fef2f2;color:#dc2626;border-radius:6px;font-size:8px;font-weight:800;margin-left:6px;letter-spacing:.03em;vertical-align:middle}
+.analysis-empty{padding:48px;text-align:center;color:var(--g3);font-size:12px;font-weight:600}
 
 @media(max-width:1200px){.page{max-width:90%}}
 @media(max-width:900px){
@@ -339,6 +394,44 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
     </div>
     <div class="chart-empty" id="chartEmpty" style="position:relative">Nhấn "Tải" để xem dữ liệu</div>
     <div class="chart-legend" id="chartLegend"></div>
+  </div>
+
+  <!-- Analysis comparison table -->
+  <div class="analysis-card" id="analysisCard">
+    <div class="analysis-header">
+      <div class="analysis-title">Phân tích so sánh kỳ</div>
+      <div class="analysis-controls">
+        <span style="font-size:10px;font-weight:700;color:var(--g4);margin-right:2px">CHIỀU PHÂN TÍCH:</span>
+        <button class="an-dim-btn active" data-dim="ma_kh" onclick="anToggleDim('ma_kh',this)">Khách hàng</button>
+        <button class="an-dim-btn" data-dim="ma_nvkd" onclick="anToggleDim('ma_nvkd',this)">Nhân viên</button>
+        <button class="an-dim-btn" data-dim="ma_bp" onclick="anToggleDim('ma_bp',this)">Bộ phận</button>
+        <button class="an-dim-btn" data-dim="ma_kho" onclick="anToggleDim('ma_kho',this)">Kho</button>
+        <button class="an-dim-btn" data-dim="ten_plkv3" onclick="anToggleDim('ten_plkv3',this)">Miền</button>
+        <button class="an-dim-btn" data-dim="ten_plkv2" onclick="anToggleDim('ten_plkv2',this)">Vùng</button>
+        <button class="an-dim-btn" data-dim="ten_plkv1" onclick="anToggleDim('ten_plkv1',this)">Tỉnh</button>
+        <button class="an-dim-btn" data-dim="ma_vt" onclick="anToggleDim('ma_vt',this)">Sản phẩm</button>
+        <span style="color:var(--g2);margin:0 4px">|</span>
+        <span style="font-size:10px;font-weight:600;color:var(--g4)">Sắp xếp:</span>
+        <div class="an-sort-toggle">
+          <button class="an-sort-opt" id="anSortVal" onclick="anSetSortMode('val')">Giá trị</button>
+          <button class="an-sort-opt active" id="anSortAbs" onclick="anSetSortMode('abs')">|Giá trị|</button>
+        </div>
+      </div>
+    </div>
+    <div class="analysis-scroll">
+      <div class="analysis-empty" id="anEmpty">Nhấn "Tải" ở trên để xem phân tích</div>
+      <table class="an-table" id="anTable" style="display:none">
+        <thead id="anThead"></thead>
+      </table>
+      <div class="an-body-scroll" id="anBodyScroll">
+        <table class="an-table an-table-body" id="anTableBody">
+          <tbody id="anTbody"></tbody>
+        </table>
+      </div>
+      <table class="an-table an-table-foot" id="anTableFoot">
+        <tfoot id="anTfoot"></tfoot>
+      </table>
+    </div>
   </div>
 
 </div>
@@ -900,6 +993,33 @@ function updateCards(){
 
 // ═══ Line chart ═══
 
+// ═══ Line chart ═══
+
+// Generate ALL time keys in range (fill gaps)
+function generateAllTimeKeys(dataTimeKeys){
+  if(!dataTimeKeys.length)return[];
+  var pad=function(n){return String(n).padStart(2,'0')};
+  var first=dataTimeKeys[0],last=dataTimeKeys[dataTimeKeys.length-1];
+  var keys=[];
+
+  if(granularity==='day'){
+    var d=new Date(first);var end=new Date(last);
+    while(d<=end){keys.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));d.setDate(d.getDate()+1)}
+  }else if(granularity==='month'){
+    var p1=first.split('-'),p2=last.split('-');
+    var y=+p1[0],m=+p1[1],ey=+p2[0],em=+p2[1];
+    while(y<ey||(y===ey&&m<=em)){keys.push(y+'-'+pad(m));m++;if(m>12){m=1;y++}}
+  }else if(granularity==='quarter'){
+    var p1=first.split('-Q'),p2=last.split('-Q');
+    var y=+p1[0],q=+p1[1],ey=+p2[0],eq=+p2[1];
+    while(y<ey||(y===ey&&q<=eq)){keys.push(y+'-Q'+q);q++;if(q>4){q=1;y++}}
+  }else{
+    var y1=+first,y2=+last;
+    for(var y=y1;y<=y2;y++)keys.push(String(y));
+  }
+  return keys;
+}
+
 function renderLineChart(){
   var allowed=getFilteredMaVts();
   var data=rawData.filter(function(r){return allowed.has(r.ma_vt)});
@@ -935,7 +1055,7 @@ function renderLineChart(){
   }
 
   // Aggregate
-  var seriesMap={};var allTimeKeys=new Set();
+  var seriesMap={};var dataTimeKeys=new Set();
   data.forEach(function(r){
     var dimKey=getDimKey(r);
     var timeKey;
@@ -947,13 +1067,15 @@ function renderLineChart(){
     if(!seriesMap[dimKey][timeKey])seriesMap[dimKey][timeKey]={ds:0,sl:0};
     seriesMap[dimKey][timeKey].ds+=r.tong_doanhso||0;
     seriesMap[dimKey][timeKey].sl+=r.tong_so_luong||0;
-    allTimeKeys.add(timeKey);
+    dataTimeKeys.add(timeKey);
   });
 
-  var sortedTimeKeys=[...allTimeKeys].sort();
+  // Fill ALL time keys (including gaps)
+  var sortedDataKeys=[...dataTimeKeys].sort();
+  var sortedTimeKeys=generateAllTimeKeys(sortedDataKeys);
   var totalPoints=sortedTimeKeys.length;
 
-  // Parse time keys for axis
+  // Parse for axis
   function parseTimeKey(k){
     if(granularity==='day'){var p=k.split('-');return{year:+p[0],month:+p[1],day:+p[2]}}
     if(granularity==='month'){var p=k.split('-');return{year:+p[0],month:+p[1]}}
@@ -962,7 +1084,7 @@ function renderLineChart(){
   }
   var axisParsed=sortedTimeKeys.map(parseTimeKey);
 
-  // Viewport window size
+  // Viewport
   var viewportSize;
   if(granularity==='day')viewportSize=30;
   else if(granularity==='month')viewportSize=18;
@@ -972,25 +1094,29 @@ function renderLineChart(){
   var containerW=scrollEl.clientWidth||800;
   var pxPerPoint=totalPoints<=viewportSize?Math.max(MIN_PX_PER_POINT,Math.floor(containerW/Math.max(totalPoints,1))):Math.max(MIN_PX_PER_POINT,Math.floor(containerW/viewportSize));
   var canvasW=Math.max(containerW,totalPoints*pxPerPoint);
+  // Add padding right so last label isn't clipped
+  canvasW+=pxPerPoint;
   wrapEl.style.width=canvasW+'px';
   xaxisEl.style.width=canvasW+'px';
 
-  // Datasets
+  // Datasets: use null for gaps (spanGaps false → line breaks)
   var seriesKeys=Object.keys(seriesMap).sort();
   var isSingle=seriesKeys.length===1;
   var ptRadius=totalPoints>100?1:totalPoints>50?2:totalPoints>25?3:4;
 
   var datasets=seriesKeys.map(function(dk,si){
     var color=isSingle?'#1a46c4':DIM_COLORS[si%DIM_COLORS.length];
-    var values=sortedTimeKeys.map(function(tk){var c=seriesMap[dk][tk];return c?(metric==='ds'?c.ds:c.sl):0});
-    return{label:dk==='__all__'?(metric==='ds'?'Doanh số':'Số lượng'):dk,data:values,borderColor:color,backgroundColor:isSingle?undefined:'transparent',borderWidth:isSingle?2:1.5,pointRadius:ptRadius,pointBackgroundColor:isSingle?'#fff':color,pointBorderColor:color,pointBorderWidth:1.5,pointHoverRadius:ptRadius+3,pointHoverBorderWidth:2,fill:isSingle,tension:0.3};
+    var values=sortedTimeKeys.map(function(tk){
+      var c=seriesMap[dk]&&seriesMap[dk][tk];
+      return c?(metric==='ds'?c.ds:c.sl):null; // null = gap
+    });
+    return{label:dk==='__all__'?(metric==='ds'?'Doanh số':'Số lượng'):dk,data:values,borderColor:color,backgroundColor:isSingle?undefined:'transparent',borderWidth:isSingle?2:1.5,pointRadius:function(ctx){return values[ctx.dataIndex]===null?0:ptRadius},pointBackgroundColor:isSingle?'#fff':color,pointBorderColor:color,pointBorderWidth:1.5,pointHoverRadius:ptRadius+3,pointHoverBorderWidth:2,fill:isSingle,tension:0.3,spanGaps:false};
   });
 
   if(lineChart)lineChart.destroy();
   var ctx=document.getElementById('mainChart').getContext('2d');
   if(isSingle){var gr=ctx.createLinearGradient(0,0,0,400);gr.addColorStop(0,'rgba(26,70,196,0.15)');gr.addColorStop(1,'rgba(26,70,196,0.01)');datasets[0].backgroundColor=gr}
 
-  // Tooltip title
   function getTooltipTitle(idx){
     var p=axisParsed[idx];if(!p)return'';
     if(granularity==='day')return pad(p.day)+'/'+pad(p.month)+'/'+p.year;
@@ -1006,23 +1132,23 @@ function renderLineChart(){
     options:{
       responsive:true,maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2a3a',titleFont:{family:'Nunito Sans',size:12,weight:'700'},bodyFont:{family:'Nunito Sans',size:11},padding:10,cornerRadius:8,callbacks:{title:function(items){return items.length?getTooltipTitle(items[0].dataIndex):''},label:function(ctx){return ctx.dataset.label+': '+fN(Math.round(ctx.parsed.y))}}}},
+      layout:{padding:{right:pxPerPoint/2}},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2a3a',titleFont:{family:'Nunito Sans',size:12,weight:'700'},bodyFont:{family:'Nunito Sans',size:11},padding:10,cornerRadius:8,filter:function(item){return item.parsed.y!==null},callbacks:{title:function(items){return items.length?getTooltipTitle(items[0].dataIndex):''},label:function(ctx){return ctx.dataset.label+': '+fN(Math.round(ctx.parsed.y))}}}},
       scales:{x:{display:false},y:{grid:{color:'#eef0f4'},ticks:{font:{family:'Nunito Sans',size:11},color:'#8b95aa',callback:function(v){if(v>=1e9)return(v/1e9).toFixed(1)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'K';return v}}}},
       animation:{onComplete:function(){if(showLabels)drawDataLabels(lineChart,isSingle)}}
     },
     plugins:[{id:'customLabels',afterDatasetsDraw:function(chart){if(showLabels)drawDataLabels(chart,isSingle)}}]
   });
 
-  // Multi-level x-axis
   buildMultiLevelAxis(axisParsed,lineChart);
 
-  // Legend
   if(isSingle){legendEl.innerHTML=''}
   else{legendEl.innerHTML=seriesKeys.map(function(dk,si){var c=DIM_COLORS[si%DIM_COLORS.length];return'<div class="chart-legend-item"><div class="chart-legend-dot" style="background:'+c+'"></div>'+esc(dk)+'</div>'}).join('')}
 
   requestAnimationFrame(function(){scrollEl.scrollLeft=scrollEl.scrollWidth});
 }
 
+// ═══ Multi-level x-axis ═══
 function buildMultiLevelAxis(parsed,chart){
   var xaxisEl=document.getElementById('chartXaxis');
   if(!parsed.length){xaxisEl.innerHTML='';return}
@@ -1030,19 +1156,38 @@ function buildMultiLevelAxis(parsed,chart){
   var yAxisW=chart.chartArea?chart.chartArea.left:50;
   var ROMAN=['I','II','III','IV'];
 
-  // Helpers
-  function cellW(i){return i<points.length-1&&points[i+1]?points[i+1].x-points[i].x:40}
+  // Half-width for centering: each cell centered on its point
+  function halfStep(i){
+    if(points.length<=1)return 20;
+    if(i<points.length-1)return(points[i+1].x-points[i].x)/2;
+    if(i>0)return(points[i].x-points[i-1].x)/2;
+    return 20;
+  }
+
+  // Build detail row: each cell centered on its point
+  function detailRow(labels){
+    var html='';
+    labels.forEach(function(lbl,i){
+      var x=points[i]?points[i].x:0;
+      var left=x-halfStep(i);
+      var w=halfStep(i)*2;
+      // For first cell, clamp left to 0
+      if(i===0&&left<yAxisW){w-=(yAxisW-left);left=yAxisW}
+      html+='<div class="chart-xaxis-cell" style="position:absolute;left:'+left+'px;width:'+w+'px;text-align:center">'+lbl+'</div>';
+    });
+    return html;
+  }
+
+  // Build group row: spans across multiple points, with year borders
   function groupRow(groups){
     var html='';
     groups.forEach(function(g,gi){
-      var x1=points[g.start]?points[g.start].x:0;
-      var x2=points[g.end]?points[g.end].x:x1;
-      var w;
-      if(g.end<points.length-1&&points[g.end+1])w=points[g.end+1].x-x1;
-      else w=x2-x1+cellW(g.end);
-      var ml=gi===0?'margin-left:'+x1+'px;':'';
+      var x1=points[g.start]?points[g.start].x-halfStep(g.start):yAxisW;
+      var x2=points[g.end]?points[g.end].x+halfStep(g.end):x1+40;
+      if(x1<yAxisW)x1=yAxisW;
+      var w=x2-x1;
       var border=gi>0?'has-border':'';
-      html+='<div class="chart-xaxis-cell '+border+'" style="width:'+w+'px;flex-shrink:0;'+ml+'">'+g.label+'</div>';
+      html+='<div class="chart-xaxis-cell '+border+'" style="position:absolute;left:'+x1+'px;width:'+w+'px;text-align:center">'+g.label+'</div>';
     });
     return html;
   }
@@ -1050,53 +1195,45 @@ function buildMultiLevelAxis(parsed,chart){
   var html='';
 
   if(granularity==='day'){
-    // Row 1: day number | Row 2: months | Row 3: years
-    var row1='';
-    parsed.forEach(function(p,i){row1+='<div class="chart-xaxis-cell" style="width:'+cellW(i)+'px;flex-shrink:0">'+p.day+'</div>'});
-
+    var dayLabels=parsed.map(function(p){return p.day});
     var monthGroups=[],yearGroups=[];
-    var pm=-1,py=-1,ms=0,ys=0;
+    var pm=-1,py2=-1,ms=0;
     parsed.forEach(function(p,i){
-      if(p.month!==pm||p.year!==py){if(i>0)monthGroups.push({label:'Tháng '+pm,start:ms,end:i-1});ms=i;pm=p.month;py=p.year}
+      if(p.month!==pm||p.year!==py2){if(i>0)monthGroups.push({label:'Tháng '+pm,start:ms,end:i-1});ms=i;pm=p.month;py2=p.year}
       if(i===parsed.length-1)monthGroups.push({label:'Tháng '+p.month,start:ms,end:i});
     });
-    py=-1;ys=0;
+    var py=-1,ys=0;
     parsed.forEach(function(p,i){
       if(p.year!==py){if(i>0)yearGroups.push({label:String(py),start:ys,end:i-1});ys=i;py=p.year}
       if(i===parsed.length-1)yearGroups.push({label:String(p.year),start:ys,end:i});
     });
-
-    html='<div class="chart-xaxis-row" style="padding-left:'+yAxisW+'px">'+row1+'</div>'
-      +'<div class="chart-xaxis-row">'+groupRow(monthGroups)+'</div>'
-      +'<div class="chart-xaxis-row top">'+groupRow(yearGroups)+'</div>';
+    html='<div class="chart-xaxis-row" style="position:relative;height:20px">'+detailRow(dayLabels)+'</div>'
+      +'<div class="chart-xaxis-row" style="position:relative;height:20px">'+groupRow(monthGroups)+'</div>'
+      +'<div class="chart-xaxis-row top" style="position:relative;height:20px">'+groupRow(yearGroups)+'</div>';
 
   }else if(granularity==='month'){
-    // Row 1: Tháng N | Row 2: years
-    var row1='';
-    parsed.forEach(function(p,i){row1+='<div class="chart-xaxis-cell" style="width:'+cellW(i)+'px;flex-shrink:0">Tháng '+p.month+'</div>'});
+    var monthLabels=parsed.map(function(p){return'Tháng '+p.month});
     var yearGroups=[];var py=-1,ys=0;
     parsed.forEach(function(p,i){
       if(p.year!==py){if(i>0)yearGroups.push({label:String(py),start:ys,end:i-1});ys=i;py=p.year}
       if(i===parsed.length-1)yearGroups.push({label:String(p.year),start:ys,end:i});
     });
-    html='<div class="chart-xaxis-row" style="padding-left:'+yAxisW+'px">'+row1+'</div>'
-      +'<div class="chart-xaxis-row top">'+groupRow(yearGroups)+'</div>';
+    html='<div class="chart-xaxis-row" style="position:relative;height:20px">'+detailRow(monthLabels)+'</div>'
+      +'<div class="chart-xaxis-row top" style="position:relative;height:20px">'+groupRow(yearGroups)+'</div>';
 
   }else if(granularity==='quarter'){
-    var row1='';
-    parsed.forEach(function(p,i){row1+='<div class="chart-xaxis-cell" style="width:'+cellW(i)+'px;flex-shrink:0">Quý '+ROMAN[p.quarter-1]+'</div>'});
+    var qLabels=parsed.map(function(p){return'Quý '+ROMAN[p.quarter-1]});
     var yearGroups=[];var py=-1,ys=0;
     parsed.forEach(function(p,i){
       if(p.year!==py){if(i>0)yearGroups.push({label:String(py),start:ys,end:i-1});ys=i;py=p.year}
       if(i===parsed.length-1)yearGroups.push({label:String(p.year),start:ys,end:i});
     });
-    html='<div class="chart-xaxis-row" style="padding-left:'+yAxisW+'px">'+row1+'</div>'
-      +'<div class="chart-xaxis-row top">'+groupRow(yearGroups)+'</div>';
+    html='<div class="chart-xaxis-row" style="position:relative;height:20px">'+detailRow(qLabels)+'</div>'
+      +'<div class="chart-xaxis-row top" style="position:relative;height:20px">'+groupRow(yearGroups)+'</div>';
 
   }else{
-    var row1='';
-    parsed.forEach(function(p,i){row1+='<div class="chart-xaxis-cell" style="width:'+cellW(i)+'px;flex-shrink:0">'+p.year+'</div>'});
-    html='<div class="chart-xaxis-row top" style="padding-left:'+yAxisW+'px">'+row1+'</div>';
+    var yLabels=parsed.map(function(p){return String(p.year)});
+    html='<div class="chart-xaxis-row top" style="position:relative;height:20px">'+detailRow(yLabels)+'</div>';
   }
 
   xaxisEl.innerHTML=html;
@@ -1116,6 +1253,197 @@ function drawDataLabels(chart,isSingle){
   });
   ctx.restore();
 }
+
+// ═══ Analysis comparison table ═══
+var anDimensions=['ma_kh'];
+var anData=[];
+var anSortMode='abs'; // 'val' or 'abs'
+var anSortCol='delta_prev1'; // which field to sort by
+var anSortDir='desc'; // 'asc' or 'desc'
+var anLoading=false;
+
+window.anToggleDim=function(dim,btn){
+  var idx=anDimensions.indexOf(dim);
+  if(idx>=0)anDimensions.splice(idx,1);else anDimensions.push(dim);
+  btn.classList.toggle('active',anDimensions.indexOf(dim)>=0);
+  if(anDimensions.length===0){anDimensions=['ma_kh'];document.querySelector('[data-dim="ma_kh"]').classList.add('active')}
+  loadAnalysis();
+};
+
+window.anSetSortMode=function(mode){
+  anSortMode=mode;
+  document.getElementById('anSortVal').classList.toggle('active',mode==='val');
+  document.getElementById('anSortAbs').classList.toggle('active',mode==='abs');
+  renderAnalysis();
+};
+
+window.anSortByCol=function(field){
+  if(anSortCol===field){anSortDir=anSortDir==='desc'?'asc':'desc'}
+  else{anSortCol=field;anSortDir='desc'}
+  renderAnalysis();
+};
+
+function loadAnalysis(){
+  var dateB=document.getElementById('dateB').value;
+  if(!dateB)return;
+  var parts=dateB.split('-');
+  var nam=parseInt(parts[0]),thang=parseInt(parts[1]);
+  if(!nam||!thang)return;
+
+  anLoading=true;
+  var regions=getSelectedRegions();
+
+  reportFetch(API+'/api/analysis',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      thang:thang,nam:nam,
+      ma_bp:selectedBP,
+      ds_nvkd:selectedNV?[...selectedNV].join(','):'',
+      ds_kh:typeof selectedKH!=='undefined'&&selectedKH?selectedKH.ma_kh:'',
+      ds_vt:'',
+      ds_kho:document.getElementById('khoSelect').value,
+      ten_plkv1:regions.tinh,ten_plkv2:regions.vung,ten_plkv3:regions.mien,
+      dimensions:anDimensions
+    })
+  })
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(!d.ok){toast(d.error||'Lỗi analysis','err');return}
+    anData=d.data||[];
+    renderAnalysis();
+  })
+  .catch(function(e){toast(e.message,'err')})
+  .finally(function(){anLoading=false});
+}
+
+var DIM_LABELS={ma_kh:'Khách hàng',ma_nvkd:'Nhân viên',ma_bp:'Bộ phận',ma_kho:'Kho',ten_plkv3:'Miền',ten_plkv2:'Vùng',ten_plkv1:'Tỉnh',ma_vt:'Sản phẩm'};
+var DIM_NAME_FIELD={ma_kh:'ten_kh',ma_vt:'ten_vt',ma_nvkd:'ten_nvkd'};
+
+function renderAnalysis(){
+  var table=document.getElementById('anTable');
+  var tableBody=document.getElementById('anTableBody');
+  var tableFoot=document.getElementById('anTableFoot');
+  var empty=document.getElementById('anEmpty');
+
+  if(!anData.length){
+    table.style.display='none';tableBody.style.display='none';tableFoot.style.display='none';
+    empty.style.display='block';empty.textContent='Không có dữ liệu cho kỳ này';return;
+  }
+  table.style.display='';tableBody.style.display='';tableFoot.style.display='';empty.style.display='none';
+
+  // Sort
+  var sorted=[...anData];
+  var col=anSortCol,dir=anSortDir==='asc'?1:-1;
+  sorted.sort(function(a,b){
+    var va=a[col]||0,vb=b[col]||0;
+    if(anSortMode==='abs'){va=Math.abs(va);vb=Math.abs(vb)}
+    return(vb-va)*dir;
+  });
+
+  // Sort icon helper
+  function sortIcon(field){
+    var isSorted=anSortCol===field;
+    // ▲ = ascending (small on top), ▼ = descending (big on top)
+    if(!isSorted)return'<span class="sort-icon">⇅</span>';
+    var arrow=anSortDir==='desc'?'▼':'▲';
+    return'<span class="sort-icon">'+arrow+'</span>';
+  }
+  function thSortable(field,label,cls){
+    var sc=anSortCol===field?' sorted':'';
+    return'<th class="sortable '+(cls||'')+sc+'" onclick="anSortByCol(\''+field+'\')">'+label+sortIcon(field)+'</th>';
+  }
+
+  // ─── Header ───
+  var dimHeaders='';
+  anDimensions.forEach(function(d){
+    dimHeaders+='<th class="left" rowspan="2">'+esc(DIM_LABELS[d]||d)+'</th>';
+  });
+
+  var row1='<tr>'+dimHeaders
+    +thSortable('current_ds','Doanh số<br>tháng này').replace('<th','<th rowspan="2"')
+    +thSortable('share_pct','Tỷ trọng').replace('<th','<th rowspan="2"')
+    +'<th class="group-a" colspan="2">So sánh kỳ</th>'
+    +'<th class="group-b" colspan="3">So sánh trung bình</th>'
+    +'</tr>';
+
+  var row2='<tr>'
+    +thSortable('delta_prev1','Tháng trước','group-a')
+    +thSortable('delta_ly','Cùng kỳ năm trước','group-a')
+    +thSortable('delta_avg3','TB 3 tháng','group-b')
+    +thSortable('delta_avg6','TB 6 tháng','group-b')
+    +thSortable('delta_avg12','TB 12 tháng','group-b')
+    +'</tr>';
+
+  document.getElementById('anThead').innerHTML=row1+row2;
+
+  // ─── Cell helpers ───
+  function pctBadge(val){
+    if(val==null)return'';
+    var cls=val>0?'pos':val<0?'neg':'zero';
+    var prefix=val>0?'+':'';
+    return'<span class="an-pct-badge '+cls+'">'+prefix+val.toFixed(1)+'%</span>';
+  }
+  function deltaCell(delta,pct){
+    if(delta==null)return'<td class="delta-cell zero">—</td>';
+    var cls=delta>0?'pos':delta<0?'neg':'zero';
+    var prefix=delta>0?'+':'';
+    return'<td class="delta-cell '+cls+'">'+prefix+fShort(delta)+pctBadge(pct)+'</td>';
+  }
+  function shareCell(val){
+    if(val==null)return'<td class="share">—</td>';
+    return'<td class="share">'+val.toFixed(1)+'%</td>';
+  }
+
+  // ─── Body ───
+  var html='';
+  sorted.forEach(function(r){
+    var dims=r.dims||{};
+    var badge='';
+    if(r.current_ds>0&&!r.prev1_ds)badge='<span class="an-badge-new">MỚI</span>';
+    else if(!r.current_ds&&r.prev1_ds>0)badge='<span class="an-badge-lost">MẤT</span>';
+    var dimCells='';
+    anDimensions.forEach(function(d){
+      var nf=DIM_NAME_FIELD[d];
+      var display=nf&&dims[nf]?dims[nf]:dims[d]||'';
+      dimCells+='<td class="name-cell">'+esc(display)+badge+'</td>';badge='';
+    });
+    html+='<tr>'+dimCells
+      +'<td class="num">'+fShort(r.current_ds)+'</td>'
+      +shareCell(r.share_pct)
+      +deltaCell(r.delta_prev1,r.pct_prev1)
+      +deltaCell(r.delta_ly,r.pct_ly)
+      +deltaCell(r.delta_avg3,r.pct_avg3)
+      +deltaCell(r.delta_avg6,r.pct_avg6)
+      +deltaCell(r.delta_avg12,r.pct_avg12)
+      +'</tr>';
+  });
+  document.getElementById('anTbody').innerHTML=html;
+
+  // ─── Tfoot ───
+  var totCurrent=0,totPrev=0,totLY=0,totAvg3=0,totAvg6=0,totAvg12=0;
+  anData.forEach(function(r){
+    totCurrent+=r.current_ds||0;totPrev+=r.prev1_ds||0;totLY+=r.same_ly_ds||0;
+    totAvg3+=r.avg3_ds||0;totAvg6+=r.avg6_ds||0;totAvg12+=r.avg12_ds||0;
+  });
+  var dimFoot='';anDimensions.forEach(function(d,i){dimFoot+='<td class="name-cell" style="font-weight:800">'+(i===0?'TỔNG CỘNG':'')+'</td>'});
+  document.getElementById('anTfoot').innerHTML='<tr>'+dimFoot
+    +'<td class="num" style="font-weight:800;font-size:13px">'+fShort(totCurrent)+'</td>'
+    +'<td class="share" style="font-weight:800">100%</td>'
+    +deltaCell(totCurrent-totPrev,totPrev?Math.round((totCurrent/totPrev-1)*1000)/10:null)
+    +deltaCell(totCurrent-totLY,totLY?Math.round((totCurrent/totLY-1)*1000)/10:null)
+    +deltaCell(totCurrent-totAvg3,totAvg3?Math.round((totCurrent/totAvg3-1)*1000)/10:null)
+    +deltaCell(totCurrent-totAvg6,totAvg6?Math.round((totCurrent/totAvg6-1)*1000)/10:null)
+    +deltaCell(totCurrent-totAvg12,totAvg12?Math.round((totCurrent/totAvg12-1)*1000)/10:null)
+    +'</tr>';
+}
+
+// Hook analysis load into main loadData
+var _origLoadData=window.loadData;
+window.loadData=function(){
+  _origLoadData();
+  // Load analysis after main data
+  setTimeout(loadAnalysis,500);
+};
 
 // ═══ Init ═══
 document.addEventListener('DOMContentLoaded',function(){initHierarchyAndKH();loadFilters();loadCatalog();loadData()});
