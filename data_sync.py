@@ -40,7 +40,7 @@ VIEW_REGISTRY = [
     },
     {
         'name': 'DMKHACHHANG',
-        'sql': """SELECT DISTINCT ma_kh, ten_kh, ma_bp, ma_nvkd
+        'sql': """SELECT DISTINCT ma_kh, ten_kh, ma_bp, ma_nvkd, ma_plkh1, ten_plkh1, ma_plkh2, ten_plkh2, ma_plkh3, ten_plkh3
                   FROM DMKHACHHANG_VIEW
                   WHERE ma_bp IS NOT NULL AND ma_bp != 'TN' AND ma_kh != 'TTT'""",
     },
@@ -52,7 +52,7 @@ VIEW_REGISTRY = [
     },
     {
         'name': 'BKHDBANHANG',
-        'sql': """SELECT ngay_ct, ma_kh, ma_vt, ten_vt, dvt, ma_bp, ma_nvkd,
+        'sql': """SELECT ngay_ct, ma_kh, ma_vt, ten_vt, dvt, ma_bp, ma_nvkd, ma_kho,
                          so_luong, gia_nt2, tien_nt2, tien_ck_nt, ts_gtgt,
                          thue_gtgt_nt
                   FROM BKHDBANHANG_VIEW
@@ -87,6 +87,15 @@ VIEW_REGISTRY = [
                          thue_gtgt_nt
                   FROM TRALAI_VIEW""",
     },
+    {
+        'name': 'DMSANPHAM',
+        'sql': 'SELECT * FROM DMSANPHAM_VIEW',
+
+    },
+    {
+        'name': 'LOAISANPHAM',
+        'sql': 'SELECT * FROM LOAISANPHAM_VIEW',    
+    }
 ]
 
 

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phân tích sản phẩm</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% include "_sidebar_css.html" %}
+<style>
+:root{
+  --white:#fff;--g0:#f7f8fa;--g1:#eef0f4;--g2:#d8dce6;--g3:#b0b8c9;--g4:#8b95aa;--g5:#5a6478;--g6:#3d4a63;--g7:#1e2a3a;
+  --blue:#1a46c4;--blue-lt:#eef2ff;--blue-md:#4f6ff0;
+  --emr:#056944;--emr-lt:#eafaf4;
+  --red:#c0392b;--red-lt:#fef2f2;
+  --amber:#b45309;--purple:#7c3aed;
+  --sans:'Nunito Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:13px;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+@supports(height:100dvh){.app{height:100dvh}}
+.page-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.page{max-width:75%;margin:0 auto;padding:24px 0 48px}
+
+/* Top slicer bar */
+.slicer-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.sl-group{display:flex;align-items:center;gap:6px}
+.sl-label{font-size:10px;font-weight:700;color:var(--g4);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.sl-select{height:32px;padding:0 10px;border:1.5px solid var(--g2);border-radius:7px;font-size:12px;font-family:var(--sans);color:var(--g6);outline:none;background:var(--white);min-width:100px}
+.sl-select:focus{border-color:var(--blue)}
+.sl-input{height:32px;padding:0 10px;border:1.5px solid var(--g2);border-radius:7px;font-size:12px;font-family:var(--sans);color:var(--g6);outline:none;background:var(--white);width:115px}
+.sl-input:focus{border-color:var(--blue)}
+.sl-btn{height:32px;padding:0 14px;border-radius:7px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.sl-btn:hover{opacity:.9}
+.sl-btn:disabled{opacity:.5;cursor:not-allowed}
+.sl-btn svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-linecap:round}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.card{background:var(--white);border:1.5px solid var(--g2);border-radius:14px;padding:20px 24px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.card:hover{border-color:var(--blue-md);box-shadow:0 2px 12px rgba(26,70,196,.08)}
+.card.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,70,196,.1)}
+.card.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--blue);border-radius:0 0 12px 12px}
+.card-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--g4);margin-bottom:6px}
+.card-value{font-size:28px;font-weight:800;color:var(--g7);font-variant-numeric:tabular-nums;line-height:1.1}
+.card-sub{font-size:11px;color:var(--g4);margin-top:4px;font-weight:600}
+
+/* ═══ Slicer panels (checkbox + inline bar) ═══ */
+.sl-row{display:grid;grid-template-columns:3fr 3fr 4fr;gap:12px;margin-bottom:20px}
+.sl-panel{background:var(--white);border:1.5px solid var(--g2);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .15s;position:relative}
+.sl-head{padding:10px 14px 0;display:flex;align-items:center;justify-content:center;gap:8px}
+.sl-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--g4)}
+.sl-filter-badge{display:none;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--blue);color:#fff;text-transform:uppercase;letter-spacing:.03em}
+.sl-panel.has-filter .sl-filter-badge{display:inline-block}
+.sl-reset{height:20px;padding:0 8px;border:1px solid var(--g2);border-radius:4px;background:var(--g0);font-size:10px;font-weight:600;color:var(--g4);cursor:pointer;font-family:var(--sans);display:none;align-items:center;gap:3px;position:absolute;right:14px;top:10px}
+.sl-reset.show{display:flex}
+.sl-reset:hover{background:var(--red-lt);color:var(--red);border-color:#fca5a5}
+.sl-panel.has-filter{border-color:var(--blue);border-width:2px}
+.sl-search{padding:8px 14px 6px}
+.sl-search input{width:100%;height:28px;padding:0 10px;border:1.5px solid var(--g2);border-radius:6px;font-size:11px;font-family:var(--sans);color:var(--g6);outline:none;background:var(--white)}
+.sl-search input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,70,196,.06)}
+.sl-search input::placeholder{color:var(--g3)}
+.sl-body{overflow-y:auto;max-height:320px;padding:4px 0}
+
+/* Each slicer item row */
+.sl-item{display:grid;grid-template-columns:18px 1fr 120px 72px;align-items:center;gap:6px;padding:5px 14px;cursor:pointer;transition:background .06s;user-select:none}
+.sl-item:hover{background:var(--g0)}
+.sl-item .si-cb{width:14px;height:14px;border:1.5px solid var(--g3);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:.1s}
+.sl-item.checked .si-cb{background:var(--blue);border-color:var(--blue)}
+.sl-item.checked .si-cb::after{content:'';width:6px;height:3.5px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg) translate(0.5px,-0.5px)}
+.sl-item .si-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;font-weight:500;color:var(--g6)}
+.sl-item mark{background:#fef08a;padding:0 1px;border-radius:2px;font-style:normal}
+.sl-item .si-bar-wrap{height:16px;background:var(--blue-lt);border-radius:4px;overflow:hidden}
+.sl-item .si-bar{height:100%;border-radius:4px;background:var(--blue)}
+.sl-item.unchecked .si-bar-wrap{background:var(--g1)}
+.sl-item.unchecked .si-bar{background:var(--g2)!important}
+.sl-item.unchecked .si-name{color:var(--g3)}
+.sl-item .si-val{font-size:10px;font-weight:700;color:var(--g5);text-align:right;font-variant-numeric:tabular-nums;width:72px}
+.sl-item.unchecked .si-val{color:var(--g3)}
+
+/* Slicer 2 (sản phẩm): 2-line layout */
+.sl-item.si-product{grid-template-columns:18px 3fr 4fr 72px;align-items:stretch;padding:6px 14px}
+.sl-item.si-product .si-name-wrap{display:flex;flex-direction:column;justify-content:center;gap:1px;min-width:0;overflow:hidden}
+.sl-item.si-product .si-code{font-size:9px;font-weight:600;color:var(--g4);letter-spacing:.02em}
+.sl-item.si-product.unchecked .si-code{color:var(--g3)}
+.sl-item.si-product .si-name{white-space:normal;word-break:break-word;line-height:1.3;font-size:11px}
+.sl-item.si-product .si-bar-wrap{align-self:center}
+.sl-item.si-product .si-val{align-self:center}
+.sl-item.si-product .si-cb{align-self:center}
+
+/* Animate bar width on full reload */
+.sl-panel.animate .si-bar{transition:width .4s ease}
+
+/* Line chart */
+.chart-card{background:var(--white);border:1.5px solid var(--g2);border-radius:14px;padding:20px 24px}
+.chart-title{font-size:13px;font-weight:800;color:var(--g6);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em}
+.chart-wrap{position:relative;width:100%;height:360px}
+.chart-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--g3);font-size:13px;font-weight:600}
+
+/* Toast */
+#toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none}
+.toast{background:var(--g7);color:#fff;border-radius:8px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.2);font-size:12px;font-weight:600;animation:si .2s ease;pointer-events:all;max-width:320px}
+.toast.err{background:var(--red)}.toast.ok{background:var(--emr)}
+@keyframes si{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+
+@media(max-width:1200px){.page{max-width:90%}}
+@media(max-width:900px){
+  .page{max-width:100%;padding:16px 12px 32px}
+  .cards{gap:10px}.card{padding:14px 16px}.card-value{font-size:22px}
+  .sl-row{grid-template-columns:1fr;gap:10px}
+  .chart-wrap{height:280px}
+}
+@media(max-width:640px){
+  .cards{gap:8px}.card{padding:12px;border-radius:10px}.card-value{font-size:18px}
+  .chart-card{padding:14px;border-radius:10px}.chart-wrap{height:240px}
+  .sl-item .si-bar-wrap{max-width:none}
+  .sl-item{grid-template-columns:18px 1fr 80px 60px}
+}
+</style>
+</head>
+<body>
+{% include "_sidebar.html" %}
+<div class="app">
+<div class="toolbar-slim">
+  <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+  <div class="v-div"></div>
+  <span class="toolbar-title">{{ dashboard_name }}</span>
+</div>
+<div class="page-scroll">
+<div class="page">
+
+  <div class="slicer-bar">
+    <div class="sl-group"><span class="sl-label">Từ</span><input class="sl-input" id="dateA" type="date"></div>
+    <div class="sl-group"><span class="sl-label">Đến</span><input class="sl-input" id="dateB" type="date"></div>
+    <div class="sl-group"><span class="sl-label">BP</span><select class="sl-select" id="bpSelect" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select></div>
+    <div class="sl-group"><span class="sl-label">Kho</span><select class="sl-select" id="khoSelect"><option value="">Tất cả</option></select></div>
+    <button class="sl-btn" id="loadBtn" onclick="loadData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg><span id="loadLbl">Tải</span></button>
+  </div>
+
+  <div class="slicer-bar" style="margin-top:-12px">
+    <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NVKD</span><span class="picker-badge all" id="picker-badge">—</span></button></div>
+    <div class="kh-search-wrap" id="kh-wrap" style="min-width:180px;max-width:280px"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="kh-q" placeholder="Tìm KH..." oninput="onKHInput(this.value)" autocomplete="off"/><button class="kh-clear" id="kh-clear" onclick="clearKH()" style="display:none">✕</button><div class="kh-suggest" id="kh-suggest"></div></div>
+    <span id="kh-chip-area"></span>
+  </div>
+
+  <div class="cards">
+    <div class="card active" id="cardDS" onclick="setMetric('ds')"><div class="card-label">Doanh số</div><div class="card-value" id="valDS">—</div><div class="card-sub" id="subDS"></div></div>
+    <div class="card" id="cardSL" onclick="setMetric('sl')"><div class="card-label">Số lượng</div><div class="card-value" id="valSL">—</div><div class="card-sub" id="subSL"></div></div>
+  </div>
+
+  <!-- Khu vực slicer: 3 cột cross-filter -->
+  <div class="sl-row" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:12px">
+    <div class="sl-panel" id="kvPanel0">
+      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Miền</span><button class="sl-reset" id="kvReset0" onclick="kvResetAll(0)">✕ Bỏ lọc</button></div>
+      <div class="sl-search"><input type="text" id="kvQ0" placeholder="Tìm miền..." oninput="onKvSearch(0)"></div>
+      <div class="sl-body" id="kvBody0"></div>
+    </div>
+    <div class="sl-panel" id="kvPanel1">
+      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Vùng</span><button class="sl-reset" id="kvReset1" onclick="kvResetAll(1)">✕ Bỏ lọc</button></div>
+      <div class="sl-search"><input type="text" id="kvQ1" placeholder="Tìm vùng..." oninput="onKvSearch(1)"></div>
+      <div class="sl-body" id="kvBody1"></div>
+    </div>
+    <div class="sl-panel" id="kvPanel2">
+      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Tỉnh</span><button class="sl-reset" id="kvReset2" onclick="kvResetAll(2)">✕ Bỏ lọc</button></div>
+      <div class="sl-search"><input type="text" id="kvQ2" placeholder="Tìm tỉnh..." oninput="onKvSearch(2)"></div>
+      <div class="sl-body" id="kvBody2"></div>
+    </div>
+  </div>
+
+  <!-- Sản phẩm slicers -->
+  <div class="sl-row">
+    <div class="sl-panel" id="slPanel0">
+      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Thành phần chính</span><button class="sl-reset" id="slReset0" onclick="slResetAll(0)">✕ Bỏ lọc</button></div>
+      <div class="sl-search"><input type="text" id="slQ0" placeholder="Tìm thành phần..." oninput="onSlSearch(0)"></div>
+      <div class="sl-body" id="slBody0"></div>
+    </div>
+    <div class="sl-panel" id="slPanel1">
+      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Dòng sản phẩm</span><button class="sl-reset" id="slReset1" onclick="slResetAll(1)">✕ Bỏ lọc</button></div>
+      <div class="sl-search"><input type="text" id="slQ1" placeholder="Tìm dòng SP..." oninput="onSlSearch(1)"></div>
+      <div class="sl-body" id="slBody1"></div>
+    </div>
+    <div class="sl-panel" id="slPanel2">
+      <div class="sl-head"><span class="sl-filter-badge">Đang lọc</span><span class="sl-title">Sản phẩm</span><button class="sl-reset" id="slReset2" onclick="slResetAll(2)">✕ Bỏ lọc</button></div>
+      <div class="sl-search"><input type="text" id="slQ2" placeholder="Tìm mã hoặc tên SP..." oninput="onSlSearch(2)"></div>
+      <div class="sl-body" id="slBody2"></div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title" id="chartTitle">Doanh số theo tháng</div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas><div class="chart-empty" id="chartEmpty">Nhấn "Tải" để xem dữ liệu</div></div>
+  </div>
+
+</div>
+</div>
+</div>
+<div id="toasts"></div>
+
+{% include "_sidebar_js.html" %}
+{% include "_report_utils.js" %}
+<script src="/static/js/_report_session.js"></script>
+
+<!-- Permissions + shared modules -->
+<script>
+var API_BASE='/reports/phan-tich-san-pham';
+var USER_NVKD='{{ user_ma_nvkd }}';
+var USER_BP='{{ user_ma_bp }}';
+</script>
+{% include "_report_permissions.js" %}
+{% include "_kh_search.html" %}
+
+<!-- Picker callbacks (before _nv_picker) -->
+<script>
+var hierarchy=[],nvMap={},khMap={},khNames={};
+function pickerHasKH(){return false}
+function pickerDataLoaded(){return false}
+function onPickerApply(){}
+function onKHSelected(){}
+function onKHCleared(){}
+</script>
+{% include "_nv_picker.html" %}
+
+<script>
+(function(){
+'use strict';
+var API='/reports/phan-tich-san-pham';
+var FMT=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
+function fN(v){return v==null||isNaN(v)?'—':FMT.format(v)}
+function fShort(v){
+  if(v==null||isNaN(v))return'—';
+  var abs=Math.abs(v);
+  if(abs>=1e9)return parseFloat((v/1e9).toFixed(2))+' tỷ';
+  if(abs>=1e6)return parseFloat((v/1e6).toFixed(2))+' triệu';
+  if(abs>=1e4)return parseFloat((v/1e3).toFixed(2))+' nghìn';
+  return FMT.format(v);
+}
+function esc(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function toast(m,t){var e=document.createElement('div');e.className='toast '+(t||'');e.textContent=m;document.getElementById('toasts').appendChild(e);setTimeout(function(){e.style.opacity='0';e.style.transition='opacity .3s';setTimeout(function(){e.remove()},300)},3000)}
+
+// ═══ State ═══
+var metric='ds';
+var rawData=[];
+var selectedBP='';
+var spCatalog=[];
+var catalogMap={};
+var loading=false;
+var lineChart=null;
+var animateBars=true; // only on full reload
+
+// Slicer state: checked items per slicer (null=all checked, Set=only these checked)
+var slChecked=[null,null,null];
+var searchTimers=[null,null,null];
+
+// ─── Dates ───
+(function(){
+  var now=new Date();
+  var b=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var ago=new Date(now.getFullYear(),now.getMonth()-17,1);
+  var a=ago.getFullYear()+'-'+String(ago.getMonth()+1).padStart(2,'0')+'-01';
+  document.getElementById('dateA').value=a;
+  document.getElementById('dateB').value=b;
+})();
+
+// ═══ BP ═══
+window.onBPChange=function(v){
+  selectedBP=v;slChecked=[null,null,null];kvChecked=[null,null,null];
+  clearAllSearches();for(var i=0;i<3;i++)document.getElementById('kvQ'+i).value='';
+  loadCatalog();loadFilters();
+};
+function clearAllSearches(){for(var i=0;i<3;i++)document.getElementById('slQ'+i).value=''}
+
+// ═══ Init hierarchy + KH for pickers ═══
+function initHierarchyAndKH(){
+  Promise.all([
+    reportFetch(API+'/api/hierarchy').then(function(r){return r.json()}),
+    reportFetch(API+'/api/khachhang').then(function(r){return r.json()})
+  ]).then(function(res){
+    var rH=res[0],rK=res[1];
+    if(rH.ok){
+      hierarchy=rH.data;nvMap={};
+      hierarchy.forEach(function(h){nvMap[h.ma_nvkd]={...h,children:[]}});
+      hierarchy.forEach(function(h){if(h.ma_ql&&nvMap[h.ma_ql])nvMap[h.ma_ql].children.push(nvMap[h.ma_nvkd])});
+      computeAllowedNV();
+      hierarchy.forEach(function(h){pickerExp[h.ma_nvkd]=(h.level===0)});
+      updatePickerBadge();
+
+      // Populate BP select
+      var bps={};hierarchy.forEach(function(h){if(h.level===1&&h.ma_nvkd){var c=h.ma_nvkd.replace(/\d+$/,'');if(!bps[c])bps[c]=h.ten_nvkd}});
+      var sel=document.getElementById('bpSelect');
+      var html='<option value="">Tất cả BP</option>';
+      Object.keys(bps).sort().forEach(function(bp){html+='<option value="'+esc(bp)+'">'+esc(bp)+' — '+esc(bps[bp])+'</option>'});
+      sel.innerHTML=html;
+    }
+    if(rK.ok){
+      khMap={};khNames={};
+      rK.data.forEach(function(k){if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
+    }
+  }).catch(function(){});
+}
+
+// ═══ Region slicer state: 0=miền, 1=vùng, 2=tỉnh ═══
+var kvChecked=[null,null,null];
+var kvAllItems=[[],[],[]]; // distinct values
+var kvAllKH=[]; // full KH list with region info
+var kvSearchTimers=[null,null,null];
+
+// ═══ Load filter data (Kho + KH with regions) ═══
+function loadFilters(){
+  var url=API+'/api/filters'+(selectedBP?'?ma_bp='+encodeURIComponent(selectedBP):'');
+  reportFetch(url).then(function(r){return r.json()}).then(function(d){
+    if(!d.ok)return;
+    // Kho dropdown
+    var khoSel=document.getElementById('khoSelect');
+    khoSel.innerHTML='<option value="">Tất cả</option>'+(d.kho||[]).map(function(k){return'<option value="'+esc(k)+'">'+esc(k)+'</option>'}).join('');
+    // Region data
+    kvAllItems[0]=(d.mien||[]).sort();
+    kvAllItems[1]=(d.vung||[]).sort();
+    kvAllItems[2]=(d.tinh||[]).sort();
+    kvAllKH=d.khachhang||[];
+    kvChecked=[null,null,null];
+    renderAllKvSlicers();
+  }).catch(function(){});
+}
+
+// ═══ Region slicer cross-filter: get pool for each level ═══
+function getKvPoolForSlicer(idx){
+  var pool=kvAllKH;
+  if(idx>0&&kvChecked[0]){
+    pool=pool.filter(function(kh){return kvChecked[0].has(kh.ten_plkv3||'')});
+  }
+  if(idx>1&&kvChecked[1]){
+    pool=pool.filter(function(kh){return kvChecked[1].has(kh.ten_plkv2||'')});
+  }
+  return pool;
+}
+
+function getKvFilteredValues(idx){
+  var pool=getKvPoolForSlicer(idx);
+  var field=['ten_plkv3','ten_plkv2','ten_plkv1'][idx];
+  var s=new Set();pool.forEach(function(kh){if(kh[field])s.add(kh[field])});
+  return[...s].sort();
+}
+
+// Get selected region values for API call
+function getSelectedRegions(){
+  var mien='',vung='',tinh='';
+  if(kvChecked[0])mien=[...kvChecked[0]].join(',');
+  if(kvChecked[1])vung=[...kvChecked[1]].join(',');
+  if(kvChecked[2])tinh=[...kvChecked[2]].join(',');
+  return{mien:mien,vung:vung,tinh:tinh};
+}
+
+// ═══ Region slicer rendering ═══
+function renderKvSlicer(idx){
+  var available=getKvFilteredValues(idx);
+  var q=(document.getElementById('kvQ'+idx).value||'').toLowerCase().trim();
+  var items=available;
+  if(q)items=items.filter(function(v){return v.toLowerCase().indexOf(q)>=0});
+
+  var checked=kvChecked[idx];
+  var hasFilter=checked!==null;
+
+  // Sort: checked first
+  items.sort(function(a,b){
+    if(hasFilter){var ac=checked.has(a)?1:0,bc=checked.has(b)?1:0;if(ac!==bc)return bc-ac}
+    return a.localeCompare(b,'vi');
+  });
+
+  var html='';
+  items.slice(0,100).forEach(function(v){
+    var isChecked=!hasFilter||checked.has(v);
+    var cls=isChecked?'sl-item checked':'sl-item unchecked';
+    var nameHtml=q?hlMark(v,q):esc(v);
+    html+='<div class="'+cls+'" data-label="'+esc(v).replace(/"/g,'&quot;')+'" data-kvidx="'+idx+'" onclick="kvToggle(this)">'
+      +'<div class="si-cb"></div>'
+      +'<div class="si-name" title="'+esc(v).replace(/"/g,'&quot;')+'">'+nameHtml+'</div>'
+      +'</div>';
+  });
+  if(!html)html='<div style="padding:16px;text-align:center;color:var(--g3);font-size:11px">Không có dữ liệu</div>';
+  document.getElementById('kvBody'+idx).innerHTML=html;
+
+  var panel=document.getElementById('kvPanel'+idx);
+  var resetBtn=document.getElementById('kvReset'+idx);
+  if(hasFilter){panel.classList.add('has-filter');resetBtn.classList.add('show')}
+  else{panel.classList.remove('has-filter');resetBtn.classList.remove('show')}
+}
+
+function renderAllKvSlicers(){for(var i=0;i<3;i++)renderKvSlicer(i)}
+
+window.kvToggle=function(el){
+  var idx=parseInt(el.getAttribute('data-kvidx'));
+  var label=el.getAttribute('data-label');
+  var checked=kvChecked[idx];
+
+  if(checked===null){
+    var allItems=[];
+    document.querySelectorAll('#kvBody'+idx+' .sl-item').forEach(function(item){allItems.push(item.getAttribute('data-label'))});
+    if(allItems.length<=1)return;
+    checked=new Set([label]);
+  }else if(checked.has(label)){
+    checked.delete(label);
+    if(checked.size===0)checked=null;
+  }else{
+    checked.add(label);
+    var total=document.querySelectorAll('#kvBody'+idx+' .sl-item').length;
+    if(checked.size>=total)checked=null;
+  }
+  kvChecked[idx]=checked;
+  for(var j=idx+1;j<3;j++){kvChecked[j]=null;document.getElementById('kvQ'+j).value=''}
+  renderAllKvSlicers();
+};
+
+window.kvResetAll=function(idx){
+  kvChecked[idx]=null;
+  document.getElementById('kvQ'+idx).value='';
+  for(var j=idx+1;j<3;j++){kvChecked[j]=null;document.getElementById('kvQ'+j).value=''}
+  renderAllKvSlicers();
+};
+
+window.onKvSearch=function(idx){
+  if(kvSearchTimers[idx])clearTimeout(kvSearchTimers[idx]);
+  kvSearchTimers[idx]=setTimeout(function(){renderKvSlicer(idx)},150);
+};
+
+// ═══ Catalog ═══
+function loadCatalog(){
+  var url=API+'/api/sanpham'+(selectedBP?'?ma_bp='+encodeURIComponent(selectedBP):'');
+  reportFetch(url).then(function(r){return r.json()}).then(function(d){
+    spCatalog=d.ok?d.items||[]:[];
+    catalogMap={};spCatalog.forEach(function(v){catalogMap[v.ma_vt]=v});
+  }).catch(function(){spCatalog=[];catalogMap={}});
+}
+
+// ═══ Metric ═══
+window.setMetric=function(m){
+  metric=m;
+  document.getElementById('cardDS').classList.toggle('active',m==='ds');
+  document.getElementById('cardSL').classList.toggle('active',m==='sl');
+  document.getElementById('chartTitle').textContent=m==='ds'?'Doanh số theo tháng':'Số lượng theo tháng';
+  animateBars=false;renderAll();
+};
+
+// ═══ Cross-filter: get allowed ma_vt for each slicer level ═══
+// Slicer 0 shows all. Slicer 1 filtered by slicer 0. Slicer 2 filtered by 0+1.
+function getPoolForSlicer(idx){
+  var pool=spCatalog;
+  if(idx>0&&slChecked[0]){
+    pool=pool.filter(function(v){return slChecked[0].has(v.ten_nhvt||'')});
+  }
+  if(idx>1&&slChecked[1]){
+    pool=pool.filter(function(v){return slChecked[1].has(v.ten_thuoc||'')});
+  }
+  return pool;
+}
+
+function getFilteredMaVts(){
+  var pool=spCatalog;
+  if(slChecked[0])pool=pool.filter(function(v){return slChecked[0].has(v.ten_nhvt||'')});
+  if(slChecked[1])pool=pool.filter(function(v){return slChecked[1].has(v.ten_thuoc||'')});
+  if(slChecked[2])pool=pool.filter(function(v){return slChecked[2].has(v.ten_vt||v.ma_vt)});
+  var s=new Set();pool.forEach(function(v){s.add(v.ma_vt)});
+  return s;
+}
+
+// ═══ Slicer rendering ═══
+function hlMark(text,q){
+  if(!q)return esc(text);var idx=text.toLowerCase().indexOf(q);
+  if(idx<0)return esc(text);
+  return esc(text.substring(0,idx))+'<mark>'+esc(text.substring(idx,idx+q.length))+'</mark>'+esc(text.substring(idx+q.length));
+}
+
+function renderSlicer(idx){
+  var pool=getPoolForSlicer(idx);
+  var q=(document.getElementById('slQ'+idx).value||'').toLowerCase().trim();
+
+  // Aggregate values
+  var agg={};
+  // Get allowed ma_vt from pool
+  var poolSet=new Set();pool.forEach(function(v){poolSet.add(v.ma_vt)});
+
+  rawData.forEach(function(r){
+    if(!poolSet.has(r.ma_vt))return;
+    var key;
+    if(idx===0)key=(catalogMap[r.ma_vt]||{}).ten_nhvt||'(Không rõ)';
+    else if(idx===1)key=(catalogMap[r.ma_vt]||{}).ten_thuoc||'(Không rõ)';
+    else key=r.ten_vt||r.ma_vt;
+    if(!agg[key])agg[key]={val:0,ma_vt:r.ma_vt};
+    agg[key].val+=metric==='ds'?(r.tong_doanhso||0):(r.tong_so_luong||0);
+  });
+
+  // Build entries, apply search filter
+  var entries=Object.entries(agg).map(function(e){return{label:e[0],val:e[1].val}});
+  if(q){
+    entries=entries.filter(function(e){
+      if(idx===2){
+        // Search by ma_vt too
+        var cat=spCatalog.find(function(v){return(v.ten_vt||v.ma_vt)===e.label});
+        var ma=cat?(cat.ma_vt||'').toLowerCase():'';
+        return e.label.toLowerCase().indexOf(q)>=0||ma.indexOf(q)>=0;
+      }
+      return e.label.toLowerCase().indexOf(q)>=0;
+    });
+  }
+
+  // Sort: checked first, then by value desc
+  var checked=slChecked[idx];
+  var hasFilter=checked!==null;
+
+  entries.sort(function(a,b){
+    if(hasFilter){
+      var ac=checked.has(a.label)?1:0;
+      var bc=checked.has(b.label)?1:0;
+      if(ac!==bc)return bc-ac; // checked first
+    }
+    return b.val-a.val;
+  });
+
+  var maxVal=entries.length?Math.max.apply(null,entries.map(function(e){return Math.abs(e.val)}))||1:1;
+  var doAnimate=animateBars;
+
+  var html='';
+  entries.slice(0,200).forEach(function(e,i){
+    var isChecked=!hasFilter||checked.has(e.label);
+    var cls=isChecked?'sl-item checked':'sl-item unchecked';
+    // Linear scale — bar-wrap giờ có width cố định nên hiển thị đúng tỷ lệ
+    var ratio=Math.abs(e.val)/maxVal;
+    var pct=Math.max(3,Math.round(ratio*100));
+    var barStyle=doAnimate?'width:0':'width:'+pct+'%';
+
+    var nameHtml;
+    if(idx===2){
+      var cat=spCatalog.find(function(v){return(v.ten_vt||v.ma_vt)===e.label});
+      var ma=cat?cat.ma_vt:'';
+      var maHtml=q?hlMark(ma,q):esc(ma);
+      var tenHtml=q?hlMark(e.label,q):esc(e.label);
+      cls+=' si-product';
+      html+='<div class="'+cls+'" data-label="'+esc(e.label).replace(/"/g,'&quot;')+'" data-idx="'+idx+'" data-pct="'+pct+'" onclick="slToggle(this)">'
+        +'<div class="si-cb"></div>'
+        +'<div class="si-name-wrap"><div class="si-code">'+maHtml+'</div><div class="si-name">'+tenHtml+'</div></div>'
+        +'<div class="si-bar-wrap"><div class="si-bar" style="'+barStyle+'"></div></div>'
+        +'<div class="si-val">'+fShort(e.val)+'</div>'
+        +'</div>';
+    }else{
+      nameHtml=q?hlMark(e.label,q):esc(e.label);
+      html+='<div class="'+cls+'" data-label="'+esc(e.label).replace(/"/g,'&quot;')+'" data-idx="'+idx+'" data-pct="'+pct+'" onclick="slToggle(this)">'
+        +'<div class="si-cb"></div>'
+        +'<div class="si-name" title="'+esc(e.label).replace(/"/g,'&quot;')+'">'+nameHtml+'</div>'
+        +'<div class="si-bar-wrap"><div class="si-bar" style="'+barStyle+'"></div></div>'
+        +'<div class="si-val">'+fShort(e.val)+'</div>'
+        +'</div>';
+    }
+  });
+  if(!html)html='<div style="padding:20px;text-align:center;color:var(--g3);font-size:11px">Không có dữ liệu</div>';
+  document.getElementById('slBody'+idx).innerHTML=html;
+
+  // Animate bars on full reload
+  if(doAnimate){
+    requestAnimationFrame(function(){
+      document.querySelectorAll('#slBody'+idx+' .si-bar').forEach(function(bar){
+        var pct=bar.parentElement.parentElement.getAttribute('data-pct');
+        bar.style.transition='width .4s ease';
+        bar.style.width=pct+'%';
+      });
+    });
+  }
+
+  // Update panel state
+  var panel=document.getElementById('slPanel'+idx);
+  var resetBtn=document.getElementById('slReset'+idx);
+  if(hasFilter){panel.classList.add('has-filter');resetBtn.classList.add('show')}
+  else{panel.classList.remove('has-filter');resetBtn.classList.remove('show')}
+}
+
+window.slToggle=function(el){
+  var idx=parseInt(el.getAttribute('data-idx'));
+  var label=el.getAttribute('data-label');
+  var checked=slChecked[idx];
+
+  if(checked===null){
+    // First click: check only this one (uncheck all others)
+    // Collect all current labels
+    var allLabels=[];
+    document.querySelectorAll('#slBody'+idx+' .sl-item').forEach(function(item){
+      allLabels.push(item.getAttribute('data-label'));
+    });
+    // If only 1 item, do nothing
+    if(allLabels.length<=1)return;
+    checked=new Set([label]);
+  }else if(checked.has(label)){
+    checked.delete(label);
+    if(checked.size===0)checked=null; // back to all
+  }else{
+    checked.add(label);
+    // Check if all are now selected → reset to null
+    var total=document.querySelectorAll('#slBody'+idx+' .sl-item').length;
+    if(checked.size>=total)checked=null;
+  }
+
+  slChecked[idx]=checked;
+
+  // Reset slicers to the right
+  for(var j=idx+1;j<3;j++){
+    slChecked[j]=null;
+    document.getElementById('slQ'+j).value='';
+  }
+
+  animateBars=false;
+  renderAll();
+};
+
+window.slResetAll=function(idx){
+  slChecked[idx]=null;
+  document.getElementById('slQ'+idx).value='';
+  for(var j=idx+1;j<3;j++){slChecked[j]=null;document.getElementById('slQ'+j).value=''}
+  animateBars=false;
+  renderAll();
+};
+
+window.onSlSearch=function(idx){
+  if(searchTimers[idx])clearTimeout(searchTimers[idx]);
+  searchTimers[idx]=setTimeout(function(){
+    animateBars=false;
+    renderSlicer(idx);
+  },150);
+};
+
+// ═══ Load data ═══
+window.loadData=function(){
+  if(loading)return;
+  var dateA=document.getElementById('dateA').value;
+  var dateB=document.getElementById('dateB').value;
+  if(!dateA||!dateB){toast('Chọn khoảng ngày','err');return}
+  loading=true;newReportSession();
+  document.getElementById('loadBtn').disabled=true;
+  document.getElementById('loadLbl').textContent='Đang tải...';
+  document.getElementById('chartEmpty').style.display='none';
+  slChecked=[null,null,null];
+
+  reportFetch(API+'/api/data',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      ngay_a:dateA,ngay_b:dateB,ma_bp:selectedBP,
+      ds_nvkd:selectedNV?[...selectedNV].join(','):'',
+      ds_kh:typeof selectedKH!=='undefined'&&selectedKH?selectedKH.ma_kh:'',
+      ds_vt:'',
+      ds_kho:document.getElementById('khoSelect').value,
+      ten_plkv1:getSelectedRegions().tinh,
+      ten_plkv2:getSelectedRegions().vung,
+      ten_plkv3:getSelectedRegions().mien
+    })
+  })
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+  .then(function(d){
+    if(!d.ok){toast(d.error||'Lỗi','err');return}
+    rawData=d.data||[];
+    animateBars=true;
+    renderAll();
+    toast('Tải '+FMT.format(rawData.length)+' dòng','ok');
+  })
+  .catch(function(e){toast(e.message||'Lỗi','err')})
+  .finally(function(){loading=false;document.getElementById('loadBtn').disabled=false;document.getElementById('loadLbl').textContent='Tải'});
+};
+
+// ═══ Render all ═══
+function renderAll(){
+  updateCards();
+  renderSlicer(0);
+  renderSlicer(1);
+  renderSlicer(2);
+  renderLineChart();
+}
+
+// ═══ Cards ═══
+function updateCards(){
+  var allowed=getFilteredMaVts();
+  var data=rawData.filter(function(r){return allowed.has(r.ma_vt)});
+  var totalDS=0,totalSL=0;
+  data.forEach(function(r){totalDS+=r.tong_doanhso||0;totalSL+=r.tong_so_luong||0});
+  document.getElementById('valDS').textContent=fN(totalDS);
+  document.getElementById('valSL').textContent=fN(totalSL);
+  var months=new Set();data.forEach(function(r){months.add(r.nam+'-'+r.thang)});
+  var mc=months.size;
+  document.getElementById('subDS').textContent=mc>0?'TB '+fShort(Math.round(totalDS/mc))+' / tháng':'';
+  document.getElementById('subSL').textContent=mc>0?'TB '+fShort(Math.round(totalSL/mc))+' / tháng':'';
+}
+
+// ═══ Line chart ═══
+function renderLineChart(){
+  var allowed=getFilteredMaVts();
+  var data=rawData.filter(function(r){return allowed.has(r.ma_vt)});
+  if(!data.length){
+    document.getElementById('chartEmpty').style.display='flex';
+    if(lineChart){lineChart.destroy();lineChart=null}return;
+  }
+  document.getElementById('chartEmpty').style.display='none';
+  var mm={};data.forEach(function(r){
+    var k=r.nam+'-'+String(r.thang).padStart(2,'0');
+    if(!mm[k])mm[k]={ds:0,sl:0};mm[k].ds+=r.tong_doanhso||0;mm[k].sl+=r.tong_so_luong||0;
+  });
+  var keys=Object.keys(mm).sort();
+  var labels=keys.map(function(k){var p=k.split('-');return'T'+parseInt(p[1])+'/'+p[0].slice(2)});
+  var values=keys.map(function(k){return metric==='ds'?mm[k].ds:mm[k].sl});
+  if(lineChart)lineChart.destroy();
+  var ctx=document.getElementById('mainChart').getContext('2d');
+  var gr=ctx.createLinearGradient(0,0,0,360);
+  gr.addColorStop(0,'rgba(26,70,196,0.15)');gr.addColorStop(1,'rgba(26,70,196,0.01)');
+  lineChart=new Chart(ctx,{
+    type:'line',
+    data:{labels:labels,datasets:[{label:metric==='ds'?'Doanh số':'Số lượng',data:values,borderColor:'#1a46c4',backgroundColor:gr,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#fff',pointBorderColor:'#1a46c4',pointBorderWidth:2,pointHoverRadius:6,pointHoverBorderWidth:3,fill:true,tension:0.3}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2a3a',titleFont:{family:'Nunito Sans',size:12,weight:'700'},bodyFont:{family:'Nunito Sans',size:12},padding:10,cornerRadius:8,callbacks:{label:function(ctx){return(metric==='ds'?'Doanh số: ':'Số lượng: ')+fN(Math.round(ctx.parsed.y))}}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:'Nunito Sans',size:11,weight:'600'},color:'#8b95aa'}},
+        y:{grid:{color:'#eef0f4'},ticks:{font:{family:'Nunito Sans',size:11},color:'#8b95aa',callback:function(v){if(v>=1e9)return(v/1e9).toFixed(1)+'B';if(v>=1e6)return(v/1e6).toFixed(1)+'M';if(v>=1e3)return(v/1e3).toFixed(0)+'K';return v}}}
+      }
+    }
+  });
+}
+
+// ═══ Init ═══
+document.addEventListener('DOMContentLoaded',function(){initHierarchyAndKH();loadFilters();loadCatalog();loadData()});
+})();
+</script>
+</body>
+</html>

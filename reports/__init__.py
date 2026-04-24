@@ -85,3 +85,8 @@ from reports.san_xuat.canhbao_tonkho import bp as cbtk_bp
 register_report('canh-bao-ton-kho', cbtk_bp,
                 'san_xuat/canhbao_tonkho/canhbao_tonkho.html',
                 datasource='sanxuat', category='Sản xuất')
+
+from reports.phan_tich_san_pham import bp as ptsp_bp
+register_report('phan-tich-san-pham', ptsp_bp,
+                'phan_tich_san_pham/phan_tich_san_pham.html',
+                datasource='default', category='Kinh doanh')
