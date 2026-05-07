@@ -123,7 +123,65 @@ def api_doanhso():
         logger.error(f"[BCKH doanhso] {e}")
         return api_response(ok=False, error=str(e))
 
+# ─────────────────────────────────────────
+# API: Trả lại
+# ─────────────────────────────────────────
+@bp.route('/api/tralai', methods=['POST'])
+def api_tralai():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ma_bp = body.get('ma_bp', '')
+    ds_nvkd = body.get('ds_nvkd', '')
+    ds_kh = body.get('ds_kh', '')
 
+    if not ngay_a or not ngay_b:
+        return api_response(ok=False, error='Thiếu ngay_a hoặc ngay_b', status_code=400)
+
+    try:
+        data = get_store().query(
+            load_sql('TRALAI_SQL_DUCK'),
+            [ngay_a, ngay_b, ma_bp or '', ds_nvkd or '', ds_kh or '']
+        )
+        for d in data:
+            for k in ('tong_so_luong', 'tong_tien_nt2', 'tong_tien_ck_nt', 'tong_thue_gtgt_nt', 'tong_tralai'):
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_a': ngay_a, 'ngay_b': ngay_b, 'ma_bp': ma_bp})
+    except Exception as e:
+        logger.error(f"[BCKH tralai] {e}")
+        return api_response(ok=False, error=str(e))
+
+
+# ─────────────────────────────────────────
+# API: Thưởng
+# ─────────────────────────────────────────
+@bp.route('/api/thuong', methods=['POST'])
+def api_thuong():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ma_bp = body.get('ma_bp', '')
+    ds_nvkd = body.get('ds_nvkd', '')
+    ds_kh = body.get('ds_kh', '')
+
+    if not ngay_a or not ngay_b:
+        return api_response(ok=False, error='Thiếu ngay_a hoặc ngay_b', status_code=400)
+
+    try:
+        data = get_store().query(
+            load_sql('THUONG_SQL_DUCK'),
+            [ngay_a, ngay_b, ma_bp or '', ds_nvkd or '', ds_kh or '']
+        )
+        for d in data:
+            if d.get('tong_thuong') is not None:
+                d['tong_thuong'] = float(d['tong_thuong'])
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_a': ngay_a, 'ngay_b': ngay_b, 'ma_bp': ma_bp})
+    except Exception as e:
+        logger.error(f"[BCKH thuong] {e}")
+        return api_response(ok=False, error=str(e))
 # ─────────────────────────────────────────
 # API: Doanh thu (thanh toán) — 2 luồng ngày
 # ─────────────────────────────────────────

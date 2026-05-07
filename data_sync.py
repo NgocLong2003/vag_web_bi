@@ -77,14 +77,14 @@ VIEW_REGISTRY = [
     },
     {
         'name': 'THUONG',
-        'sql': """SELECT ngay_ct, ma_kh_ct, ma_nvkd, dien_giai, thuong
+        'sql': """SELECT ngay_ct, ma_kh_ct, ma_nvkd, dien_giai, thuong, ma_bp
                   FROM THUONG_VIEW""",
     },
     {
         'name': 'TRALAI',
         'sql': """SELECT ngay_ct, ma_kh, ma_vt, ten_vt, dvt,
                          so_luong, gia_nt2, tien_nt2, tien_ck_nt,
-                         thue_gtgt_nt
+                         thue_gtgt_nt, ma_bp, ma_nvkd
                   FROM TRALAI_VIEW""",
     },
     {
