@@ -15,7 +15,8 @@
      UX:
        - Click vào node (tên kỳ) → chọn DUY NHẤT kỳ đó (Tháng) hoặc expand/collapse (Quý/Năm)
        - Click vào checkbox → toggle thêm/bớt kỳ vào selection (multi)
-       - Click ra ngoài panel → đóng + auto apply
+       - Bấm "Áp dụng" → apply selection + đóng
+       - Bấm "Hủy" → revert về selection trước + đóng
 -->
 
 <style>
@@ -30,6 +31,11 @@
 .kbc-panel-head input{flex:1;height:28px;padding:0 8px;border:1px solid var(--g2);border-radius:5px;font-size:11px;font-family:var(--sans);outline:none}.kbc-panel-head input:focus{border-color:var(--blue)}
 .kbc-panel-hint{font-size:9px;color:var(--g3);padding:0 12px 4px;line-height:1.4}
 .kbc-tree{overflow-y:auto;max-height:360px;padding:4px 0}
+.kbc-panel-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:8px 12px;border-top:1px solid var(--g1)}
+.kbc-panel-foot .kbc-btn{height:30px;padding:0 14px;border-radius:6px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:.12s;border:1px solid var(--g2);display:flex;align-items:center;gap:4px}
+.kbc-panel-foot .kbc-btn-cancel{background:var(--white);color:var(--g5)}.kbc-btn-cancel:hover{background:var(--g0)}
+.kbc-panel-foot .kbc-btn-apply{background:var(--blue);color:#fff;border-color:var(--blue)}.kbc-btn-apply:hover{opacity:.9}
+.kbc-panel-foot .kbc-btn-apply:disabled{opacity:.4;cursor:not-allowed}
 .ki{display:flex;align-items:center;height:34px;padding:0 12px;cursor:pointer;transition:background .08s;user-select:none;gap:4px}
 .ki:hover{background:var(--g0,#f7f8fa)}
 .ki.selected{background:var(--blue-lt,#eef2ff)}
@@ -53,7 +59,7 @@
 }
 @media(orientation:landscape) and (max-height:500px) and (hover:none){
   .kbc-panel{width:320px!important;left:0!important;right:auto!important;top:0!important;bottom:0!important;border-radius:0 10px 10px 0;max-height:100vh!important}
-  .kbc-tree{max-height:calc(100vh - 60px)}
+  .kbc-tree{max-height:calc(100vh - 100px)}
 }
 </style>
 
@@ -63,12 +69,17 @@
   </div>
   <div class="kbc-panel-hint">Bấm tên = chọn 1 kỳ · Bấm ☑ = chọn thêm nhiều kỳ</div>
   <div class="kbc-tree" id="kbc-tree"></div>
+  <div class="kbc-panel-foot">
+    <button class="kbc-btn kbc-btn-cancel" onclick="cancelKbcPicker()">Hủy</button>
+    <button class="kbc-btn kbc-btn-apply" id="kbc-btn-apply" onclick="applyKbcPicker()">Áp dụng</button>
+  </div>
 </div>
 
 <script>
 var currentKBC=null, kbcExp={}, kbcOpen=false;
 var _kbcByParent={}, _kbcMap={}, _kbcRK='__R__';
 var _kbcChecked=new Set();
+var _kbcCheckedSnapshot=new Set();  // snapshot khi mở picker
 
 function populateKBC(){
     _kbcByParent={};_kbcMap={};
@@ -108,6 +119,13 @@ function updateKbcLabel(){
     if(months.length===0)lbl.textContent='Chọn kỳ...';
     else if(months.length===1)lbl.textContent=months[0].ten_kbc;
     else lbl.textContent=months.length+' kỳ';
+}
+
+function _updateApplyBtn(){
+    var btn=document.getElementById('kbc-btn-apply');if(!btn)return;
+    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
+    btn.disabled=months.length===0;
+    btn.textContent=months.length<=1?'Áp dụng':'Áp dụng ('+months.length+' kỳ)';
 }
 
 function _kbcDescendants(id){
@@ -180,16 +198,14 @@ function renderKbcTree(){
     });
     // Bind events
     container.querySelectorAll('.ki').forEach(function(el){
-        // Click on checkbox → toggle multi
         var cb=el.querySelector('input[type="checkbox"]');
         cb.addEventListener('click',function(e){
             e.stopPropagation();
             var id=parseInt(this.dataset.kid);
             kbcToggleMulti(id);
         });
-        // Click on node (not checkbox, not toggle arrow) → select single or expand/collapse
         el.addEventListener('click',function(e){
-            if(e.target.closest('input[type="checkbox"]'))return; // handled above
+            if(e.target.closest('input[type="checkbox"]'))return;
             var togEl=e.target.closest('.ki-tog');
             if(togEl){
                 e.preventDefault();e.stopPropagation();
@@ -202,19 +218,17 @@ function renderKbcTree(){
             var id=parseInt(this.dataset.kid);
             var isMonth=this.dataset.month==='1';
             if(isMonth){
-                // Select ONLY this one
                 kbcSelectSingle(id);
             }else{
-                // Expand/collapse for Quý/Năm
                 kbcExp[id]=!kbcExp[id];
                 renderKbcTree();
             }
         });
     });
+    _updateApplyBtn();
 }
 
 function kbcSelectSingle(id){
-    // Clear all, select only this one
     _kbcChecked.clear();
     _kbcChecked.add(id);
     updateKbcLabel();
@@ -222,12 +236,10 @@ function kbcSelectSingle(id){
 }
 
 function kbcToggleMulti(id){
-    // Toggle: checkbox behavior — add/remove from selection
     var k=_kbcMap[id];if(!k)return;
     if(k.loai_kbc==='Tháng'){
         if(_kbcChecked.has(id))_kbcChecked.delete(id);else _kbcChecked.add(id);
     }else{
-        // Quý/Năm: toggle all descendants
         var allOn=_kbcAllChecked(id);
         var desc=_kbcDescendants(id);
         desc.forEach(function(did){
@@ -269,6 +281,8 @@ function mergeKBCs(months){
 
 function openKbcPicker(){
     kbcOpen=true;
+    // Snapshot current selection để revert nếu Hủy
+    _kbcCheckedSnapshot=new Set(_kbcChecked);
     var p=document.getElementById('kbc-panel');
     var tr=document.getElementById('kbc-trigger');
     if(isLandscapePhone()){
@@ -289,14 +303,31 @@ function openKbcPicker(){
     var qi=document.getElementById('kbc-q');if(qi)qi.value='';
     renderKbcTree();
 }
-function closeKbcPicker(){
-    if(!kbcOpen)return;
+
+function _closeKbcPanel(){
     kbcOpen=false;
     document.getElementById('kbc-panel').classList.remove('open');
     var tr=document.getElementById('kbc-trigger');if(tr)tr.classList.remove('open');
-    // Auto apply on close
+}
+
+function applyKbcPicker(){
+    _closeKbcPanel();
     kbcApply();
 }
+
+function cancelKbcPicker(){
+    // Revert về snapshot
+    _kbcChecked=new Set(_kbcCheckedSnapshot);
+    updateKbcLabel();
+    _closeKbcPanel();
+}
+
+function closeKbcPicker(){
+    if(!kbcOpen)return;
+    // Click ngoài = coi như Hủy
+    cancelKbcPicker();
+}
+
 function toggleKbcPicker(){kbcOpen?closeKbcPicker():openKbcPicker()}
 
 document.addEventListener('mousedown',function(e){
