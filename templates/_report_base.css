@@ -75,11 +75,14 @@ th{position:relative;overflow:visible}
 /* Column color borders */
 .col-cn{border-left:3px solid var(--blue);color:var(--blue)}
 .col-ds{border-left:3px solid var(--emr);color:var(--emr)}
+.col-tl{border-left:3px solid #e67e22;color:#e67e22}           /* Trả lại — cam */
 .col-dt{border-left:3px solid var(--purple);color:var(--purple)}
 .col-dt-sub{border-left:3px solid var(--purple);color:var(--purple)}
-.col-cn2{border-left:3px solid var(--amber);color:var(--amber)}
+.col-th{border-left:3px solid #8e44ad;color:#8e44ad}           /* Thưởng — tím đậm */
 .col-dntk{border-left:3px solid #c0392b;color:#c0392b}
+.col-cn2{border-left:3px solid var(--amber);color:var(--amber)}
 .col-dnck{border-left:3px solid #2c3e50;color:#2c3e50}
+.col-ds-tl{border-left:3px solid #2980b9;color:#2980b9}        /* DS - Trả lại — xanh dương */
 
 /* Column resize */
 th .col-resize{position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:31}
