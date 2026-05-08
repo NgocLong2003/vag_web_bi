@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>Báo Cáo Sản Phẩm</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include "_header_css.html" %}
+{% include "_report_base.css" %}
+{% include "_sidebar_css.html" %}
+<style>
+thead th:nth-child(2){text-align:left}
+.app,.app.hybrid-scroll{height:100vh}
+@supports(height:100dvh){.app,.app.hybrid-scroll{height:100dvh}}
+tr.row-kh{background:#fff8e1;border-bottom:1px solid #f0e6b8}tr.row-kh:hover{background:#fff3cd!important}
+tr.row-kh .nametxt{font-size:11.5px;font-weight:700;color:#6B5B00}
+tr.row-kh td:first-child{background:#fff8e1}
+tr.row-sp{background:var(--white)}tr.row-sp:hover{background:var(--g0)}
+tr.row-sp .nametxt{font-size:11px;color:var(--g5)}
+.mode-pills{display:flex;border:1.5px solid var(--g2);border-radius:6px;overflow:hidden;height:30px}
+.mode-pill{padding:0 10px;font-size:11px;font-weight:700;border:none;background:var(--white);color:var(--g4);cursor:pointer;transition:.12s;white-space:nowrap}
+.mode-pill:not(:last-child){border-right:1px solid var(--g2)}
+.mode-pill.active{background:var(--purple);color:#fff}
+.mode-pill:hover:not(.active){background:var(--g0)}
+.multi-price{font-family:var(--mono);font-size:10px;color:var(--g5);white-space:nowrap}
+</style>
+</head>
+<body>
+{% include "_sidebar.html" %}
+{% include "_loading_overlay.html" %}
+<div class="app">
+<div class="toolbar-slim">
+  <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+  <div class="v-div"></div>
+  <span class="toolbar-title">{{ dashboard_name }}</span>
+  <div class="v-div"></div>
+  <div class="mode-pills" id="mode-pills">
+    <button class="mode-pill" data-m="thuonghieu" onclick="setViewMode('thuonghieu')">Thương hiệu</button>
+    <button class="mode-pill" data-m="giamdoc" onclick="setViewMode('giamdoc')">Giám đốc</button>
+    <button class="mode-pill" data-m="ql1" onclick="setViewMode('ql1')">QL cấp 1</button>
+    <button class="mode-pill" data-m="ql2" onclick="setViewMode('ql2')">QL cấp 2</button>
+    <button class="mode-pill" data-m="nhanvien" onclick="setViewMode('nhanvien')">Nhân viên</button>
+    <button class="mode-pill active" data-m="khachhang" onclick="setViewMode('khachhang')">Khách hàng</button>
+  </div>
+  <div class="v-div"></div>
+  <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NV</span><span class="picker-badge all" id="picker-badge">—</span></button></div>
+  <div class="kh-search-wrap" id="kh-wrap"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="kh-q" placeholder="Tìm KH..." oninput="onKHInput(this.value)" autocomplete="off"/><button class="kh-clear" id="kh-clear" onclick="clearKH()" style="display:none">✕</button><div class="kh-suggest" id="kh-suggest"></div></div>
+  <span id="kh-chip-area"></span>
+  <span class="bp-label">BP:</span><select class="bp-select" id="bp-select" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select>
+  <div class="kbc-wrap">
+    <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()"><svg viewBox="0 0 16 16" stroke-width="1.8"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="10" x2="9" y2="10"/></svg><span class="kbc-lbl" id="kbc-lbl">Đang tải...</span></div>
+  </div>
+  <div class="v-div"></div>
+  <button class="tbtn" id="btn-exp" onclick="toggleExp()"><svg viewBox="0 0 16 16" stroke-width="2"><polyline points="4,10 8,6 12,10"/></svg>Thu</button>
+  <button class="tbtn" onclick="loadAllData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải lại</button>
+  <button class="tbtn green" onclick="exportExcel()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
+  <div class="s-dot" id="sDot" style="display:none"></div><span id="sTxt" style="display:none"></span>
+</div>
+<div class="table-wrap">
+  <div class="empty-state" id="empty"><p id="emptyMsg">Đang tải…</p></div>
+  <table id="tbl" style="display:none"><thead><tr id="theadRow"></tr></thead><tbody id="tbody"></tbody><tfoot><tr id="tfootRow"></tr></tfoot></table>
+</div>
+</div>
+
+<nav class="mob-toolbar">
+  <button class="mob-btn" onclick="toggleSidebar()"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="4" y1="5" x2="16" y2="5"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="15" x2="16" y2="15"/></svg><span>Menu</span></button>
+  <button class="mob-btn" onclick="togglePicker()"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="8" cy="8" r="5"/><line x1="12" y1="12" x2="17" y2="17"/></svg><span>NV</span></button>
+  <button class="mob-btn accent" onclick="openSheet('kbc')"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="3" x2="7" y2="8"/><line x1="13" y1="3" x2="13" y2="8"/></svg><span>Kỳ</span></button>
+  <button class="mob-btn" onclick="openSheet('filter')"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="3" y1="5" x2="17" y2="5"/><line x1="5" y1="10" x2="15" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg><span>Lọc</span></button>
+  <button class="mob-btn" onclick="openSheet('actions')"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="10" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="16" r="1.5" fill="currentColor" stroke="none"/></svg><span>Khác</span></button>
+</nav>
+
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()"></div>
+<div class="bottom-sheet" id="bottom-sheet"><div class="sheet-handle"></div><div class="sheet-title" id="sheet-title"></div><div class="sheet-body" id="sheet-body"></div></div>
+<div id="toasts"></div>
+
+{% include "_header_js.html" %}
+{% include "_sidebar_js.html" %}
+{% include "_report_utils.js" %}
+
+<script>
+const API_BASE='/reports/bao-cao-san-pham';
+const USER_NVKD='{{ user_ma_nvkd }}';
+const USER_BP='{{ user_ma_bp }}';
+</script>
+{% include "_report_permissions.js" %}
+{% include "_kh_search.html" %}
+
+<script>
+let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=true;
+let selectedBP='';
+let kbcList=[];
+let rawData=[];
+let viewMode='khachhang';
+let lastPayload=[];
+/* Cột hiển thị: SL, Đơn giá, Thành tiền, CK, Thuế, Doanh số
+   Đơn giá (index 1) KHÔNG được aggregate — chỉ hiện ở cấp SP */
+const COL_HEADERS=['SL','Đơn giá','Thành tiền','CK','Thuế','Doanh số'];
+/* Các field được SUM bình thường (không có gia_nt2) */
+const SUM_FIELDS=['so_luong','tien_nt2','tien_ck_nt','thue_gtgt_nt','doanhso'];
+/* Thứ tự output: so_luong, gia_nt2(special), tien_nt2, tien_ck_nt, thue_gtgt_nt, doanhso */
+
+const MODE_MAX_LEVEL={thuonghieu:1,giamdoc:2,ql1:3,ql2:4,nhanvien:999,khachhang:999};
+function getMaxLevel(){return MODE_MAX_LEVEL[viewMode]||999}
+function showKHMode(){return viewMode==='khachhang'}
+
+function pickerHasKH(nd){return rawData.some(function(r){return r.ma_nvkd===nd.ma_nvkd})}
+function pickerDataLoaded(){return rawData.length>0}
+function onPickerApply(){renderAll()}
+function onKHSelected(mk,name){if(currentKBC)loadAllData()}
+function onKHCleared(){if(currentKBC)loadAllData()}
+</script>
+
+{% include "_nv_picker.html" %}
+{% include "_kbc_picker.html" %}
+
+<script>
+
+async function init(){
+    setS('busy','Tải...');showLoading('Đang tải dữ liệu…');
+    try{
+        var [rH,rK,rKBC]=await Promise.all([
+            fetch(API_BASE+'/api/hierarchy').then(function(r){return r.json()}),
+            fetch(API_BASE+'/api/khachhang').then(function(r){return r.json()}),
+            fetch(API_BASE+'/api/ky-bao-cao').then(function(r){return r.json()})
+        ]);
+        if(!rH.success)throw new Error(rH.error);
+        hierarchy=rH.data;nvMap={};
+        hierarchy.forEach(function(h){nvMap[h.ma_nvkd]={...h,children:[]};if(!(h.ma_nvkd in expState))expState[h.ma_nvkd]=true});
+        hierarchy.forEach(function(h){if(h.ma_ql&&nvMap[h.ma_ql])nvMap[h.ma_ql].children.push(nvMap[h.ma_nvkd])});
+        khMap={};khNames={};
+        if(rK.success)rK.data.forEach(function(k){if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
+        computeAllowedNV();
+        hierarchy.forEach(function(h){pickerExp[h.ma_nvkd]=(h.level===0)});
+        var bps=getAllowedBP();
+        var bpSel=document.getElementById('bp-select');
+        bpSel.innerHTML=(bps.length>1?'<option value="">Tất cả BP</option>':'')+bps.map(function(b){return '<option value="'+esc(b)+'">'+esc(b)+'</option>'}).join('');
+        if(bps.length===1){selectedBP=bps[0];bpSel.value=bps[0]}
+        kbcList=rKBC.success?rKBC.data:[];populateKBC();
+        setS('ok',hierarchy.length+' NV');toast(allowedNV.size+' NV');
+        updatePickerBadge();
+        if(currentKBC)loadAllData();
+        else{hideLoading();document.getElementById('empty').style.display='flex';document.getElementById('emptyMsg').textContent='Chưa có kỳ báo cáo phù hợp';}
+    }catch(e){hideLoading();setS('err','Lỗi');document.getElementById('emptyMsg').textContent='⚠ '+e.message;toast(e.message,'err')}
+}
+
+function onKBCSelected(){if(currentKBC)loadAllData()}
+function onBPChange(v){selectedBP=v;renderPickerTree();if(currentKBC)loadAllData()}
+function setViewMode(m){viewMode=m;document.querySelectorAll('#mode-pills .mode-pill').forEach(function(b){b.classList.toggle('active',b.dataset.m===m)});renderAll()}
+
+async function loadAllData(){
+    if(!currentKBC)return;var k=currentKBC;
+    var dBDXB=iso(k.ngay_bd_xuat_ban),dKTXB=iso(k.ngay_kt_xuat_ban);
+    if(!dBDXB||!dKTXB){toast('Kỳ thiếu ngày xuất bán','err');return}
+    setS('busy','Tải...');showLoading('Đang tải dữ liệu…');rawData=[];
+    document.getElementById('tbl').style.display='';document.getElementById('empty').style.display='none';
+    var bp=selectedBP||(userBpList.length?userBpList.join(','):'');
+    var nv=allowedNV.size>0&&userNvkdList.length?[...allowedNV].join(','):'';
+    var kh=selectedKH?selectedKH.ma_kh:'';
+    try{
+        var r=await fetch(API_BASE+'/api/sanpham_chitiet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ngay_a:dBDXB,ngay_b:dKTXB,ma_bp:bp,ds_nvkd:nv,ds_kh:kh})}).then(function(r){return r.json()});
+        if(r.success)rawData=r.data;
+        hideLoading();setS('ok',rawData.length+' dòng');toast(rawData.length+' dòng');
+        renderAll();
+    }catch(e){hideLoading();setS('err','Lỗi');toast(e.message,'err')}
+}
+
+/* ─── Aggregate helpers ─── */
+/* Sum only SUM_FIELDS (excludes gia_nt2) */
+function sumFields(rows){
+    var s={};SUM_FIELDS.forEach(function(f){s[f]=0});
+    rows.forEach(function(r){SUM_FIELDS.forEach(function(f){s[f]+=(r[f]||0)})});
+    return s;
+}
+function addAgg(a,b){SUM_FIELDS.forEach(function(f){a[f]=(a[f]||0)+(b[f]||0)})}
+
+/* Get distinct prices from rows, sorted */
+function distinctPrices(rows){
+    var set={};
+    rows.forEach(function(r){if(r.gia_nt2!=null&&r.gia_nt2!==0)set[r.gia_nt2]=true});
+    return Object.keys(set).map(Number).sort(function(a,b){return a-b});
+}
+
+/* Build 6-element array for SP row: [SL, đơn giá string, thành tiền, CK, thuế, doanh số] */
+function spValues(s,prices){
+    return [s.so_luong, prices, s.tien_nt2, s.tien_ck_nt, s.thue_gtgt_nt, s.doanhso];
+}
+
+/* Build 6-element array for aggregate row (NV/KH/total): đơn giá = null */
+function aggValues(s){
+    return [s.so_luong, null, s.tien_nt2, s.tien_ck_nt, s.thue_gtgt_nt, s.doanhso];
+}
+
+/* Render a single value cell. val can be: number, null, or array of prices */
+function renderCell(val,cls){
+    if(val===null||val===undefined) return '<td style="text-align:right"></td>';
+    if(Array.isArray(val)){
+        /* Array of prices */
+        if(val.length===0) return '<td style="text-align:right"></td>';
+        if(val.length===1) return '<td style="text-align:right">'+numH(val[0],cls)+'</td>';
+        return '<td style="text-align:right"><span class="multi-price">'+val.map(function(v){return fmtV(v)}).join(', ')+'</span></td>';
+    }
+    return '<td style="text-align:right">'+numH(val,cls)+'</td>';
+}
+
+function valCells(vals,cls){return vals.map(function(v){return renderCell(v,cls)}).join('')}
+
+/* Export: flatten prices array to comma string */
+function exportValues(vals){
+    return vals.map(function(v){
+        if(Array.isArray(v)) return v.length?v.map(function(p){return fmtV(p)}).join(', '):'';
+        return v;
+    });
+}
+
+function collectRows(nd){
+    var rows=[];
+    var sel=selectedNV===null||selectedNV.has(nd.ma_nvkd);
+    if(sel&&allowedNV.has(nd.ma_nvkd)){
+        rawData.forEach(function(r){if(r.ma_nvkd===nd.ma_nvkd)rows.push(r)});
+    }
+    nd.children.forEach(function(c){rows=rows.concat(collectRows(c))});
+    return rows;
+}
+
+function nvTotal(nd){
+    var sel=selectedNV===null||selectedNV.has(nd.ma_nvkd);
+    var s={};SUM_FIELDS.forEach(function(f){s[f]=0});var has=false;
+    if(sel&&allowedNV.has(nd.ma_nvkd)){rawData.forEach(function(r){if(r.ma_nvkd===nd.ma_nvkd){SUM_FIELDS.forEach(function(f){s[f]+=(r[f]||0)});has=true}})}
+    nd.children.forEach(function(c){var ct=nvTotal(c);if(ct.has){addAgg(s,ct.s);has=true}});
+    return{s:s,has:has};
+}
+
+function hasData(nd){
+    if(!allowedNV.has(nd.ma_nvkd))return false;
+    var sel=selectedNV===null||selectedNV.has(nd.ma_nvkd);
+    if(sel&&rawData.some(function(r){return r.ma_nvkd===nd.ma_nvkd}))return true;
+    return nd.children.some(function(c){return hasData(c)});
+}
+
+/* ─── Render ─── */
+function renderAll(){
+    if(!hierarchy.length||!currentKBC)return;
+    lastPayload=[];
+    var maxLv=getMaxLevel();
+
+    var th='<th style="text-align:left;min-width:220px">NV / Chi tiết<div class="col-grip" onmousedown="startResize(event,this)" ontouchstart="startResizeTouch(event,this)"></div></th>';
+    th+='<th style="text-align:left;min-width:60px;width:70px">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    COL_HEADERS.forEach(function(c,i){
+        var cls=i===COL_HEADERS.length-1?'col-ds':'';
+        th+='<th class="'+cls+'" style="min-width:100px"><div class="th-main">'+c+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+    });
+    document.getElementById('theadRow').innerHTML=th;
+
+    var treeRoots;
+    if(userNvkdList.length)treeRoots=userNvkdList.filter(function(id){return nvMap[id]}).map(function(id){return nvMap[id]}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
+    else treeRoots=hierarchy.filter(function(h){return !h.ma_ql||!nvMap[h.ma_ql]}).map(function(h){return nvMap[h.ma_nvkd]}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
+    var isF=selectedNV!==null;
+    var baseLevel=treeRoots.length?treeRoots[0].level:0;
+
+    var html='';
+    var grandTotal={};SUM_FIELDS.forEach(function(f){grandTotal[f]=0});var grandHas=false;
+
+    /* ─── SP rows ─── */
+    function renderSPRows(rows,indentLevel){
+        var byVt={};
+        rows.forEach(function(r){var k=r.ma_vt||'_UNK';if(!byVt[k])byVt[k]={ma_vt:k,ten_vt:r.ten_vt||k,rows:[]};byVt[k].rows.push(r)});
+        Object.values(byVt).sort(function(a,b){return a.ten_vt.localeCompare(b.ten_vt)}).forEach(function(sp){
+            var s=sumFields(sp.rows);
+            var prices=distinctPrices(sp.rows);
+            var v=spValues(s,prices);
+            var indent='<span style="display:inline-block;width:'+indentLevel*16+'px"></span>';
+            html+='<tr class="row-sp"><td><div class="cell-name">'+indent+'<span class="tog-sp"></span><span class="nametxt">'+esc(sp.ten_vt)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(sp.ma_vt)+'</span></td>'+valCells(v,'')+'</tr>';
+            lastPayload.push({type:'sp',depth:0,name:sp.ten_vt,values:exportValues(v)});
+        });
+    }
+
+    /* ─── KH → SP rows ─── */
+    function renderKHRows(rows,indentLevel){
+        var byKh={};
+        rows.forEach(function(r){var k=r.ma_kh||'_UNK';if(!byKh[k])byKh[k]={ma_kh:k,ten_kh:r.ten_kh||khNames[k]||k,rows:[]};byKh[k].rows.push(r)});
+        Object.values(byKh).sort(function(a,b){return a.ten_kh.localeCompare(b.ten_kh)}).forEach(function(kh){
+            var ks=sumFields(kh.rows),kv=aggValues(ks);
+            var expKey='kh_'+kh.ma_kh+'_'+indentLevel,exp=expState[expKey]!==false;
+            var indent='<span style="display:inline-block;width:'+indentLevel*16+'px"></span>';
+            var tog='<button class="tog" onclick="togExp(\''+expKey+'\',event)"><svg viewBox="0 0 9 9">'+(exp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>';
+            html+='<tr class="row-kh"><td><div class="cell-name">'+indent+tog+'<span class="nametxt">'+esc(kh.ten_kh)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(kh.ma_kh)+'</span></td>'+valCells(kv,'sub')+'</tr>';
+            lastPayload.push({type:'kh',depth:0,name:kh.ten_kh,values:exportValues(kv)});
+            if(exp)renderSPRows(kh.rows,indentLevel+1);
+        });
+    }
+
+    function isLeafAtLevel(nd){
+        if(nd.level>=maxLv)return true;
+        return !nd.children.some(function(c){return allowedNV.has(c.ma_nvkd)&&hasData(c)});
+    }
+
+    function walkNV(nd,depth){
+        if(!hasData(nd))return;
+        var rd=depth-baseLevel;
+        var isLeaf=isLeafAtLevel(nd);
+        var exp=expState[nd.ma_nvkd]!==false;
+        var nt=nvTotal(nd);
+        var vals=nt.has?aggValues(nt.s):[0,null,0,0,0,0];
+        var lv='lv'+Math.min(rd,5);
+
+        var hasKids;
+        if(isLeaf){var leafRows=collectRows(nd);hasKids=leafRows.length>0}
+        else{hasKids=nd.children.some(function(c){return allowedNV.has(c.ma_nvkd)&&hasData(c)})}
+
+        var indent=rd>0?'<span style="display:inline-block;width:'+rd*16+'px"></span>':'';
+        var tog=hasKids?'<button class="tog" onclick="togNV(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 9 9">'+(exp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>':'<span class="tog-sp"></span>';
+        html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+indent+tog+'<span class="nametxt">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+valCells(vals,'sub')+'</tr>';
+        lastPayload.push({type:'nv',depth:rd,name:nd.ten_nvkd||nd.ma_nvkd,values:exportValues(vals)});
+
+        if(exp){
+            if(isLeaf){
+                var rows=collectRows(nd);
+                if(rows.length>0){
+                    if(showKHMode())renderKHRows(rows,rd+1);
+                    else renderSPRows(rows,rd+1);
+                }
+            }else{
+                nd.children.filter(function(c){return allowedNV.has(c.ma_nvkd)})
+                    .sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)})
+                    .forEach(function(c){walkNV(c,depth+1)});
+            }
+        }
+    }
+
+    if(isF){
+        var list=hierarchy.filter(function(h){return selectedNV.has(h.ma_nvkd)&&allowedNV.has(h.ma_nvkd)&&hasData(nvMap[h.ma_nvkd])}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
+        list.forEach(function(h){walkNV(nvMap[h.ma_nvkd],baseLevel)});
+    }else{
+        treeRoots.filter(function(r){return hasData(r)}).forEach(function(r){walkNV(r,r.level)});
+    }
+
+    var footRoots;
+    if(userNvkdList.length)footRoots=userNvkdList.filter(function(id){return nvMap[id]}).map(function(id){return nvMap[id]});
+    else footRoots=hierarchy.filter(function(h){return !h.ma_ql||!nvMap[h.ma_ql]}).map(function(h){return nvMap[h.ma_nvkd]});
+    footRoots.forEach(function(r){var nt=nvTotal(r);if(nt.has){addAgg(grandTotal,nt.s);grandHas=true}});
+    var gv=aggValues(grandTotal);
+
+    document.getElementById('tbody').innerHTML=html;
+    var tf='<td><span class="foot-lbl">Tổng cộng</span></td><td></td>';
+    gv.forEach(function(v){tf+=renderCell(grandHas?v:null,'grand')});
+    document.getElementById('tfootRow').innerHTML=tf;
+    lastPayload.push({type:'total',depth:0,name:'TỔNG CỘNG',values:exportValues(gv)});
+}
+
+function togNV(id,e){if(e)e.stopPropagation();expState[id]=!expState[id];renderAll()}
+function togExp(key,e){if(e)e.stopPropagation();expState[key]=expState[key]===false?true:false;renderAll()}
+function toggleExp(){allExp=!allExp;Object.keys(expState).forEach(function(k){expState[k]=allExp});hierarchy.forEach(function(h){expState[h.ma_nvkd]=allExp});document.getElementById('btn-exp').textContent=allExp?'Thu':'Mở';renderAll()}
+
+/* ─── Mobile Sheets ─── */
+function openSheet(type){
+    var title='',body='';
+    if(type==='filter'){
+        title='Bộ lọc';
+        var modeOpts=[{v:'thuonghieu',l:'Thương hiệu'},{v:'giamdoc',l:'Giám đốc'},{v:'ql1',l:'QL cấp 1'},{v:'ql2',l:'QL cấp 2'},{v:'nhanvien',l:'Nhân viên'},{v:'khachhang',l:'Khách hàng'}];
+        body='<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="kh-search-wrap" style="width:100%;height:40px"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" placeholder="Tìm KH..." oninput="onKHInput(this.value)" style="width:100%"/></div></div></div>'
+        +'<div class="sheet-section"><div class="sheet-section-label">Bộ phận</div><div class="sheet-row"><select class="bp-select" style="width:100%;height:40px;font-size:13px" onchange="onBPChange(this.value);document.getElementById(\'bp-select\').value=this.value" id="mob-bp-sel"></select></div></div>'
+        +'<div class="sheet-section"><div class="sheet-section-label">Cấp hiển thị</div><div style="display:flex;gap:6px;flex-wrap:wrap">'
+        +modeOpts.map(function(o){return '<div class="sheet-btn'+(viewMode===o.v?' active':'')+'" style="flex:1;min-width:80px" onclick="setViewMode(\''+o.v+'\');closeSheet()">'+o.l+'</div>'}).join('')
+        +'</div></div>';
+    }else if(type==='kbc'){
+        closeSheet();openKbcPicker();return;
+    }else if(type==='actions'){
+        title='Thao tác';
+        body='<div style="display:flex;flex-direction:column;gap:8px"><div class="sheet-btn" onclick="toggleExp();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><polyline points="5,8 10,13 15,8"/></svg>'+(allExp?'Thu gọn':'Mở rộng')+'</div><div class="sheet-btn" onclick="loadAllData();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M3 10a7 7 0 1 1 1.2 4"/><polyline points="3,6 3,10 7,10"/></svg>Tải lại</div><div class="sheet-btn green" onclick="exportExcel();closeSheet()"><svg viewBox="0 0 20 20" stroke-width="1.8"><path d="M10 3v10m0 0l-4-4m4 4l4-4"/><path d="M3 14v2a1.5 1.5 0 001.5 1.5h11A1.5 1.5 0 0017 16v-2"/></svg>Xuất file Excel</div></div>';
+    }
+    _openSheet(title,body);
+    if(type==='filter'){var ms=document.getElementById('mob-bp-sel');if(ms){ms.innerHTML=document.getElementById('bp-select').innerHTML;ms.value=selectedBP}}
+}
+
+async function exportExcel(){
+    if(!lastPayload.length||!currentKBC){toast('Chưa có dữ liệu','err');return}
+    setS('busy','Xuất Excel…');showLoading('Đang xuất Excel…');
+    try{
+        await exportExcelBlob(API_BASE+'/api/export_excel',{rows:lastPayload,col_headers:COL_HEADERS,kbc_name:currentKBC.ten_kbc||''},'BaoCaoSP.xlsx');
+        hideLoading();setS('ok','OK');toast('Đã tải Excel');
+    }catch(e){hideLoading();setS('err','Lỗi');toast(e.message,'err')}
+}
+
+document.addEventListener('DOMContentLoaded',function(){activateHybridScroll();init()});
+</script>
+</body>
+</html>

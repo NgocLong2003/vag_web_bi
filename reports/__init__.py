@@ -90,3 +90,8 @@ from reports.phan_tich_san_pham import bp as ptsp_bp
 register_report('phan-tich-san-pham', ptsp_bp,
                 'phan_tich_san_pham/phan_tich_san_pham.html',
                 datasource='default', category='Kinh doanh')
+
+from reports.bao_cao_san_pham import bp as bcsp_bp
+register_report('bao-cao-san-pham', bcsp_bp,
+                'baocao_sanpham/baocao_sanpham.html',
+                datasource='default', category='Kinh doanh')
