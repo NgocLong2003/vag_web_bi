@@ -290,7 +290,7 @@ function isLoaded(c){if(c==='tt_merged')return colLoaded.tt1||colLoaded.tt2;if(c
             const tl=dep>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,dep)+'</span>':'';
             const tog=row.hasKids?'<button class="tog" onclick="togNV(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 9 9">'+(row.expanded?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>':'<span class="tog-sp"></span>';
             let tds='';dispCols.forEach(c=>{if(isLoading(c)){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const v=getCellNV(nd,c);tds+='<td style="text-align:right">'+(isLoaded(c)?(v!=null?numH(v,'sub',INV_COLS.includes(c)):'<span class="n zero">0</span>'):'<span class="dash">—</span>')+'</td>'});
-            html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+tl+tog+'<span class="nametxt">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+tds+'</tr>';
+            html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+tl+tog+'<span class="nametxt" style="cursor:pointer" onclick="openHistNV(\''+nd.ma_nvkd.replace(/'/g,"\\'")+'\',\''+esc(nd.ten_nvkd||nd.ma_nvkd).replace(/'/g,"\\'")+'\')">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+tds+'</tr>';
         }else{
             const mk=row.ma_kh,pNV=row.parentNV;
             const tl=row.depth>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,row.depth)+'</span>':'';

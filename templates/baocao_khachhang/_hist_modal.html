@@ -1,4 +1,4 @@
-<!-- ══ MODAL: Lịch sử KH ══ -->
+<!-- ══ MODAL: Lịch sử KH / NV ══ -->
 <style>
 .hist-overlay{position:fixed;inset:0;background:rgba(15,22,35,.5);z-index:9970;opacity:0;pointer-events:none;transition:opacity .2s}
 .hist-overlay.open{opacity:1;pointer-events:all}
@@ -78,7 +78,7 @@
 </div>
 <script>
 var histDS=[],histTL=[],histDT=[],histTH=[],histTab='ds',histMaKH='';
-var histGroup='ngay'; // 'ngay' | 'gop'
+var histGroup='ngay';
 
 function numHist(v){var n=Math.round(v),cls=n<0?'neg':n===0?'zero':'pos';return'<span class="n '+cls+'">'+fmtV(v)+'</span>'}
 
@@ -94,12 +94,9 @@ function updateHistToolbar(){
     else{tb.classList.remove('show')}
 }
 
-async function openHist(maKH,tenKH){
-    if(!currentKBC)return;
-    histMaKH=maKH;histDS=[];histTL=[];histDT=[];histTH=[];histTab='ds';histGroup='ngay';
+function _histResetUI(){
+    histDS=[];histTL=[];histDT=[];histTH=[];histTab='ds';histGroup='ngay';
     document.querySelectorAll('#histGroupPills .hist-pill').forEach(function(b){b.classList.toggle('active',b.dataset.g==='ngay')});
-    document.getElementById('histTitle').textContent='LỊCH SỬ — '+tenKH;
-    document.getElementById('histSub').textContent=maKH+' · '+(currentKBC.ten_kbc||'');
     document.getElementById('histBody').innerHTML='<div class="hist-loading">Đang tải…</div>';
     ['DS','TL','DT','TH'].forEach(function(t){document.getElementById('htab'+t+'Cnt').textContent='…'});
     document.getElementById('histTotalVal').textContent='…';
@@ -107,6 +104,27 @@ async function openHist(maKH,tenKH){
     document.getElementById('histModal').classList.add('open');
     updateHistToolbar();
     switchHistTab('ds');
+}
+
+function _histPopulate(rDS,rTL,rDT,rTH){
+    histDS=rDS.success?rDS.data:[];
+    histTL=rTL.success?rTL.data:[];
+    histDT=rDT.success?rDT.data:[];
+    histTH=rTH.success?rTH.data:[];
+    document.getElementById('htabDSCnt').textContent=histDS.length;
+    document.getElementById('htabTLCnt').textContent=histTL.length;
+    document.getElementById('htabDTCnt').textContent=histDT.length;
+    document.getElementById('htabTHCnt').textContent=histTH.length;
+    renderHistTab();
+}
+
+/* ─── Mở lịch sử cho 1 KH ─── */
+async function openHist(maKH,tenKH){
+    if(!currentKBC)return;
+    histMaKH=maKH;
+    _histResetUI();
+    document.getElementById('histTitle').textContent='LỊCH SỬ — '+tenKH;
+    document.getElementById('histSub').textContent=maKH+' · '+(currentKBC.ten_kbc||'');
 
     var k=currentKBC;
     var dBDXB=iso(k.ngay_bd_xuat_ban),dKTXB=iso(k.ngay_kt_xuat_ban);
@@ -118,16 +136,49 @@ async function openHist(maKH,tenKH){
             fetchPost('/api/doanhthu_chitiet',{ngay_a:dBDTT,ngay_b:dKTTT,ma_kh:maKH}),
             fetchPost('/api/thuong_chitiet',{ngay_a:dBDTT,ngay_b:dKTTT,ma_kh:maKH})
         ]);
-        histDS=rDS.success?rDS.data:[];
-        histTL=rTL.success?rTL.data:[];
-        histDT=rDT.success?rDT.data:[];
-        histTH=rTH.success?rTH.data:[];
-    }catch(e){histDS=[];histTL=[];histDT=[];histTH=[];toast(e.message,'err')}
-    document.getElementById('htabDSCnt').textContent=histDS.length;
-    document.getElementById('htabTLCnt').textContent=histTL.length;
-    document.getElementById('htabDTCnt').textContent=histDT.length;
-    document.getElementById('htabTHCnt').textContent=histTH.length;
-    renderHistTab();
+        _histPopulate(rDS,rTL,rDT,rTH);
+    }catch(e){histDS=[];histTL=[];histDT=[];histTH=[];toast(e.message,'err');renderHistTab()}
+}
+
+/* ─── Mở lịch sử cho 1 NV (tất cả KH trong subtree) ─── */
+async function openHistNV(maNvkd,tenNvkd){
+    if(!currentKBC||!nvMap[maNvkd])return;
+    histMaKH='';
+    _histResetUI();
+    document.getElementById('histTitle').textContent='LỊCH SỬ — '+tenNvkd;
+    document.getElementById('histSub').textContent=maNvkd+' · '+(currentKBC.ten_kbc||'')+' · Tất cả KH';
+
+    /* Collect tất cả ma_kh thuộc subtree NV */
+    var allKH=new Set();
+    function walkKH(node){
+        COLS.forEach(function(c){
+            if(colLoaded[c]&&node._vals[c])
+                Object.keys(node._vals[c].kh).forEach(function(k){allKH.add(k)});
+        });
+        if(node.children)node.children.forEach(function(child){walkKH(child)});
+    }
+    walkKH(nvMap[maNvkd]);
+    var khList=[...allKH].join(',');
+
+    if(!khList){
+        document.getElementById('histBody').innerHTML='<div class="hist-empty">Không có khách hàng nào</div>';
+        ['DS','TL','DT','TH'].forEach(function(t){document.getElementById('htab'+t+'Cnt').textContent='0'});
+        document.getElementById('histTotalVal').textContent='0';
+        return;
+    }
+
+    var k=currentKBC;
+    var dBDXB=iso(k.ngay_bd_xuat_ban),dKTXB=iso(k.ngay_kt_xuat_ban);
+    var dBDTT=iso(k.ngay_bd_thu_tien),dKTTT=iso(k.ngay_kt_thu_tien);
+    try{
+        var [rDS,rTL,rDT,rTH]=await Promise.all([
+            fetchPost('/api/doanhso_chitiet_nv',{ngay_a:dBDXB,ngay_b:dKTXB,ds_kh:khList}),
+            fetchPost('/api/tralai_chitiet_nv',{ngay_a:dBDXB,ngay_b:dKTXB,ds_kh:khList}),
+            fetchPost('/api/doanhthu_chitiet_nv',{ngay_a:dBDTT,ngay_b:dKTTT,ds_kh:khList}),
+            fetchPost('/api/thuong_chitiet_nv',{ngay_a:dBDTT,ngay_b:dKTTT,ds_kh:khList})
+        ]);
+        _histPopulate(rDS,rTL,rDT,rTH);
+    }catch(e){histDS=[];histTL=[];histDT=[];histTH=[];toast(e.message,'err');renderHistTab()}
 }
 
 function closeHist(){

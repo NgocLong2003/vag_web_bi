@@ -397,7 +397,97 @@ def api_tralai_chitiet():
         logger.error(f"[BCKH tralai_chitiet] {e}")
         return api_response(ok=False, error=str(e))
 
+# ─────────────────────────────────────────
+# API: Chi tiết doanh số (nhiều KH — cho hist modal cấp NV)
+# ─────────────────────────────────────────
+@bp.route('/api/doanhso_chitiet_nv', methods=['POST'])
+def api_doanhso_chitiet_nv():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ds_kh = body.get('ds_kh', '')
+    if not ngay_a or not ngay_b or not ds_kh:
+        return api_response(ok=False, error='Thiếu tham số', status_code=400)
+    try:
+        data = get_store().query(
+            load_sql('DOANHSO_CHITIET_DSKH_DUCK'),
+            [ngay_a, ngay_b, ds_kh]
+        )
+        for d in data:
+            for k in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'doanhso'):
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
+        return api_response(ok=True, data=data, count=len(data))
+    except Exception as e:
+        logger.error(f"[BCKH ds_chitiet_nv] {e}")
+        return api_response(ok=False, error=str(e))
 
+
+@bp.route('/api/tralai_chitiet_nv', methods=['POST'])
+def api_tralai_chitiet_nv():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ds_kh = body.get('ds_kh', '')
+    if not ngay_a or not ngay_b or not ds_kh:
+        return api_response(ok=False, error='Thiếu tham số', status_code=400)
+    try:
+        data = get_store().query(
+            load_sql('TRALAI_CHITIET_DSKH_DUCK'),
+            [ngay_a, ngay_b, ds_kh]
+        )
+        for d in data:
+            for k in ('so_luong', 'gia_nt2', 'tien_nt2', 'tien_ck_nt', 'thue_gtgt_nt', 'tralai'):
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
+        return api_response(ok=True, data=data, count=len(data))
+    except Exception as e:
+        logger.error(f"[BCKH tl_chitiet_nv] {e}")
+        return api_response(ok=False, error=str(e))
+
+
+@bp.route('/api/doanhthu_chitiet_nv', methods=['POST'])
+def api_doanhthu_chitiet_nv():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ds_kh = body.get('ds_kh', '')
+    if not ngay_a or not ngay_b or not ds_kh:
+        return api_response(ok=False, error='Thiếu tham số', status_code=400)
+    try:
+        data = get_store().query(
+            load_sql('DOANHTHU_CHITIET_DSKH_DUCK'),
+            [ngay_a, ngay_b, ds_kh]
+        )
+        for d in data:
+            if d.get('doanhthu') is not None:
+                d['doanhthu'] = float(d['doanhthu'])
+        return api_response(ok=True, data=data, count=len(data))
+    except Exception as e:
+        logger.error(f"[BCKH dt_chitiet_nv] {e}")
+        return api_response(ok=False, error=str(e))
+
+
+@bp.route('/api/thuong_chitiet_nv', methods=['POST'])
+def api_thuong_chitiet_nv():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ds_kh = body.get('ds_kh', '')
+    if not ngay_a or not ngay_b or not ds_kh:
+        return api_response(ok=False, error='Thiếu tham số', status_code=400)
+    try:
+        data = get_store().query(
+            load_sql('THUONG_CHITIET_DSKH_DUCK'),
+            [ngay_a, ngay_b, ds_kh]
+        )
+        for d in data:
+            if d.get('thuong') is not None:
+                d['thuong'] = float(d['thuong'])
+        return api_response(ok=True, data=data, count=len(data))
+    except Exception as e:
+        logger.error(f"[BCKH th_chitiet_nv] {e}")
+        return api_response(ok=False, error=str(e))
 # ─────────────────────────────────────────
 # API: Export Excel
 # ─────────────────────────────────────────
