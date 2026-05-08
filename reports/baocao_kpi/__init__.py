@@ -39,10 +39,16 @@ def _ss_conn():
 @bp.route('/')
 def index():
     from database import get_db
+    from flask import session
     db = get_db()
     kbc = db.execute('SELECT * FROM ky_bao_cao ORDER BY sort_order, id').fetchall()
     kbc_list = [dict(r) for r in kbc]
-    return render_template('baocao_kpi.html', ky_bao_cao=kbc_list)
+    user_ma_bp = session.get('ma_bp', '') or ''
+    user_ma_nvkd = session.get('ma_nvkd', '') or ''
+    return render_template('baocao_kpi.html',
+                           ky_bao_cao=kbc_list,
+                           user_ma_bp=user_ma_bp,
+                           user_ma_nvkd=user_ma_nvkd)
 
 
 @bp.route('/api/kbc')

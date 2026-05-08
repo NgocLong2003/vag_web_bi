@@ -15,6 +15,13 @@
 .hist-tab.active::after{content:'';position:absolute;bottom:-2px;left:15%;right:15%;height:2.5px;background:var(--emr);border-radius:2px 2px 0 0}
 .hist-tab .htab-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:15px;padding:0 4px;background:var(--g2);color:var(--g4);border-radius:8px;font-size:8px;font-weight:800;margin-left:3px}
 .hist-tab.active .htab-cnt{background:var(--emr-lt);color:var(--emr)}
+.hist-toolbar{display:none;align-items:center;gap:8px;padding:8px 18px;border-bottom:1px solid var(--g1);flex-shrink:0;background:var(--g0)}
+.hist-toolbar.show{display:flex}
+.hist-pills{display:flex;border:1.5px solid var(--g2);border-radius:5px;overflow:hidden;height:26px}
+.hist-pill{padding:0 10px;font-size:10px;font-weight:700;border:none;background:var(--white);color:var(--g4);cursor:pointer;font-family:var(--sans);transition:.1s;white-space:nowrap}
+.hist-pill:not(:last-child){border-right:1px solid var(--g2)}
+.hist-pill.active{background:var(--emr);color:#fff}
+.hist-pill:hover:not(.active){background:var(--g0)}
 .hist-body{flex:1;overflow:auto;padding:0}
 .hist-empty{padding:40px 20px;text-align:center;color:var(--g4);font-size:12px}
 .hist-loading{padding:40px 20px;text-align:center;color:var(--g4);font-size:12px}
@@ -60,17 +67,37 @@
         <button class="hist-tab" id="htabDT" onclick="switchHistTab('dt')">THANH TOÁN <span class="htab-cnt" id="htabDTCnt">0</span></button>
         <button class="hist-tab" id="htabTH" onclick="switchHistTab('th')">THƯỞNG <span class="htab-cnt" id="htabTHCnt">0</span></button>
     </div>
+    <div class="hist-toolbar" id="histToolbar">
+        <div class="hist-pills" id="histGroupPills">
+            <button class="hist-pill active" data-g="ngay" onclick="setHistGroup('ngay')">Chia ngày</button>
+            <button class="hist-pill" data-g="gop" onclick="setHistGroup('gop')">Tính gộp</button>
+        </div>
+    </div>
     <div class="hist-body" id="histBody"></div>
     <div class="hist-total"><span class="hist-total-label" id="histTotalLabel">Tổng</span><span class="hist-total-val" id="histTotalVal">—</span></div>
 </div>
 <script>
-let histDS=[],histTL=[],histDT=[],histTH=[],histTab='ds',histMaKH='';
+var histDS=[],histTL=[],histDT=[],histTH=[],histTab='ds',histMaKH='';
+var histGroup='ngay'; // 'ngay' | 'gop'
 
 function numHist(v){var n=Math.round(v),cls=n<0?'neg':n===0?'zero':'pos';return'<span class="n '+cls+'">'+fmtV(v)+'</span>'}
 
+function setHistGroup(g){
+    histGroup=g;
+    document.querySelectorAll('#histGroupPills .hist-pill').forEach(function(b){b.classList.toggle('active',b.dataset.g===g)});
+    renderHistTab();
+}
+
+function updateHistToolbar(){
+    var tb=document.getElementById('histToolbar');
+    if(histTab==='ds'||histTab==='tl'){tb.classList.add('show')}
+    else{tb.classList.remove('show')}
+}
+
 async function openHist(maKH,tenKH){
     if(!currentKBC)return;
-    histMaKH=maKH;histDS=[];histTL=[];histDT=[];histTH=[];histTab='ds';
+    histMaKH=maKH;histDS=[];histTL=[];histDT=[];histTH=[];histTab='ds';histGroup='ngay';
+    document.querySelectorAll('#histGroupPills .hist-pill').forEach(function(b){b.classList.toggle('active',b.dataset.g==='ngay')});
     document.getElementById('histTitle').textContent='LỊCH SỬ — '+tenKH;
     document.getElementById('histSub').textContent=maKH+' · '+(currentKBC.ten_kbc||'');
     document.getElementById('histBody').innerHTML='<div class="hist-loading">Đang tải…</div>';
@@ -78,6 +105,7 @@ async function openHist(maKH,tenKH){
     document.getElementById('histTotalVal').textContent='…';
     document.getElementById('histOverlay').classList.add('open');
     document.getElementById('histModal').classList.add('open');
+    updateHistToolbar();
     switchHistTab('ds');
 
     var k=currentKBC;
@@ -112,35 +140,83 @@ function switchHistTab(t){
     ['DS','TL','DT','TH'].forEach(function(id){
         document.getElementById('htab'+id).classList.toggle('active',id.toLowerCase()===t);
     });
+    updateHistToolbar();
     renderHistTab();
+}
+
+/* ─── Gộp theo sản phẩm ─── */
+function groupBySP(rows,valField){
+    var byVt={};
+    rows.forEach(function(r){
+        var k=r.ma_vt||'_UNK';
+        if(!byVt[k])byVt[k]={ten_vt:r.ten_vt||k,dvt:r.dvt||'',so_luong:0,tien_nt2:0,tien_ck_nt:0,thue_gtgt_nt:0,val:0};
+        var g=byVt[k];
+        g.so_luong+=(r.so_luong||0);
+        g.tien_nt2+=(r.tien_nt2||0);
+        g.tien_ck_nt+=(r.tien_ck_nt||0);
+        g.thue_gtgt_nt+=(r.thue_gtgt_nt||0);
+        g.val+=(r[valField]||0);
+    });
+    return Object.values(byVt).sort(function(a,b){return Math.abs(b.val)-Math.abs(a.val)});
 }
 
 function renderHistTab(){
     var body=document.getElementById('histBody');
+
     if(histTab==='ds'){
         if(!histDS.length){body.innerHTML='<div class="hist-empty">Không có dữ liệu bán ra</div>';document.getElementById('histTotalVal').textContent='0';document.getElementById('histTotalLabel').textContent='Tổng doanh số';return}
-        var html='<table class="hist-tbl"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>ĐVT</th><th class="r">SL</th><th class="r">Đơn giá</th><th class="r">Thành tiền</th><th class="r">CK</th><th class="r">Thuế</th><th class="r">Doanh số</th></tr></thead><tbody>';
-        var total=0;
-        histDS.forEach(function(r){
-            var ds=r.doanhso||0;total+=ds;
-            html+='<tr class="ds-row"><td class="date">'+fmtD(r.ngay_ct)+'</td><td class="desc">'+esc(r.ten_vt||'')+'</td><td>'+esc(r.dvt||'')+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.gia_nt2||0)+'</td><td class="r">'+fmtV(r.tien_nt2||0)+'</td><td class="r">'+fmtV(r.tien_ck_nt||0)+'</td><td class="r">'+fmtV(r.thue_gtgt_nt||0)+'</td><td class="r">'+numHist(ds)+'</td></tr>';
-        });
-        html+='</tbody></table>';
-        body.innerHTML=html;
-        document.getElementById('histTotalLabel').textContent='Tổng doanh số ('+histDS.length+' dòng)';
-        document.getElementById('histTotalVal').textContent=fmtV(total);
+
+        if(histGroup==='gop'){
+            var grouped=groupBySP(histDS,'doanhso');
+            var html='<table class="hist-tbl"><thead><tr><th>Sản phẩm</th><th>ĐVT</th><th class="r">SL</th><th class="r">Thành tiền</th><th class="r">CK</th><th class="r">Thuế</th><th class="r">Doanh số</th></tr></thead><tbody>';
+            var total=0;
+            grouped.forEach(function(g){
+                total+=g.val;
+                html+='<tr class="ds-row"><td class="desc">'+esc(g.ten_vt)+'</td><td>'+esc(g.dvt)+'</td><td class="r">'+fmtV(g.so_luong)+'</td><td class="r">'+fmtV(g.tien_nt2)+'</td><td class="r">'+fmtV(g.tien_ck_nt)+'</td><td class="r">'+fmtV(g.thue_gtgt_nt)+'</td><td class="r">'+numHist(g.val)+'</td></tr>';
+            });
+            html+='</tbody></table>';
+            body.innerHTML=html;
+            document.getElementById('histTotalLabel').textContent='Tổng doanh số ('+grouped.length+' SP)';
+            document.getElementById('histTotalVal').textContent=fmtV(total);
+        }else{
+            var html='<table class="hist-tbl"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>ĐVT</th><th class="r">SL</th><th class="r">Đơn giá</th><th class="r">Thành tiền</th><th class="r">CK</th><th class="r">Thuế</th><th class="r">Doanh số</th></tr></thead><tbody>';
+            var total=0;
+            histDS.forEach(function(r){
+                var ds=r.doanhso||0;total+=ds;
+                html+='<tr class="ds-row"><td class="date">'+fmtD(r.ngay_ct)+'</td><td class="desc">'+esc(r.ten_vt||'')+'</td><td>'+esc(r.dvt||'')+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.gia_nt2||0)+'</td><td class="r">'+fmtV(r.tien_nt2||0)+'</td><td class="r">'+fmtV(r.tien_ck_nt||0)+'</td><td class="r">'+fmtV(r.thue_gtgt_nt||0)+'</td><td class="r">'+numHist(ds)+'</td></tr>';
+            });
+            html+='</tbody></table>';
+            body.innerHTML=html;
+            document.getElementById('histTotalLabel').textContent='Tổng doanh số ('+histDS.length+' dòng)';
+            document.getElementById('histTotalVal').textContent=fmtV(total);
+        }
     } else if(histTab==='tl'){
         if(!histTL.length){body.innerHTML='<div class="hist-empty">Không có dữ liệu trả lại</div>';document.getElementById('histTotalVal').textContent='0';document.getElementById('histTotalLabel').textContent='Tổng trả lại';return}
-        var html='<table class="hist-tbl"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>ĐVT</th><th class="r">SL</th><th class="r">Đơn giá</th><th class="r">Thành tiền</th><th class="r">CK</th><th class="r">Thuế</th><th class="r">Trả lại</th></tr></thead><tbody>';
-        var total=0;
-        histTL.forEach(function(r){
-            var tl=r.tralai||0;total+=tl;
-            html+='<tr class="tl-row"><td class="date">'+fmtD(r.ngay_ct)+'</td><td class="desc">'+esc(r.ten_vt||'')+'</td><td>'+esc(r.dvt||'')+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.gia_nt2||0)+'</td><td class="r">'+fmtV(r.tien_nt2||0)+'</td><td class="r">'+fmtV(r.tien_ck_nt||0)+'</td><td class="r">'+fmtV(r.thue_gtgt_nt||0)+'</td><td class="r">'+numHist(tl)+'</td></tr>';
-        });
-        html+='</tbody></table>';
-        body.innerHTML=html;
-        document.getElementById('histTotalLabel').textContent='Tổng trả lại ('+histTL.length+' dòng)';
-        document.getElementById('histTotalVal').textContent=fmtV(total);
+
+        if(histGroup==='gop'){
+            var grouped=groupBySP(histTL,'tralai');
+            var html='<table class="hist-tbl"><thead><tr><th>Sản phẩm</th><th>ĐVT</th><th class="r">SL</th><th class="r">Thành tiền</th><th class="r">CK</th><th class="r">Thuế</th><th class="r">Trả lại</th></tr></thead><tbody>';
+            var total=0;
+            grouped.forEach(function(g){
+                total+=g.val;
+                html+='<tr class="tl-row"><td class="desc">'+esc(g.ten_vt)+'</td><td>'+esc(g.dvt)+'</td><td class="r">'+fmtV(g.so_luong)+'</td><td class="r">'+fmtV(g.tien_nt2)+'</td><td class="r">'+fmtV(g.tien_ck_nt)+'</td><td class="r">'+fmtV(g.thue_gtgt_nt)+'</td><td class="r">'+numHist(g.val)+'</td></tr>';
+            });
+            html+='</tbody></table>';
+            body.innerHTML=html;
+            document.getElementById('histTotalLabel').textContent='Tổng trả lại ('+grouped.length+' SP)';
+            document.getElementById('histTotalVal').textContent=fmtV(total);
+        }else{
+            var html='<table class="hist-tbl"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>ĐVT</th><th class="r">SL</th><th class="r">Đơn giá</th><th class="r">Thành tiền</th><th class="r">CK</th><th class="r">Thuế</th><th class="r">Trả lại</th></tr></thead><tbody>';
+            var total=0;
+            histTL.forEach(function(r){
+                var tl=r.tralai||0;total+=tl;
+                html+='<tr class="tl-row"><td class="date">'+fmtD(r.ngay_ct)+'</td><td class="desc">'+esc(r.ten_vt||'')+'</td><td>'+esc(r.dvt||'')+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.gia_nt2||0)+'</td><td class="r">'+fmtV(r.tien_nt2||0)+'</td><td class="r">'+fmtV(r.tien_ck_nt||0)+'</td><td class="r">'+fmtV(r.thue_gtgt_nt||0)+'</td><td class="r">'+numHist(tl)+'</td></tr>';
+            });
+            html+='</tbody></table>';
+            body.innerHTML=html;
+            document.getElementById('histTotalLabel').textContent='Tổng trả lại ('+histTL.length+' dòng)';
+            document.getElementById('histTotalVal').textContent=fmtV(total);
+        }
     } else if(histTab==='dt'){
         if(!histDT.length){body.innerHTML='<div class="hist-empty">Không có dữ liệu thanh toán</div>';document.getElementById('histTotalVal').textContent='0';document.getElementById('histTotalLabel').textContent='Tổng thanh toán';return}
         var html='<table class="hist-tbl"><thead><tr><th>Ngày</th><th>Diễn giải</th><th class="r">Số tiền</th></tr></thead><tbody>';

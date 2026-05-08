@@ -155,6 +155,8 @@ function iso(d){if(!d)return null;return String(d).substring(0,10)}
 function isMobile(){return window.innerWidth<=768}
 function isLandscapePhone(){return window.innerWidth<=900&&window.innerHeight<500&&window.matchMedia('(hover:none)').matches}
 function onKBCSelected(){loadReport()}
+var USER_BP = '{{ user_ma_bp }}';
+var USER_NVKD = '{{ user_ma_nvkd }}';
 fetch('/reports/bao-cao-kpi/api/kbc').then(function(r){return r.json()}).then(function(d){
     kbcList=d.data||d||[];
     populateKBC();
@@ -168,7 +170,7 @@ fetch('/reports/bao-cao-kpi/api/kbc').then(function(r){return r.json()}).then(fu
 (function(){
 
 var F='Be Vietnam Pro,Inter,sans-serif';
-var metric='dt',scope='nb',currentBp='';
+var metric='dt',scope='nb',currentBp=USER_BP||'';
 var nodes=[],nodeMap={},byParent={};
 var pos={},expanded=new Set();
 var scale=1,tx=0,ty=0;
@@ -603,6 +605,12 @@ window.clearSearch=function(){
 /* ═══ BP Slicer ═══ */
 function updateBpSlicer(){
     var w=document.getElementById('bpSlicer');
+    // Nếu user bị giới hạn BP → chỉ hiện BP đó
+    if(USER_BP){
+        currentBp=USER_BP;
+        w.innerHTML='<button class="active" onclick="setBp(\''+esc(USER_BP)+'\',this)">'+esc(USER_BP)+'</button>';
+        return;
+    }
     var h='<button class="'+(currentBp===''?'active':'')+'" onclick="setBp(\'\',this)">Tất cả</button>';
     Array.from(allBps).sort().forEach(function(b){
         h+='<button class="'+(currentBp===b?'active':'')+'" onclick="setBp(\''+esc(b)+'\',this)">'+esc(b)+'</button>';
@@ -622,7 +630,7 @@ window.loadReport=function(){
     var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
     var kbcs=months.map(function(k){return k.ma_kbc});
     if(!kbcs.length)return;
-    var bp=currentBp;
+    var bp=currentBp||USER_BP;
     var qp=kbcs.map(function(k){return'ma_kbc='+encodeURIComponent(k)}).join('&');
     qp+='&metric='+metric+'&scope='+scope;
     if(bp)qp+='&ma_bp='+encodeURIComponent(bp);
@@ -633,7 +641,17 @@ window.loadReport=function(){
         updateBpSlicer();
         hasBpFilter=!!bp;
         pos={};expanded=new Set();
-        buildTree();render();
+        buildTree();
+        // Nếu user có ma_nvkd → chỉ hiện subtree từ node đó trở xuống
+if(USER_NVKD && nodeMap[USER_NVKD]){
+    // Override root: chỉ giữ subtree của user
+    var allowedSet=new Set();
+    (function walkAllow(ma){allowedSet.add(ma);var kids=byParent[ma];if(kids)kids.forEach(function(c){walkAllow(c.ma_nvkd)})})(USER_NVKD);
+    // Cũng thêm ancestors để giữ context
+    var cur=USER_NVKD;while(nodeMap[cur]){allowedSet.add(cur);cur=nodeMap[cur].ma_ql}
+    nodes=nodes.filter(function(n){return allowedSet.has(n.ma_nvkd)});
+    buildTree(); // rebuild with filtered nodes
+}render();
         setTimeout(fitCanvas,50);
     });
 };
