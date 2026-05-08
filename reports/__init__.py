@@ -95,3 +95,8 @@ from reports.bao_cao_san_pham import bp as bcsp_bp
 register_report('bao-cao-san-pham', bcsp_bp,
                 'baocao_sanpham/baocao_sanpham.html',
                 datasource='default', category='Kinh doanh')
+
+from reports.thongke_layhang import bp as tklh_bp
+register_report('thong-ke-lay-hang', tklh_bp,
+                'thongke_layhang/thongke_layhang.html',
+                datasource='default', category='Kinh doanh')

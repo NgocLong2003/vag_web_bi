@@ -1,9 +1,59 @@
 <!-- _sidebar_js.html -->
 <script>
 (function(){
-    window.openSidebar=function(){document.getElementById('sbMenu').classList.add('open');document.getElementById('sbOverlay').classList.add('open');document.body.style.overflow='hidden'};
-    window.closeSidebar=function(){document.getElementById('sbMenu').classList.remove('open');document.getElementById('sbOverlay').classList.remove('open');document.body.style.overflow=''};
-    window.toggleSidebar=function(){document.getElementById('sbMenu').classList.contains('open')?closeSidebar():openSidebar()};
-    document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSidebar()});
+    var sb      = document.getElementById('sbNav');
+    var overlay = document.getElementById('sbOverlay');
+    var fsBtn   = document.getElementById('sbFullscreen');
+    if (!sb) return;
+
+    /* Mobile: pin/unpin (touch devices can't hover) */
+    function pinOpen() {
+        sb.classList.add('pinned');
+        if (overlay) overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function unpin() {
+        sb.classList.remove('pinned');
+        if (overlay) overlay.classList.remove('open');
+        document.body.style.overflow = '';
+        sb.style.transform = '';
+    }
+
+    window.openSidebar  = pinOpen;
+    window.closeSidebar = unpin;
+    window.toggleSidebar = function() {
+        sb.classList.contains('pinned') ? unpin() : pinOpen();
+    };
+
+    if (overlay) overlay.addEventListener('click', unpin);
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') unpin(); });
+
+    /* Fullscreen */
+    if (fsBtn) fsBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function(){});
+        else document.exitFullscreen().catch(function(){});
+    });
+
+    /* Swipe-left to close (mobile) */
+    (function(){
+        var startX = 0, curX = 0, dragging = false;
+        sb.addEventListener('touchstart', function(e) {
+            if (!sb.classList.contains('pinned')) return;
+            startX = e.touches[0].clientX; curX = startX; dragging = true;
+            sb.style.transition = 'none';
+        }, {passive: true});
+        document.addEventListener('touchmove', function(e) {
+            if (!dragging) return;
+            curX = e.touches[0].clientX;
+            sb.style.transform = 'translateX(' + Math.min(0, curX - startX) + 'px)';
+        }, {passive: true});
+        document.addEventListener('touchend', function() {
+            if (!dragging) return; dragging = false;
+            sb.style.transition = '';
+            if (startX - curX > 60) unpin();
+            else if (sb.classList.contains('pinned')) sb.style.transform = '';
+        });
+    })();
 })();
 </script>

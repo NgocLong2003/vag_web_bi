@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>Thống Kê Lấy Hàng</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% include "_header_css.html" %}
+{% include "_sidebar_css.html" %}
+<style>
+:root{
+  --white:#fff;--g0:#f4f5f8;--g1:#eceef3;--g2:#d5d9e4;--g3:#a8b0c5;
+  --g4:#6b7898;--g5:#414e6a;--g6:#28334d;--g7:#0f1623;
+  --blue:#1a46c4;--blue-lt:#eef2ff;--blue-md:#5b82f5;
+  --emr:#056944;--emr-lt:#eafaf4;--emr-md:#2db87e;
+  --red:#aa1c1c;--red-lt:#fef2f2;
+  --amber:#964a06;--purple:#7c3aed;
+  --sans:'Nunito Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--sans);font-size:14px;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+@supports(height:100dvh){.app{height:100dvh}}
+
+.tbtn{height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--g2);background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g5);cursor:pointer;transition:.12s;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.tbtn:hover{border-color:var(--g3);background:var(--g0)}
+.tbtn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-linecap:round;flex-shrink:0}
+.tbtn.green{border-color:var(--emr-md);color:var(--emr)}.tbtn.green:hover{background:var(--emr-lt)}
+.v-div{width:1px;height:20px;background:var(--g2)}
+.bp-label{font-size:11px;font-weight:600;color:var(--g4);margin-right:2px}
+.bp-select{height:32px;padding:0 8px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g6);outline:none;cursor:pointer;min-width:80px}
+.s-dot{width:5px;height:5px;border-radius:50%;background:var(--g3)}
+.mode-pills{display:flex;border:1.5px solid var(--g2);border-radius:6px;overflow:hidden;height:30px}
+.mode-pill{padding:0 10px;font-size:11px;font-weight:700;border:none;background:var(--white);color:var(--g4);cursor:pointer;font-family:var(--sans);transition:.12s;white-space:nowrap}
+.mode-pill:not(:last-child){border-right:1px solid var(--g2)}
+.mode-pill.active{background:var(--purple);color:#fff}
+.mode-pill:hover:not(.active){background:var(--g0)}
+
+/* Virtual table (flat mode) */
+.vt-wrap{flex:1;overflow:auto;position:relative}
+.vt-head{position:sticky;top:0;z-index:10;display:flex;background:var(--white);border-bottom:2px solid var(--g2);min-width:max-content}
+.vt-head-cell{padding:10px 12px;font-size:11px;font-weight:800;color:var(--g5);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;border-right:1px solid var(--g1);display:flex;align-items:center;cursor:pointer;user-select:none;gap:4px;flex-shrink:0;position:relative}
+.vt-head-cell:hover{background:var(--g0)}
+.vt-head-cell.r{justify-content:flex-end}
+.vt-head-cell .sort-arrow{font-size:9px;color:var(--g3);transition:.15s}
+.vt-head-cell.sorted .sort-arrow{color:var(--blue)}
+.col-grip{position:absolute;right:-2px;top:0;bottom:0;width:5px;cursor:col-resize;z-index:11}
+.col-grip:hover,.col-grip.active{background:var(--blue-md);opacity:.4}
+
+.vt-body{position:relative;min-width:max-content}
+.vt-row{display:flex;position:absolute;width:100%;left:0;border-bottom:1px solid var(--g1)}
+.vt-row.even{background:var(--white)}.vt-row.odd{background:#fafbfd}
+.vt-row:hover{background:#eef2ff!important}
+.vt-cell{padding:0 12px;display:flex;align-items:center;font-size:12px;color:var(--g6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--g1);flex-shrink:0}
+.vt-cell.r{justify-content:flex-end;font-family:var(--mono);font-size:11px}
+.vt-cell.neg{color:var(--red)}
+
+.vt-foot{position:sticky;bottom:0;z-index:10;display:flex;background:var(--white);border-top:2px solid var(--g2);box-shadow:0 -1px 0 var(--g2);min-width:max-content}
+.vt-foot-cell{padding:10px 12px;font-size:12px;font-weight:700;color:var(--g6);white-space:nowrap;border-right:1px solid var(--g1);display:flex;align-items:center;flex-shrink:0}
+.vt-foot-cell.r{justify-content:flex-end;font-family:var(--mono)}
+
+/* Tree mode */
+.tree-wrap{flex:1;overflow:auto;position:relative}
+.tree-tbl{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}
+.tree-tbl th{position:sticky;top:0;z-index:10;background:var(--white);padding:10px 12px;font-size:11px;font-weight:800;color:var(--g5);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--g2);white-space:nowrap;text-align:left}
+.tree-tbl th.r{text-align:right}
+.tree-tbl td{padding:0 12px;height:32px;vertical-align:middle;border-bottom:1px solid var(--g1);white-space:nowrap;font-size:12px}
+.tree-tbl td.r{text-align:right;font-family:var(--mono);font-size:11px}
+.tree-tbl tfoot td{position:sticky;bottom:0;z-index:10;background:var(--white);border-top:2px solid var(--g2);font-weight:700;height:38px;box-shadow:0 -1px 0 var(--g2)}
+/* Tree row levels */
+.tr-thuoc{background:#d2dcf2}.tr-thuoc:hover{background:#c5d2ec!important}
+.tr-thuoc td:first-child{font-weight:800;font-size:13px;color:var(--g6)}
+.tr-sp{background:#e6ecf8}.tr-sp:hover{background:#dae3f4!important}
+.tr-sp td:first-child{font-weight:700;font-size:12px;color:var(--g5)}
+.tr-kv{background:#f0f5fe}.tr-kv:hover{background:#e6eefb!important}
+.tr-kv td:first-child{font-weight:600;font-size:11.5px;color:var(--g5)}
+.tr-kh{background:var(--white)}.tr-kh:hover{background:var(--g0)!important}
+.tr-kh td:first-child{font-size:11px;color:var(--g5)}
+.tog{width:18px;height:18px;margin-right:3px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:none;background:none;cursor:pointer;color:var(--g4);vertical-align:middle}
+.tog:hover{background:var(--g2)}.tog svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-linecap:round}
+.tog-sp{width:20px;display:inline-block}
+.n{font-family:var(--mono);font-size:11px}.n.sub{font-weight:600;font-size:12px}
+
+.tklh-search{height:32px;padding:0 10px;border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;outline:none;width:160px;background:var(--white);transition:width .2s,border-color .2s}
+.tklh-search:focus{border-color:var(--blue-md);width:200px}
+.status-bar{height:28px;padding:0 12px;background:var(--white);border-top:1px solid var(--g1);display:flex;align-items:center;gap:12px;font-size:10px;color:var(--g4);flex-shrink:0}
+.status-bar b{color:var(--g6)}
+.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--g4)}
+
+.mob-toolbar{display:none}
+#toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none}
+.toast{background:var(--white);border:1px solid var(--g2);border-radius:8px;padding:8px 12px;box-shadow:0 4px 16px rgba(0,0,0,.1);font-size:12px;display:flex;align-items:center;gap:6px;animation:si .2s ease;pointer-events:all;max-width:280px}
+.toast .ti{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px}
+.toast.ok .ti{background:var(--emr-lt);color:var(--emr)}.toast.err .ti{background:var(--red-lt);color:var(--red)}
+@keyframes si{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+::-webkit-scrollbar{width:6px;height:8px}::-webkit-scrollbar-track{background:var(--g1)}::-webkit-scrollbar-thumb{background:var(--g3);border-radius:4px}::-webkit-scrollbar-thumb:hover{background:var(--g4)}
+@media(max-width:768px){
+  .mob-toolbar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:60;background:var(--white);border-top:1px solid var(--g2);padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:4px;align-items:center;justify-content:space-around}
+  .mob-toolbar .mob-btn{display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:none;cursor:pointer;color:var(--g5);padding:4px 8px;border-radius:8px;font-family:var(--sans);font-size:9px;font-weight:600;min-width:48px}
+  .mob-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-linecap:round}
+  .mob-btn.accent{color:var(--blue)}
+  .vt-wrap,.tree-wrap{padding-bottom:56px}
+  #toasts{bottom:70px}
+}
+</style>
+</head>
+<body>
+{% include "_sidebar.html" %}
+{% include "_loading_overlay.html" %}
+<div class="app">
+<div class="toolbar-slim">
+  <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+  <div class="v-div"></div>
+  <span class="toolbar-title">{{ dashboard_name }}</span>
+  <div class="v-div"></div>
+  <div class="mode-pills" id="modePills">
+    <button class="mode-pill active" data-m="flat" onclick="setMode('flat')">Bảng phẳng</button>
+    <button class="mode-pill" data-m="tree" onclick="setMode('tree')">Tổng nhóm</button>
+  </div>
+  <div class="v-div"></div>
+  <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NV</span><span class="picker-badge all" id="picker-badge">—</span></button></div>
+  <div class="kh-search-wrap" id="kh-wrap"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="kh-q" placeholder="Tìm KH..." oninput="onKHInput(this.value)" autocomplete="off"/><button class="kh-clear" id="kh-clear" onclick="clearKH()" style="display:none">✕</button><div class="kh-suggest" id="kh-suggest"></div></div>
+  <span id="kh-chip-area"></span>
+  <span class="bp-label">BP:</span><select class="bp-select" id="bp-select" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select>
+  <div class="kbc-wrap">
+    <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()"><svg viewBox="0 0 16 16" stroke-width="1.8"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="10" x2="9" y2="10"/></svg><span class="kbc-lbl" id="kbc-lbl">Đang tải...</span></div>
+  </div>
+  <div class="v-div"></div>
+  <input class="tklh-search" type="text" id="tblSearch" placeholder="Tìm SP, KH..." oninput="onSearch()">
+  <div class="v-div"></div>
+  <button class="tbtn" id="btnExp" onclick="toggleExp()" style="display:none"><svg viewBox="0 0 16 16" stroke-width="2"><polyline points="4,10 8,6 12,10"/></svg>Thu</button>
+  <button class="tbtn" onclick="loadAllData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải lại</button>
+  <button class="tbtn green" onclick="exportExcel()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
+  <div class="s-dot" id="sDot" style="display:none"></div><span id="sTxt" style="display:none"></span>
+</div>
+
+<!-- Flat mode container -->
+<div class="vt-wrap" id="vtWrap">
+  <div class="empty-state" id="empty"><p id="emptyMsg">Đang tải…</p></div>
+  <div class="vt-head" id="vtHead" style="display:none"></div>
+  <div class="vt-body" id="vtBody"></div>
+  <div class="vt-foot" id="vtFoot" style="display:none"></div>
+</div>
+
+<!-- Tree mode container -->
+<div class="tree-wrap" id="treeWrap" style="display:none">
+  <div class="empty-state" id="treeEmpty" style="display:none"><p>Chưa có dữ liệu</p></div>
+  <table class="tree-tbl" id="treeTbl" style="display:none">
+    <thead><tr id="treeHead"></tr></thead>
+    <tbody id="treeBody"></tbody>
+    <tfoot><tr id="treeFoot"></tr></tfoot>
+  </table>
+</div>
+
+<div class="status-bar" id="statusBar">Sẵn sàng</div>
+</div>
+
+<nav class="mob-toolbar">
+  <button class="mob-btn" onclick="toggleSidebar()"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="4" y1="5" x2="16" y2="5"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="15" x2="16" y2="15"/></svg><span>Menu</span></button>
+  <button class="mob-btn" onclick="togglePicker()"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="8" cy="8" r="5"/><line x1="12" y1="12" x2="17" y2="17"/></svg><span>NV</span></button>
+  <button class="mob-btn accent" onclick="openKbcPicker()"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/></svg><span>Kỳ</span></button>
+</nav>
+<div id="toasts"></div>
+
+{% include "_header_js.html" %}
+{% include "_sidebar_js.html" %}
+{% include "_report_utils.js" %}
+
+<script>
+var API_BASE='/reports/thong-ke-lay-hang';
+var USER_NVKD='{{ user_ma_nvkd }}';
+var USER_BP='{{ user_ma_bp }}';
+</script>
+{% include "_report_permissions.js" %}
+{% include "_kh_search.html" %}
+
+<script>
+var hierarchy=[],nvMap={},khMap={},khNames={},selectedBP='',kbcList=[];
+function pickerHasKH(){return true}
+function pickerDataLoaded(){return allRows.length>0}
+function onPickerApply(){if(currentKBC)loadAllData()}
+function onKHSelected(){if(currentKBC)loadAllData()}
+function onKHCleared(){if(currentKBC)loadAllData()}
+</script>
+{% include "_nv_picker.html" %}
+{% include "_kbc_picker.html" %}
+
+<script>
+var allRows=[];
+var filteredRows=[];
+var sortCol=-1,sortAsc=true;
+var searchQ='';
+var viewMode='flat'; // 'flat' | 'tree'
+var treeExp={};
+var allExp=true;
+var ROW_H=32;
+var COLS=[
+    {key:'ten_thuoc', label:'Dòng SP',    w:200, minW:80,  r:false},
+    {key:'ten_vt',    label:'Sản phẩm',   w:260, minW:100, r:false},
+    {key:'ten_plkh3', label:'Khu vực',    w:160, minW:60,  r:false},
+    {key:'ten_kh',    label:'Khách hàng', w:260, minW:100, r:false},
+    {key:'so_luong',  label:'SL',         w:120, minW:60,  r:true},
+    {key:'doanhso',   label:'Doanh số',   w:160, minW:80,  r:true},
+];
+
+/* ═══ MODE SWITCH ═══ */
+function setMode(m){
+    viewMode=m;
+    document.querySelectorAll('#modePills .mode-pill').forEach(function(b){b.classList.toggle('active',b.dataset.m===m)});
+    document.getElementById('vtWrap').style.display=m==='flat'?'':'none';
+    document.getElementById('treeWrap').style.display=m==='tree'?'':'none';
+    document.getElementById('btnExp').style.display=m==='tree'?'':'none';
+    if(m==='flat')renderFlat();
+    else renderTree();
+    updateStatus();
+}
+
+/* ═══ COLUMN RESIZE ═══ */
+var _rsCol=-1,_rsStartX=0,_rsStartW=0;
+function startColResize(ci,e){
+    e.preventDefault();e.stopPropagation();
+    _rsCol=ci;_rsStartX=e.clientX;_rsStartW=COLS[ci].w;
+    document.addEventListener('mousemove',onColResize);
+    document.addEventListener('mouseup',endColResize);
+}
+function onColResize(e){
+    if(_rsCol<0)return;
+    COLS[_rsCol].w=Math.max(COLS[_rsCol].minW,_rsStartW+(e.clientX-_rsStartX));
+    document.querySelectorAll('[data-ci="'+_rsCol+'"]').forEach(function(el){el.style.width=COLS[_rsCol].w+'px'});
+}
+function endColResize(){_rsCol=-1;document.removeEventListener('mousemove',onColResize);document.removeEventListener('mouseup',endColResize);if(viewMode==='flat')_drawVisibleRows()}
+function startColResizeTouch(ci,e){
+    e.preventDefault();e.stopPropagation();
+    var t=e.touches[0];_rsCol=ci;_rsStartX=t.clientX;_rsStartW=COLS[ci].w;
+    document.addEventListener('touchmove',onColResizeTouch,{passive:false});
+    document.addEventListener('touchend',endColResizeTouch);
+}
+function onColResizeTouch(e){if(_rsCol<0)return;e.preventDefault();COLS[_rsCol].w=Math.max(COLS[_rsCol].minW,_rsStartW+(e.touches[0].clientX-_rsStartX));document.querySelectorAll('[data-ci="'+_rsCol+'"]').forEach(function(el){el.style.width=COLS[_rsCol].w+'px'})}
+function endColResizeTouch(){_rsCol=-1;document.removeEventListener('touchmove',onColResizeTouch);document.removeEventListener('touchend',endColResizeTouch);if(viewMode==='flat')_drawVisibleRows()}
+
+/* ═══ INIT ═══ */
+async function init(){
+    setS('busy','Tải...');showLoading('Đang tải…');
+    try{
+        var [rH,rK,rKBC]=await Promise.all([
+            fetch(API_BASE+'/api/hierarchy').then(function(r){return r.json()}),
+            fetch(API_BASE+'/api/khachhang').then(function(r){return r.json()}),
+            fetch(API_BASE+'/api/ky-bao-cao').then(function(r){return r.json()})
+        ]);
+        if(!rH.success)throw new Error(rH.error);
+        hierarchy=rH.data;nvMap={};
+        hierarchy.forEach(function(h){nvMap[h.ma_nvkd]={...h,children:[]}});
+        hierarchy.forEach(function(h){if(h.ma_ql&&nvMap[h.ma_ql])nvMap[h.ma_ql].children.push(nvMap[h.ma_nvkd])});
+        khMap={};khNames={};
+        if(rK.success)rK.data.forEach(function(k){if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
+        computeAllowedNV();
+        hierarchy.forEach(function(h){pickerExp[h.ma_nvkd]=(h.level===0)});
+        var bps=getAllowedBP();
+        var bpSel=document.getElementById('bp-select');
+        bpSel.innerHTML=(bps.length>1?'<option value="">Tất cả BP</option>':'')+bps.map(function(b){return '<option value="'+esc(b)+'">'+esc(b)+'</option>'}).join('');
+        if(bps.length===1){selectedBP=bps[0];bpSel.value=bps[0]}
+        kbcList=rKBC.success?rKBC.data:[];populateKBC();
+        setS('ok','OK');updatePickerBadge();
+        if(currentKBC)loadAllData();
+        else{hideLoading();document.getElementById('emptyMsg').textContent='Chưa có kỳ báo cáo phù hợp'}
+    }catch(e){hideLoading();setS('err','Lỗi');document.getElementById('emptyMsg').textContent='⚠ '+e.message;toast(e.message,'err')}
+}
+function onKBCSelected(){if(currentKBC)loadAllData()}
+function onBPChange(v){selectedBP=v;renderPickerTree();if(currentKBC)loadAllData()}
+
+/* ═══ LOAD ═══ */
+async function loadAllData(){
+    if(!currentKBC)return;var k=currentKBC;
+    var dA=iso(k.ngay_bd_xuat_ban),dB=iso(k.ngay_kt_xuat_ban);
+    if(!dA||!dB){toast('Kỳ thiếu ngày','err');return}
+    setS('busy','Tải...');showLoading('Đang tải…');allRows=[];filteredRows=[];
+    var bp=selectedBP||(userBpList.length?userBpList.join(','):'');
+    var nvSet=selectedNV||allowedNV;
+    var nv=userNvkdList.length?[...nvSet].join(','):'';
+    var kh=selectedKH?selectedKH.ma_kh:'';
+    try{
+        var r=await fetch(API_BASE+'/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ngay_a:dA,ngay_b:dB,ma_bp:bp,ds_nvkd:nv,ds_kh:kh})}).then(function(r){return r.json()});
+        if(r.success)allRows=r.data;
+        allRows.forEach(function(r){
+            r._s=((r.ten_thuoc||'')+'|'+(r.ten_vt||'')+'|'+(r.ten_plkh3||'')+'|'+(r.ten_kh||'')+'|'+(r.ma_kh||'')).toLowerCase();
+        });
+        hideLoading();setS('ok',allRows.length+' dòng');
+        applyFilter();
+    }catch(e){hideLoading();setS('err','Lỗi');toast(e.message,'err')}
+}
+
+/* ═══ FILTER + SORT ═══ */
+function onSearch(){searchQ=(document.getElementById('tblSearch').value||'').trim().toLowerCase();applyFilter()}
+function applyFilter(){
+    filteredRows=searchQ?allRows.filter(function(r){return r._s.indexOf(searchQ)>=0}):allRows.slice();
+    if(sortCol>=0)doSort();
+    if(viewMode==='flat')renderFlat();else renderTree();
+    updateStatus();
+}
+function clickSort(ci){
+    if(sortCol===ci)sortAsc=!sortAsc;else{sortCol=ci;sortAsc=true}
+    doSort();renderFlat();
+}
+function doSort(){
+    var key=COLS[sortCol].key,isNum=COLS[sortCol].r,dir=sortAsc?1:-1;
+    filteredRows.sort(function(a,b){var va=a[key],vb=b[key];if(va==null)va=isNum?0:'';if(vb==null)vb=isNum?0:'';return isNum?(va-vb)*dir:String(va).localeCompare(String(vb))*dir});
+}
+
+/* ═══════════════════════════════════════
+   FLAT MODE — Virtual Scroll
+   ═══════════════════════════════════════ */
+var _vtRAF=null;
+function renderFlat(){
+    var wrap=document.getElementById('vtWrap');
+    var head=document.getElementById('vtHead');
+    var body=document.getElementById('vtBody');
+    var foot=document.getElementById('vtFoot');
+    var empty=document.getElementById('empty');
+
+    if(!filteredRows.length){
+        head.style.display='none';body.innerHTML='';foot.style.display='none';
+        empty.style.display='flex';document.getElementById('emptyMsg').textContent=allRows.length?'Không tìm thấy':'Chưa có dữ liệu';return;
+    }
+    empty.style.display='none';head.style.display='flex';foot.style.display='flex';
+
+    var hh='';
+    COLS.forEach(function(c,i){
+        var sorted=sortCol===i;var arrow=sorted?(sortAsc?'↑':'↓'):'↕';
+        hh+='<div class="vt-head-cell'+(c.r?' r':'')+(sorted?' sorted':'')+'" data-ci="'+i+'" style="width:'+c.w+'px" onclick="clickSort('+i+')">'+c.label+'<span class="sort-arrow">'+arrow+'</span><div class="col-grip" onmousedown="startColResize('+i+',event)" ontouchstart="startColResizeTouch('+i+',event)"></div></div>';
+    });
+    head.innerHTML=hh;
+
+    var totalSL=0,totalDS=0;
+    filteredRows.forEach(function(r){totalSL+=(r.so_luong||0);totalDS+=(r.doanhso||0)});
+    var fh='';
+    COLS.forEach(function(c,i){
+        var val='';
+        if(c.key==='so_luong')val=fmtV(totalSL);
+        else if(c.key==='doanhso')val=fmtV(totalDS);
+        else if(i===0)val='Tổng ('+fmtV(filteredRows.length)+' dòng)';
+        fh+='<div class="vt-foot-cell'+(c.r?' r':'')+'" data-ci="'+i+'" style="width:'+c.w+'px">'+val+'</div>';
+    });
+    foot.innerHTML=fh;
+
+    body.style.height=(filteredRows.length*ROW_H)+'px';
+    wrap.removeEventListener('scroll',_onVTScroll);
+    wrap.addEventListener('scroll',_onVTScroll);
+    _drawVisibleRows();
+}
+function _onVTScroll(){if(!_vtRAF)_vtRAF=requestAnimationFrame(function(){_vtRAF=null;_drawVisibleRows()})}
+function _drawVisibleRows(){
+    var wrap=document.getElementById('vtWrap'),body=document.getElementById('vtBody');
+    var st=wrap.scrollTop,vh=wrap.clientHeight;
+    var si=Math.max(0,Math.floor(st/ROW_H)-5),ei=Math.min(filteredRows.length-1,Math.ceil((st+vh)/ROW_H)+5);
+    var html='';
+    for(var i=si;i<=ei;i++){
+        var r=filteredRows[i],top=i*ROW_H;
+        html+='<div class="vt-row '+(i%2?'odd':'even')+'" style="top:'+top+'px;height:'+ROW_H+'px">';
+        COLS.forEach(function(c,ci){
+            var v=r[c.key];
+            if(c.r)html+='<div class="vt-cell r'+(v<0?' neg':'')+'" data-ci="'+ci+'" style="width:'+c.w+'px">'+fmtV(v||0)+'</div>';
+            else html+='<div class="vt-cell" data-ci="'+ci+'" style="width:'+c.w+'px" title="'+esc(v||'')+'">'+esc(v||'')+'</div>';
+        });
+        html+='</div>';
+    }
+    body.innerHTML=html;
+}
+
+/* ═══════════════════════════════════════
+   TREE MODE — Dòng SP → SP → Khu vực → KH
+   ═══════════════════════════════════════ */
+function renderTree(){
+    var tblEl=document.getElementById('treeTbl');
+    var emptyEl=document.getElementById('treeEmpty');
+
+    if(!filteredRows.length){
+        tblEl.style.display='none';emptyEl.style.display='flex';return;
+    }
+    emptyEl.style.display='none';tblEl.style.display='';
+
+    /* Build nested: ten_thuoc → ten_vt(ma_vt) → ten_plkh3 → ten_kh(ma_kh) */
+    var tree={};
+    filteredRows.forEach(function(r){
+        var t1=r.ten_thuoc||'(Chưa phân loại)';
+        var t2=r.ma_vt||'_UNK';
+        var t3=r.ten_plkh3||'(Chưa phân loại)';
+        var t4=r.ma_kh||'_UNK';
+        if(!tree[t1])tree[t1]={sp:{}};
+        if(!tree[t1].sp[t2])tree[t1].sp[t2]={ten_vt:r.ten_vt||t2,kv:{}};
+        if(!tree[t1].sp[t2].kv[t3])tree[t1].sp[t2].kv[t3]={kh:{}};
+        if(!tree[t1].sp[t2].kv[t3].kh[t4])tree[t1].sp[t2].kv[t3].kh[t4]={ten_kh:r.ten_kh||t4,sl:0,ds:0};
+        tree[t1].sp[t2].kv[t3].kh[t4].sl+=(r.so_luong||0);
+        tree[t1].sp[t2].kv[t3].kh[t4].ds+=(r.doanhso||0);
+    });
+
+    /* Header */
+    document.getElementById('treeHead').innerHTML='<th style="min-width:300px">Dòng SP / Sản phẩm / Khu vực / KH</th><th class="r" style="min-width:100px">SL</th><th class="r" style="min-width:140px">Doanh số</th>';
+
+    function togHtml(key,hasKids){
+        if(!hasKids)return '<span class="tog-sp"></span>';
+        var exp=treeExp[key]!==false;
+        return '<button class="tog" onclick="togTree(\''+key.replace(/'/g,"\\'")+'\',event)"><svg viewBox="0 0 9 9">'+(exp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>';
+    }
+    function numCell(v,cls){var n=Math.round(v);return '<td class="r"><span class="n '+(cls||'')+'">'+fmtV(n)+'</span></td>'}
+
+    var html='';
+    var grandSL=0,grandDS=0;
+
+    Object.keys(tree).sort().forEach(function(thuoc){
+        var thuocNode=tree[thuoc];
+        /* Sum thuoc level */
+        var tSL=0,tDS=0;
+        Object.values(thuocNode.sp).forEach(function(sp){Object.values(sp.kv).forEach(function(kv){Object.values(kv.kh).forEach(function(kh){tSL+=kh.sl;tDS+=kh.ds})})});
+        grandSL+=tSL;grandDS+=tDS;
+        var k1='thuoc_'+thuoc,exp1=treeExp[k1]!==false;
+        html+='<tr class="tr-thuoc"><td><div style="display:flex;align-items:center">'+togHtml(k1,true)+'<span>'+esc(thuoc)+'</span></div></td>'+numCell(tSL,'sub')+numCell(tDS,'sub')+'</tr>';
+
+        if(!exp1)return;
+
+        var spKeys=Object.keys(thuocNode.sp).sort(function(a,b){return(thuocNode.sp[a].ten_vt||a).localeCompare(thuocNode.sp[b].ten_vt||b)});
+        spKeys.forEach(function(maVt){
+            var spNode=thuocNode.sp[maVt];
+            var sSL=0,sDS=0;
+            Object.values(spNode.kv).forEach(function(kv){Object.values(kv.kh).forEach(function(kh){sSL+=kh.sl;sDS+=kh.ds})});
+            var k2='sp_'+maVt,exp2=treeExp[k2]!==false;
+            html+='<tr class="tr-sp"><td><div style="display:flex;align-items:center;padding-left:20px">'+togHtml(k2,true)+'<span>'+esc(spNode.ten_vt)+'</span></div></td>'+numCell(sSL,'sub')+numCell(sDS,'sub')+'</tr>';
+
+            if(!exp2)return;
+
+            Object.keys(spNode.kv).sort().forEach(function(kvName){
+                var kvNode=spNode.kv[kvName];
+                var vSL=0,vDS=0;
+                Object.values(kvNode.kh).forEach(function(kh){vSL+=kh.sl;vDS+=kh.ds});
+                var k3='kv_'+maVt+'_'+kvName,exp3=treeExp[k3]!==false;
+                var khCount=Object.keys(kvNode.kh).length;
+                html+='<tr class="tr-kv"><td><div style="display:flex;align-items:center;padding-left:40px">'+togHtml(k3,khCount>0)+'<span>'+esc(kvName)+'</span></div></td>'+numCell(vSL,'')+numCell(vDS,'')+'</tr>';
+
+                if(!exp3)return;
+
+                Object.keys(kvNode.kh).sort(function(a,b){return(kvNode.kh[a].ten_kh||a).localeCompare(kvNode.kh[b].ten_kh||b)}).forEach(function(maKh){
+                    var khNode=kvNode.kh[maKh];
+                    html+='<tr class="tr-kh"><td><div style="padding-left:60px"><span class="tog-sp"></span>'+esc(khNode.ten_kh)+'</div></td>'+numCell(khNode.sl,'')+numCell(khNode.ds,'')+'</tr>';
+                });
+            });
+        });
+    });
+
+    document.getElementById('treeBody').innerHTML=html;
+    document.getElementById('treeFoot').innerHTML='<td><b>Tổng cộng ('+fmtV(filteredRows.length)+' dòng)</b></td>'+numCell(grandSL,'sub')+numCell(grandDS,'sub');
+}
+
+function togTree(key,e){if(e)e.stopPropagation();treeExp[key]=treeExp[key]===false?true:false;renderTree()}
+function toggleExp(){allExp=!allExp;Object.keys(treeExp).forEach(function(k){treeExp[k]=allExp});document.getElementById('btnExp').innerHTML='<svg viewBox="0 0 16 16" stroke-width="2"><polyline points="'+(allExp?'4,10 8,6 12,10':'4,6 8,10 12,6')+'"/></svg>'+(allExp?'Thu':'Mở');renderTree()}
+
+function updateStatus(){
+    var bar=document.getElementById('statusBar');
+    var total=allRows.length,shown=filteredRows.length;
+    var totalSL=0,totalDS=0;
+    filteredRows.forEach(function(r){totalSL+=(r.so_luong||0);totalDS+=(r.doanhso||0)});
+    bar.innerHTML='<b>'+fmtV(shown)+'</b> / '+fmtV(total)+' dòng &nbsp;·&nbsp; SL: <b>'+fmtV(totalSL)+'</b> &nbsp;·&nbsp; Doanh số: <b>'+fmtV(totalDS)+'</b>';
+}
+
+/* ═══ EXPORT ═══ */
+async function exportExcel(){
+    if(!filteredRows.length){toast('Chưa có dữ liệu','err');return}
+    setS('busy','Xuất…');showLoading('Đang xuất Excel…');
+    try{
+        await exportExcelBlob(API_BASE+'/api/export_excel',{rows:filteredRows,kbc_name:currentKBC?currentKBC.ten_kbc:''},'ThongKeLayHang.xlsx');
+        hideLoading();setS('ok','OK');toast('Đã tải Excel');
+    }catch(e){hideLoading();setS('err','Lỗi');toast(e.message,'err')}
+}
+
+document.addEventListener('DOMContentLoaded',function(){init()});
+</script>
+</body>
+</html>
