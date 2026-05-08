@@ -142,15 +142,7 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
   <div class="vt-foot" id="vtFoot" style="display:none"></div>
 </div>
 
-<!-- Tree mode container -->
-<div class="tree-wrap" id="treeWrap" style="display:none">
-  <div class="empty-state" id="treeEmpty" style="display:none"><p>Chưa có dữ liệu</p></div>
-  <table class="tree-tbl" id="treeTbl" style="display:none">
-    <thead><tr id="treeHead"></tr></thead>
-    <tbody id="treeBody"></tbody>
-    <tfoot><tr id="treeFoot"></tr></tfoot>
-  </table>
-</div>
+
 
 <div class="status-bar" id="statusBar">Sẵn sàng</div>
 </div>
@@ -204,15 +196,13 @@ var COLS=[
 ];
 
 /* ═══ MODE SWITCH ═══ */
+var treeVisRows=[];
 function setMode(m){
     viewMode=m;
     document.querySelectorAll('#modePills .mode-pill').forEach(function(b){b.classList.toggle('active',b.dataset.m===m)});
-    document.getElementById('vtWrap').style.display=m==='flat'?'':'none';
-    document.getElementById('treeWrap').style.display=m==='tree'?'':'none';
     document.getElementById('btnExp').style.display=m==='tree'?'':'none';
-    if(m==='flat')renderFlat();
-    else renderTree();
-    updateStatus();
+    if(m==='tree')buildTreeVis();
+    renderVT();updateStatus();
 }
 
 /* ═══ COLUMN RESIZE ═══ */
@@ -294,12 +284,13 @@ function onSearch(){searchQ=(document.getElementById('tblSearch').value||'').tri
 function applyFilter(){
     filteredRows=searchQ?allRows.filter(function(r){return r._s.indexOf(searchQ)>=0}):allRows.slice();
     if(sortCol>=0)doSort();
-    if(viewMode==='flat')renderFlat();else renderTree();
+    if(viewMode==='tree')buildTreeVis();
+renderVT();
     updateStatus();
 }
 function clickSort(ci){
     if(sortCol===ci)sortAsc=!sortAsc;else{sortCol=ci;sortAsc=true}
-    doSort();renderFlat();
+    doSort();renderVT();
 }
 function doSort(){
     var key=COLS[sortCol].key,isNum=COLS[sortCol].r,dir=sortAsc?1:-1;
@@ -310,81 +301,11 @@ function doSort(){
    FLAT MODE — Virtual Scroll
    ═══════════════════════════════════════ */
 var _vtRAF=null;
-function renderFlat(){
-    var wrap=document.getElementById('vtWrap');
-    var head=document.getElementById('vtHead');
-    var body=document.getElementById('vtBody');
-    var foot=document.getElementById('vtFoot');
-    var empty=document.getElementById('empty');
 
-    if(!filteredRows.length){
-        head.style.display='none';body.innerHTML='';foot.style.display='none';
-        empty.style.display='flex';document.getElementById('emptyMsg').textContent=allRows.length?'Không tìm thấy':'Chưa có dữ liệu';return;
-    }
-    empty.style.display='none';head.style.display='flex';foot.style.display='flex';
-
-    var hh='';
-    COLS.forEach(function(c,i){
-        var sorted=sortCol===i;var arrow=sorted?(sortAsc?'↑':'↓'):'↕';
-        hh+='<div class="vt-head-cell'+(c.r?' r':'')+(sorted?' sorted':'')+'" data-ci="'+i+'" style="width:'+c.w+'px" onclick="clickSort('+i+')">'+c.label+'<span class="sort-arrow">'+arrow+'</span><div class="col-grip" onmousedown="startColResize('+i+',event)" ontouchstart="startColResizeTouch('+i+',event)"></div></div>';
-    });
-    head.innerHTML=hh;
-
-    var totalSL=0,totalDS=0;
-    filteredRows.forEach(function(r){totalSL+=(r.so_luong||0);totalDS+=(r.doanhso||0)});
-    var fh='';
-    COLS.forEach(function(c,i){
-        var val='';
-        if(c.key==='so_luong')val=fmtV(totalSL);
-        else if(c.key==='doanhso')val=fmtV(totalDS);
-        else if(i===0)val='Tổng ('+fmtV(filteredRows.length)+' dòng)';
-        fh+='<div class="vt-foot-cell'+(c.r?' r':'')+'" data-ci="'+i+'" style="width:'+c.w+'px">'+val+'</div>';
-    });
-    foot.innerHTML=fh;
-
-    body.style.height=(filteredRows.length*ROW_H)+'px';
-    wrap.removeEventListener('scroll',_onVTScroll);
-    wrap.addEventListener('scroll',_onVTScroll);
-    _drawVisibleRows();
-}
-function _onVTScroll(){if(!_vtRAF)_vtRAF=requestAnimationFrame(function(){_vtRAF=null;_drawVisibleRows()})}
-function _drawVisibleRows(){
-    var wrap=document.getElementById('vtWrap'),body=document.getElementById('vtBody');
-    var st=wrap.scrollTop,vh=wrap.clientHeight;
-    var si=Math.max(0,Math.floor(st/ROW_H)-5),ei=Math.min(filteredRows.length-1,Math.ceil((st+vh)/ROW_H)+5);
-    var html='';
-    for(var i=si;i<=ei;i++){
-        var r=filteredRows[i],top=i*ROW_H;
-        html+='<div class="vt-row '+(i%2?'odd':'even')+'" style="top:'+top+'px;height:'+ROW_H+'px">';
-        COLS.forEach(function(c,ci){
-            var v=r[c.key];
-            if(c.r)html+='<div class="vt-cell r'+(v<0?' neg':'')+'" data-ci="'+ci+'" style="width:'+c.w+'px">'+fmtV(v||0)+'</div>';
-            else html+='<div class="vt-cell" data-ci="'+ci+'" style="width:'+c.w+'px" title="'+esc(v||'')+'">'+esc(v||'')+'</div>';
-        });
-        html+='</div>';
-    }
-    body.innerHTML=html;
-}
-
-/* ═══════════════════════════════════════
-   TREE MODE — Dòng SP → SP → Khu vực → KH
-   ═══════════════════════════════════════ */
-function renderTree(){
-    var tblEl=document.getElementById('treeTbl');
-    var emptyEl=document.getElementById('treeEmpty');
-
-    if(!filteredRows.length){
-        tblEl.style.display='none';emptyEl.style.display='flex';return;
-    }
-    emptyEl.style.display='none';tblEl.style.display='';
-
-    /* Build nested: ten_thuoc → ten_vt(ma_vt) → ten_plkh3 → ten_kh(ma_kh) */
+function buildTreeVis(){
     var tree={};
     filteredRows.forEach(function(r){
-        var t1=r.ten_thuoc||'(Chưa phân loại)';
-        var t2=r.ma_vt||'_UNK';
-        var t3=r.ten_plkh3||'(Chưa phân loại)';
-        var t4=r.ma_kh||'_UNK';
+        var t1=r.ten_thuoc||'(Chưa phân loại)',t2=r.ma_vt||'?',t3=r.ten_plkh3||'(Chưa phân loại)',t4=r.ma_kh||'?';
         if(!tree[t1])tree[t1]={sp:{}};
         if(!tree[t1].sp[t2])tree[t1].sp[t2]={ten_vt:r.ten_vt||t2,kv:{}};
         if(!tree[t1].sp[t2].kv[t3])tree[t1].sp[t2].kv[t3]={kh:{}};
@@ -392,65 +313,135 @@ function renderTree(){
         tree[t1].sp[t2].kv[t3].kh[t4].sl+=(r.so_luong||0);
         tree[t1].sp[t2].kv[t3].kh[t4].ds+=(r.doanhso||0);
     });
-
-    /* Header */
-    document.getElementById('treeHead').innerHTML='<th style="min-width:300px">Dòng SP / Sản phẩm / Khu vực / KH</th><th class="r" style="min-width:100px">SL</th><th class="r" style="min-width:140px">Doanh số</th>';
-
-    function togHtml(key,hasKids){
-        if(!hasKids)return '<span class="tog-sp"></span>';
-        var exp=treeExp[key]!==false;
-        return '<button class="tog" onclick="togTree(\''+key.replace(/'/g,"\\'")+'\',event)"><svg viewBox="0 0 9 9">'+(exp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>';
-    }
-    function numCell(v,cls){var n=Math.round(v);return '<td class="r"><span class="n '+(cls||'')+'">'+fmtV(n)+'</span></td>'}
-
-    var html='';
-    var grandSL=0,grandDS=0;
-
+    var out=[];
     Object.keys(tree).sort().forEach(function(thuoc){
-        var thuocNode=tree[thuoc];
-        /* Sum thuoc level */
-        var tSL=0,tDS=0;
-        Object.values(thuocNode.sp).forEach(function(sp){Object.values(sp.kv).forEach(function(kv){Object.values(kv.kh).forEach(function(kh){tSL+=kh.sl;tDS+=kh.ds})})});
-        grandSL+=tSL;grandDS+=tDS;
+        var tn=tree[thuoc],tSL=0,tDS=0;
+        Object.values(tn.sp).forEach(function(s){Object.values(s.kv).forEach(function(v){Object.values(v.kh).forEach(function(k){tSL+=k.sl;tDS+=k.ds})})});
         var k1='thuoc_'+thuoc,exp1=treeExp[k1]!==false;
-        html+='<tr class="tr-thuoc"><td><div style="display:flex;align-items:center">'+togHtml(k1,true)+'<span>'+esc(thuoc)+'</span></div></td>'+numCell(tSL,'sub')+numCell(tDS,'sub')+'</tr>';
-
+        out.push({_t:'thuoc',_label:thuoc,_kv:'',_kh:'',sl:tSL,ds:tDS,_k:k1,_exp:exp1});
         if(!exp1)return;
-
-        var spKeys=Object.keys(thuocNode.sp).sort(function(a,b){return(thuocNode.sp[a].ten_vt||a).localeCompare(thuocNode.sp[b].ten_vt||b)});
-        spKeys.forEach(function(maVt){
-            var spNode=thuocNode.sp[maVt];
-            var sSL=0,sDS=0;
-            Object.values(spNode.kv).forEach(function(kv){Object.values(kv.kh).forEach(function(kh){sSL+=kh.sl;sDS+=kh.ds})});
-            var k2='sp_'+maVt,exp2=treeExp[k2]!==false;
-            html+='<tr class="tr-sp"><td><div style="display:flex;align-items:center;padding-left:20px">'+togHtml(k2,true)+'<span>'+esc(spNode.ten_vt)+'</span></div></td>'+numCell(sSL,'sub')+numCell(sDS,'sub')+'</tr>';
-
+        Object.keys(tn.sp).sort(function(a,b){return(tn.sp[a].ten_vt||a).localeCompare(tn.sp[b].ten_vt||b)}).forEach(function(mv){
+            var sp=tn.sp[mv],sSL=0,sDS=0;
+            Object.values(sp.kv).forEach(function(v){Object.values(v.kh).forEach(function(k){sSL+=k.sl;sDS+=k.ds})});
+            var k2='sp_'+mv,exp2=treeExp[k2]!==false;
+            out.push({_t:'sp',_label:sp.ten_vt,_kv:'',_kh:'',sl:sSL,ds:sDS,_k:k2,_exp:exp2});
             if(!exp2)return;
-
-            Object.keys(spNode.kv).sort().forEach(function(kvName){
-                var kvNode=spNode.kv[kvName];
-                var vSL=0,vDS=0;
-                Object.values(kvNode.kh).forEach(function(kh){vSL+=kh.sl;vDS+=kh.ds});
-                var k3='kv_'+maVt+'_'+kvName,exp3=treeExp[k3]!==false;
-                var khCount=Object.keys(kvNode.kh).length;
-                html+='<tr class="tr-kv"><td><div style="display:flex;align-items:center;padding-left:40px">'+togHtml(k3,khCount>0)+'<span>'+esc(kvName)+'</span></div></td>'+numCell(vSL,'')+numCell(vDS,'')+'</tr>';
-
+            Object.keys(sp.kv).sort().forEach(function(kvName){
+                var kvn=sp.kv[kvName],vSL=0,vDS=0;
+                var khKeys=Object.keys(kvn.kh).sort(function(a,b){return(kvn.kh[a].ten_kh||a).localeCompare(kvn.kh[b].ten_kh||b)});
+                khKeys.forEach(function(mk){vSL+=kvn.kh[mk].sl;vDS+=kvn.kh[mk].ds});
+                var k3='kv_'+mv+'_'+kvName,exp3=treeExp[k3]!==false;
+                out.push({_t:'kv',_label:'',_kv:kvName,_kh:'',sl:vSL,ds:vDS,_k:k3,_exp:exp3,_hasKids:khKeys.length>0});
                 if(!exp3)return;
-
-                Object.keys(kvNode.kh).sort(function(a,b){return(kvNode.kh[a].ten_kh||a).localeCompare(kvNode.kh[b].ten_kh||b)}).forEach(function(maKh){
-                    var khNode=kvNode.kh[maKh];
-                    html+='<tr class="tr-kh"><td><div style="padding-left:60px"><span class="tog-sp"></span>'+esc(khNode.ten_kh)+'</div></td>'+numCell(khNode.sl,'')+numCell(khNode.ds,'')+'</tr>';
+                khKeys.forEach(function(mk){
+                    var kd=kvn.kh[mk];
+                    out.push({_t:'kh',_label:'',_kv:'',_kh:kd.ten_kh,sl:kd.sl,ds:kd.ds});
                 });
             });
         });
     });
-
-    document.getElementById('treeBody').innerHTML=html;
-    document.getElementById('treeFoot').innerHTML='<td><b>Tổng cộng ('+fmtV(filteredRows.length)+' dòng)</b></td>'+numCell(grandSL,'sub')+numCell(grandDS,'sub');
+    treeVisRows=out;
 }
 
-function togTree(key,e){if(e)e.stopPropagation();treeExp[key]=treeExp[key]===false?true:false;renderTree()}
-function toggleExp(){allExp=!allExp;Object.keys(treeExp).forEach(function(k){treeExp[k]=allExp});document.getElementById('btnExp').innerHTML='<svg viewBox="0 0 16 16" stroke-width="2"><polyline points="'+(allExp?'4,10 8,6 12,10':'4,6 8,10 12,6')+'"/></svg>'+(allExp?'Thu':'Mở');renderTree()}
+function getVisRows(){return viewMode==='tree'?treeVisRows:filteredRows}
+
+function renderVT(){
+    var wrap=document.getElementById('vtWrap'),head=document.getElementById('vtHead'),body=document.getElementById('vtBody'),foot=document.getElementById('vtFoot'),empty=document.getElementById('empty');
+    var rows=getVisRows();
+    if(!rows.length){head.style.display='none';body.innerHTML='';foot.style.display='none';empty.style.display='flex';document.getElementById('emptyMsg').textContent=allRows.length?'Không tìm thấy':'Chưa có dữ liệu';return}
+    empty.style.display='none';head.style.display='flex';foot.style.display='flex';
+
+    /* Header */
+    var hh='';
+    if(viewMode==='flat'){
+        COLS.forEach(function(c,i){
+            var sorted=sortCol===i;var arrow=sorted?(sortAsc?'↑':'↓'):'↕';
+            hh+='<div class="vt-head-cell'+(c.r?' r':'')+(sorted?' sorted':'')+'" data-ci="'+i+'" style="width:'+c.w+'px" onclick="clickSort('+i+')">'+c.label+'<span class="sort-arrow">'+arrow+'</span><div class="col-grip" onmousedown="startColResize('+i+',event)" ontouchstart="startColResizeTouch('+i+',event)"></div></div>';
+        });
+    }else{
+        var tc=[{l:'Dòng SP / Sản phẩm',w:300},{l:'Khu vực',w:180},{l:'Khách hàng',w:260},{l:'SL',w:110,r:true},{l:'Doanh số',w:150,r:true}];
+        tc.forEach(function(c,i){hh+='<div class="vt-head-cell'+(c.r?' r':'')+'" style="width:'+c.w+'px">'+c.l+'</div>'});
+    }
+    head.innerHTML=hh;
+
+    /* Footer */
+    var tSL=0,tDS=0;filteredRows.forEach(function(r){tSL+=(r.so_luong||0);tDS+=(r.doanhso||0)});
+    var fh='';
+    if(viewMode==='flat'){
+        COLS.forEach(function(c,i){var v='';if(c.key==='so_luong')v=fmtV(tSL);else if(c.key==='doanhso')v=fmtV(tDS);else if(i===0)v='Tổng ('+fmtV(filteredRows.length)+' dòng)';fh+='<div class="vt-foot-cell'+(c.r?' r':'')+'" data-ci="'+i+'" style="width:'+c.w+'px">'+v+'</div>'});
+    }else{
+        fh+='<div class="vt-foot-cell" style="width:300px"><b>Tổng ('+fmtV(filteredRows.length)+' dòng)</b></div>';
+        fh+='<div class="vt-foot-cell" style="width:180px"></div>';
+        fh+='<div class="vt-foot-cell" style="width:260px"></div>';
+        fh+='<div class="vt-foot-cell r" style="width:110px">'+fmtV(tSL)+'</div>';
+        fh+='<div class="vt-foot-cell r" style="width:150px">'+fmtV(tDS)+'</div>';
+    }
+    foot.innerHTML=fh;
+
+    body.style.height=(rows.length*ROW_H)+'px';
+    wrap.removeEventListener('scroll',_onScroll);wrap.addEventListener('scroll',_onScroll);
+    _drawVis();
+}
+
+function _onScroll(){if(!_vtRAF)_vtRAF=requestAnimationFrame(function(){_vtRAF=null;_drawVis()})}
+
+function _drawVis(){
+    var wrap=document.getElementById('vtWrap'),body=document.getElementById('vtBody');
+    var rows=getVisRows(),st=wrap.scrollTop,vh=wrap.clientHeight;
+    var si=Math.max(0,Math.floor(st/ROW_H)-5),ei=Math.min(rows.length-1,Math.ceil((st+vh)/ROW_H)+5);
+    var html='';
+
+    if(viewMode==='flat'){
+        for(var i=si;i<=ei;i++){
+            var r=rows[i];
+            html+='<div class="vt-row '+(i%2?'odd':'even')+'" style="top:'+(i*ROW_H)+'px;height:'+ROW_H+'px">';
+            COLS.forEach(function(c,ci){var v=r[c.key];if(c.r)html+='<div class="vt-cell r'+(v<0?' neg':'')+'" data-ci="'+ci+'" style="width:'+c.w+'px">'+fmtV(v||0)+'</div>';else html+='<div class="vt-cell" data-ci="'+ci+'" style="width:'+c.w+'px" title="'+esc(v||'')+'">'+esc(v||'')+'</div>'});
+            html+='</div>';
+        }
+    }else{
+        var bgMap={thuoc:'#d2dcf2',sp:'#e6ecf8',kv:'#f0f5fe',kh:''};
+        var togSvgE='<svg viewBox="0 0 9 9"><path d="M1.5 3L4.5 6.5L7.5 3"/></svg>';
+        var togSvgC='<svg viewBox="0 0 9 9"><path d="M3 1.5L6.5 4.5L3 7.5"/></svg>';
+        for(var i=si;i<=ei;i++){
+            var r=rows[i],t=r._t;
+            var bg=bgMap[t]||'';
+            html+='<div class="vt-row" style="top:'+(i*ROW_H)+'px;height:'+ROW_H+'px;'+(bg?'background:'+bg:'')+';">';
+
+            /* Col 0: tree label 300px */
+            if(t==='thuoc'){
+                html+='<div class="vt-cell" style="width:300px;font-weight:800;font-size:13px"><button class="tog" onclick="togTree(\''+r._k.replace(/'/g,"\\'")+'\',event)">'+(r._exp?togSvgE:togSvgC)+'</button>'+esc(r._label)+'</div>';
+            }else if(t==='sp'){
+                html+='<div class="vt-cell" style="width:300px;font-weight:700;padding-left:28px"><button class="tog" onclick="togTree(\''+r._k.replace(/'/g,"\\'")+'\',event)">'+(r._exp?togSvgE:togSvgC)+'</button>'+esc(r._label)+'</div>';
+            }else if(t==='kv'){
+                html+='<div class="vt-cell" style="width:300px"></div>';
+            }else{
+                html+='<div class="vt-cell" style="width:300px"></div>';
+            }
+
+            /* Col 1: Khu vực 180px */
+            if(t==='kv'){
+                html+='<div class="vt-cell" style="width:180px;font-weight:600;color:var(--blue)">'+(r._hasKids?'<button class="tog" onclick="togTree(\''+r._k.replace(/'/g,"\\'")+'\',event)">'+(r._exp?togSvgE:togSvgC)+'</button>':'')+esc(r._kv)+'</div>';
+            }else{
+                html+='<div class="vt-cell" style="width:180px"></div>';
+            }
+
+            /* Col 2: KH 260px */
+            html+='<div class="vt-cell" style="width:260px">'+esc(t==='kh'?r._kh:'')+'</div>';
+
+            /* Col 3: SL 110px */
+            html+='<div class="vt-cell r" style="width:110px;'+(t!=='kh'?'font-weight:700':'')+'">'+fmtV(r.sl||0)+'</div>';
+
+            /* Col 4: DS 150px */
+            html+='<div class="vt-cell r" style="width:150px;'+(t!=='kh'?'font-weight:700':'')+'">'+fmtV(r.ds||0)+'</div>';
+
+            html+='</div>';
+        }
+    }
+    body.innerHTML=html;
+}
+
+function togTree(key,e){if(e){e.stopPropagation();e.preventDefault()}treeExp[key]=treeExp[key]===false?true:false;buildTreeVis();renderVT()}
+function toggleExp(){allExp=!allExp;Object.keys(treeExp).forEach(function(k){treeExp[k]=allExp});document.getElementById('btnExp').innerHTML='<svg viewBox="0 0 16 16" stroke-width="2"><polyline points="'+(allExp?'4,10 8,6 12,10':'4,6 8,10 12,6')+'"/></svg>'+(allExp?'Thu':'Mở');buildTreeVis();renderVT()}
 
 function updateStatus(){
     var bar=document.getElementById('statusBar');
