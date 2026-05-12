@@ -167,7 +167,22 @@ html { padding-left: var(--sb-collapsed); }
 }
 .sb-overlay.open { opacity: 1; pointer-events: auto; }
 
-/* ═══ Toolbar slim (minimal overrides — page CSS controls layout) ═══ */
+/* ═══ Toolbar slim ═══ */
+.toolbar-slim {
+    height: 42px;
+    background: var(--white, #fff);
+    border-bottom: 1px solid var(--g2, #d5d9e4);
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 10px; flex-shrink: 0; z-index: 50;
+    overflow-x: auto; overflow-y: hidden;
+}
+.toolbar-slim .spacer { flex: 1; min-width: 0; }
+.toolbar-slim .tbtn { height: 30px; padding: 0 10px; font-size: 11px; }
+.toolbar-title {
+    font-size: 14px; font-weight: 700; color: var(--g6, #28334d);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 0;
+}
 
 /* Sidebar replaces hamburger — hide it and its adjacent divider */
 .hamburger-btn { display: none !important; }
