@@ -89,7 +89,7 @@ VIEW_REGISTRY = [
     },
     {
         'name': 'DMSANPHAM',
-        'sql': '    ',
+        'sql': 'SELECT * FROM DMSANPHAM_VIEW',
 
     },
     {

@@ -76,7 +76,34 @@ def api_data():
     except Exception as e:
         logger.error(f"[TKLH data] {e}")
         return api_response(ok=False, error=str(e))
+@bp.route('/api/data_chitiet', methods=['POST'])
+def api_data_chitiet():
+    body = request.get_json(force=True)
+    ngay_a = body.get('ngay_a', '')
+    ngay_b = body.get('ngay_b', '')
+    ma_bp = body.get('ma_bp', '')
+    ds_nvkd = body.get('ds_nvkd', '')
+    ds_kh = body.get('ds_kh', '')
 
+    if not ngay_a or not ngay_b:
+        return api_response(ok=False, error='Thiếu ngay_a hoặc ngay_b', status_code=400)
+
+    try:
+        data = get_store().query(
+            load_sql('THONGKE_LAYHANG_CHITIET_DUCK'),
+            [ngay_a, ngay_b, ma_bp or '', ds_nvkd or '', ds_kh or '']
+        )
+        for d in data:
+            for k in ('so_luong', 'doanhso'):
+                if d.get(k) is not None:
+                    d[k] = float(d[k])
+            if d.get('ngay_ct') is not None:
+                d['ngay_ct'] = str(d['ngay_ct'])[:10]
+        return api_response(ok=True, data=data, count=len(data),
+                            meta={'ngay_a': ngay_a, 'ngay_b': ngay_b})
+    except Exception as e:
+        logger.error(f"[TKLH data_chitiet] {e}")
+        return api_response(ok=False, error=str(e))
 
 @bp.route('/api/export_excel', methods=['POST'])
 def api_export_excel():

@@ -151,7 +151,7 @@ body{font-family:var(--sans);background:var(--g0);color:var(--g7);min-height:100
 <script>
 var kbcList=[];
 function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
-function iso(d){if(!d)return null;return String(d).substring(0,10)}
+function iso(d){if(!d)return null;var s=String(d);if(s.length>=10&&s[4]==='-')return s.substring(0,10);var p=new Date(s);if(isNaN(p))return null;return p.toISOString().substring(0,10)}
 function isMobile(){return window.innerWidth<=768}
 function isLandscapePhone(){return window.innerWidth<=900&&window.innerHeight<500&&window.matchMedia('(hover:none)').matches}
 function onKBCSelected(){loadReport()}
@@ -159,12 +159,49 @@ var USER_BP = '{{ user_ma_bp }}';
 var USER_NVKD = '{{ user_ma_nvkd }}';
 fetch('/reports/bao-cao-kpi/api/kbc').then(function(r){return r.json()}).then(function(d){
     kbcList=d.data||d||[];
+    console.log('[KPI] kbcList count:', kbcList.length);
+    console.log('[KPI] Tháng items:', kbcList.filter(function(k){return k.loai_kbc==='Tháng'}).length);
+    var today=new Date().toISOString().substring(0,10);
+    console.log('[KPI] today:', today);
+    kbcList.filter(function(k){return k.loai_kbc==='Tháng'}).forEach(function(k){
+        console.log('[KPI] kbc:', k.ten_kbc, 'bd_tt:', k.ngay_bd_thu_tien, 'kt_tt:', k.ngay_kt_thu_tien);
+    });
     populateKBC();
-    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)});
-    if(months.length)setTimeout(loadReport,100);
+    console.log('[KPI] after populateKBC: _kbcChecked.size=', _kbcChecked.size, 'currentKBC=', currentKBC?currentKBC.ten_kbc:'null');
+    if(_kbcChecked.size>0)setTimeout(loadReport,100);
 });
 </script>
 {% include "_kbc_picker.html" %}
+<script>
+// Override populateKBC để fix RFC date parsing cho auto-select
+(function(){
+    var _origPopulate = populateKBC;
+    populateKBC = function(){
+        _origPopulate();
+        // Nếu đã chọn đúng rồi thì thôi
+        if(currentKBC){
+            var today=new Date().toISOString().substring(0,10);
+            function toISO(d){if(!d)return'';var s=String(d);if(s.length>=10&&s[4]==='-')return s.substring(0,10);var p=new Date(s);if(isNaN(p))return'';return p.toISOString().substring(0,10)}
+            var bd=toISO(currentKBC.ngay_bd_thu_tien);
+            var kt=toISO(currentKBC.ngay_kt_thu_tien);
+            if(bd&&kt&&today>=bd&&today<=kt)return; // đã đúng
+            // Chưa đúng → tìm lại
+            var found=null;
+            kbcList.forEach(function(k){
+                if(k.loai_kbc==='Tháng'&&!found){
+                    var b=toISO(k.ngay_bd_thu_tien);
+                    var e=toISO(k.ngay_kt_thu_tien);
+                    if(b&&e&&today>=b&&today<=e)found=k;
+                }
+            });
+            if(found&&found.id!==currentKBC.id){
+                _kbcChecked.clear();_kbcChecked.add(found.id);
+                currentKBC=found;updateKbcLabel();
+            }
+        }
+    };
+})();
+</script>
 
 <script>
 (function(){

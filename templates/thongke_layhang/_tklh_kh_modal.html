@@ -1,0 +1,252 @@
+<!-- ══ MODAL: Chi tiết KH — Thống kê lấy hàng ══
+     Phân cấp: Kỳ (collapsible) → flat rows: Ngày | SP | SL | DS
+     Highlight SP đang click (ma_vt match)
+     Data: gọi API /api/data cho từng kỳ đang chọn trong _kbcChecked
+-->
+<style>
+.tklh-overlay{position:fixed;inset:0;background:rgba(15,22,35,.5);z-index:9970;opacity:0;pointer-events:none;transition:opacity .2s}
+.tklh-overlay.open{opacity:1;pointer-events:all}
+.tklh-modal{position:fixed;z-index:9975;background:var(--white);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:scale(.96) translateY(12px);transition:all .25s cubic-bezier(.32,.72,0,1);pointer-events:none;top:5vh;left:5vw;right:5vw;bottom:5vh}
+.tklh-modal.open{opacity:1;transform:none;pointer-events:all}
+.tklh-m-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--g2);flex-shrink:0}
+.tklh-m-title{font-size:15px;font-weight:800;color:var(--g7)}
+.tklh-m-sub{font-size:11px;color:var(--g4);font-weight:500;margin-top:2px}
+.tklh-m-close{width:32px;height:32px;border-radius:8px;border:none;background:var(--g1);color:var(--g5);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}.tklh-m-close:hover{background:var(--red-lt);color:var(--red)}
+.tklh-m-body{flex:1;overflow:auto;padding:0}
+.tklh-m-empty{padding:40px 20px;text-align:center;color:var(--g4);font-size:12px}
+.tklh-m-loading{padding:40px 20px;text-align:center;color:var(--g4);font-size:12px}
+.tklh-m-total{display:flex;justify-content:space-between;align-items:center;padding:10px 18px;border-top:2px solid var(--g2);background:var(--g0);flex-shrink:0}
+.tklh-m-total-label{font-size:11px;font-weight:700;color:var(--g5);text-transform:uppercase}
+.tklh-m-total-val{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--g7)}
+
+/* Table */
+.tklh-m-tbl{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}
+.tklh-m-tbl th{position:sticky;top:0;background:var(--g0);padding:8px 10px;font-size:10px;font-weight:700;color:var(--g5);text-transform:uppercase;text-align:left;border-bottom:1px solid var(--g2);white-space:nowrap;z-index:2}
+.tklh-m-tbl th.r{text-align:right}
+.tklh-m-tbl td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--g1);white-space:nowrap}
+.tklh-m-tbl td.r{text-align:right;font-family:var(--mono);font-size:11px}
+.tklh-m-tbl td.date{font-family:var(--mono);font-size:10px;color:var(--g4)}
+.tklh-m-tbl tr:hover{background:var(--g0)}
+
+/* Kỳ row */
+.tklh-m-tbl tr.row-ky{background:#eef2ff;font-weight:800}
+.tklh-m-tbl tr.row-ky td{font-size:13px;color:var(--blue);border-bottom:2px solid var(--g2);padding:10px}
+/* SP row */
+.tklh-m-tbl tr.row-sp{background:var(--white)}
+/* Highlight SP */
+.tklh-m-tbl tr.row-sp.hl{background:#fef9c3}
+.tklh-m-tbl tr.row-sp.hl td{color:#92400e;font-weight:600}
+
+/* Toggle */
+.tklh-m-tog{width:18px;height:18px;margin-right:3px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:none;background:none;cursor:pointer;color:var(--g4);vertical-align:middle;flex-shrink:0}
+.tklh-m-tog:hover{background:var(--g2)}
+.tklh-m-tog svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-linecap:round}
+
+@media(max-width:768px){
+  .tklh-modal{top:0;left:0;right:0;bottom:0;border-radius:0}
+  .tklh-m-tbl td{padding:6px 8px;font-size:11px}
+  .tklh-m-tbl th{padding:6px 8px;font-size:9px}
+}
+</style>
+
+<div class="tklh-overlay" id="tklhOverlay" onclick="closeTklhModal()"></div>
+<div class="tklh-modal" id="tklhModal">
+    <div class="tklh-m-head">
+        <div>
+            <div class="tklh-m-title" id="tklhMTitle">CHI TIẾT</div>
+            <div class="tklh-m-sub" id="tklhMSub"></div>
+        </div>
+        <button class="tklh-m-close" onclick="closeTklhModal()">✕</button>
+    </div>
+    <div class="tklh-m-toolbar" style="display:flex;align-items:center;gap:8px;padding:8px 18px;border-bottom:1px solid var(--g1);background:var(--g0);flex-shrink:0">
+        <div style="display:flex;border:1.5px solid var(--g2);border-radius:5px;overflow:hidden;height:26px">
+            <button class="tklh-m-pill active" data-g="ngay" onclick="setTklhGroup('ngay')" style="padding:0 10px;font-size:10px;font-weight:700;border:none;background:var(--blue);color:#fff;cursor:pointer;font-family:var(--sans);transition:.1s;white-space:nowrap">Chia ngày</button>
+            <button class="tklh-m-pill" data-g="gop" onclick="setTklhGroup('gop')" style="padding:0 10px;font-size:10px;font-weight:700;border:none;background:var(--white);color:var(--g4);cursor:pointer;font-family:var(--sans);transition:.1s;white-space:nowrap;border-left:1px solid var(--g2)">Tính gộp SP</button>
+        </div>
+    </div>
+    <div class="tklh-m-body" id="tklhMBody"></div>
+    <div class="tklh-m-total">
+        <span class="tklh-m-total-label" id="tklhMTotalLabel">Tổng</span>
+        <span class="tklh-m-total-val" id="tklhMTotalVal">—</span>
+    </div>
+</div>
+
+<script>
+var _tklhModalData=[];  // [{kbc, rows}]
+var _tklhModalExp={};   // expand state: ky_ID → true/false
+var _tklhHlMaVt='';     // ma_vt to highlight
+var _tklhMaKH='';
+var _tklhTenKH='';
+var _tklhGroup='ngay';  // 'ngay' | 'gop'
+
+function setTklhGroup(g){
+    _tklhGroup=g;
+    document.querySelectorAll('.tklh-m-pill').forEach(function(b){
+        var active=b.dataset.g===g;
+        b.classList.toggle('active',active);
+        b.style.background=active?'var(--blue)':'var(--white)';
+        b.style.color=active?'#fff':'var(--g4)';
+    });
+    renderTklhModal();
+}
+
+function closeTklhModal(){
+    document.getElementById('tklhOverlay').classList.remove('open');
+    document.getElementById('tklhModal').classList.remove('open');
+}
+
+/* ─── Open modal ─── */
+async function openTklhKHModal(maKH,tenKH,hlMaVt){
+    _tklhMaKH=maKH;_tklhTenKH=tenKH;_tklhHlMaVt=hlMaVt||'';
+    _tklhModalData=[];_tklhModalExp={};_tklhGroup='ngay';
+    document.querySelectorAll('.tklh-m-pill').forEach(function(b){
+        var active=b.dataset.g==='ngay';
+        b.classList.toggle('active',active);
+        b.style.background=active?'var(--blue)':'var(--white)';
+        b.style.color=active?'#fff':'var(--g4)';
+    });
+    document.getElementById('tklhMTitle').textContent='CHI TIẾT LẤY HÀNG — '+tenKH;
+    document.getElementById('tklhMSub').textContent=maKH;
+    document.getElementById('tklhMBody').innerHTML='<div class="tklh-m-loading">Đang tải…</div>';
+    document.getElementById('tklhMTotalVal').textContent='…';
+    document.getElementById('tklhOverlay').classList.add('open');
+    document.getElementById('tklhModal').classList.add('open');
+
+    // Lấy danh sách kỳ Tháng đang chọn, sort theo ngay_bd_xuat_ban
+    var months=kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id)})
+        .sort(function(a,b){return iso(a.ngay_bd_xuat_ban).localeCompare(iso(b.ngay_bd_xuat_ban))});
+
+    if(!months.length){
+        document.getElementById('tklhMBody').innerHTML='<div class="tklh-m-empty">Chưa chọn kỳ</div>';
+        document.getElementById('tklhMTotalVal').textContent='0';
+        return;
+    }
+
+    // Fetch data cho từng kỳ song song
+    var bp=selectedBP||(userBpList.length?userBpList.join(','):'');
+    var nvSet=selectedNV||allowedNV;
+    var nv=userNvkdList.length?[...nvSet].join(','):'';
+
+    try{
+        var results=await Promise.all(months.map(function(kbc){
+            return fetch(API_BASE+'/api/data_chitiet',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                    ngay_a:iso(kbc.ngay_bd_xuat_ban),
+                    ngay_b:iso(kbc.ngay_kt_xuat_ban),
+                    ma_bp:bp,ds_nvkd:nv,ds_kh:maKH
+                })
+            }).then(function(r){return r.json()}).then(function(j){
+                return{kbc:kbc,rows:j.success?j.data:[]};
+            });
+        }));
+        _tklhModalData=results;
+        // Default: expand tất cả kỳ
+        results.forEach(function(d){
+            _tklhModalExp['ky_'+d.kbc.id]=true;
+        });
+    }catch(e){
+        _tklhModalData=[];
+        toast(e.message,'err');
+    }
+    renderTklhModal();
+}
+
+/* ─── Toggle expand ─── */
+function togTklhM(key,e){
+    if(e){e.stopPropagation();e.preventDefault()}
+    _tklhModalExp[key]=_tklhModalExp[key]===false?true:!_tklhModalExp[key];
+    renderTklhModal();
+}
+
+/* ─── Render ─── */
+function renderTklhModal(){
+    var body=document.getElementById('tklhMBody');
+    if(!_tklhModalData.length){
+        body.innerHTML='<div class="tklh-m-empty">Không có dữ liệu</div>';
+        document.getElementById('tklhMTotalVal').textContent='0';
+        document.getElementById('tklhMTotalLabel').textContent='Tổng doanh số';
+        return;
+    }
+
+    var togE='<svg viewBox="0 0 9 9"><path d="M1.5 3L4.5 6.5L7.5 3"/></svg>';
+    var togC='<svg viewBox="0 0 9 9"><path d="M3 1.5L6.5 4.5L3 7.5"/></svg>';
+    var grandSL=0,grandDS=0,totalRows=0;
+
+    if(_tklhGroup==='gop'){
+        // ─── Tính gộp SP: Kỳ → group by ma_vt ───
+        var html='<table class="tklh-m-tbl"><thead><tr><th>Kỳ / Sản phẩm</th><th class="r">SL</th><th class="r">Doanh số</th></tr></thead><tbody>';
+
+        _tklhModalData.forEach(function(d){
+            var kbc=d.kbc,rows=d.rows;
+            var kyKey='ky_'+kbc.id,kyExp=_tklhModalExp[kyKey]!==false;
+
+            var kySL=0,kyDS=0;
+            rows.forEach(function(r){kySL+=(r.so_luong||0);kyDS+=(r.doanhso||0)});
+            grandSL+=kySL;grandDS+=kyDS;totalRows+=rows.length;
+
+            html+='<tr class="row-ky"><td><button class="tklh-m-tog" onclick="togTklhM(\''+kyKey+'\',event)">'+(kyExp?togE:togC)+'</button>'+esc(kbc.ten_kbc)+' <span style="font-size:10px;font-weight:500;color:var(--g4)">('+rows.length+' dòng)</span></td><td class="r" style="font-weight:800">'+fmtV(kySL)+'</td><td class="r" style="font-weight:800">'+fmtV(kyDS)+'</td></tr>';
+
+            if(!kyExp)return;
+
+            // Group by ma_vt
+            var byVt={};
+            rows.forEach(function(r){
+                var k=r.ma_vt||'_UNK';
+                if(!byVt[k])byVt[k]={ten_vt:r.ten_vt||k,sl:0,ds:0};
+                byVt[k].sl+=(r.so_luong||0);
+                byVt[k].ds+=(r.doanhso||0);
+            });
+            var sorted=Object.keys(byVt).sort(function(a,b){return(byVt[a].ten_vt).localeCompare(byVt[b].ten_vt)});
+            sorted.forEach(function(mv){
+                var g=byVt[mv];
+                var isHL=_tklhHlMaVt&&mv===_tklhHlMaVt;
+                html+='<tr class="row-sp'+(isHL?' hl':'')+'"><td style="padding-left:28px">'+esc(g.ten_vt)+'</td><td class="r">'+fmtV(g.sl)+'</td><td class="r">'+fmtV(g.ds)+'</td></tr>';
+            });
+        });
+
+        html+='</tbody></table>';
+        body.innerHTML=html;
+        var spCount=0;_tklhModalData.forEach(function(d){var s={};d.rows.forEach(function(r){s[r.ma_vt]=1});spCount+=Object.keys(s).length});
+        document.getElementById('tklhMTotalLabel').textContent='Tổng doanh số ('+spCount+' SP)';
+        document.getElementById('tklhMTotalVal').textContent=fmtV(grandDS);
+
+    }else{
+        // ─── Chia ngày: Kỳ → flat rows ngày | SP | SL | DS ───
+        var html='<table class="tklh-m-tbl"><thead><tr><th>Kỳ / Ngày</th><th>Sản phẩm</th><th class="r">SL</th><th class="r">Doanh số</th></tr></thead><tbody>';
+
+        _tklhModalData.forEach(function(d){
+            var kbc=d.kbc,rows=d.rows;
+            var kyKey='ky_'+kbc.id,kyExp=_tklhModalExp[kyKey]!==false;
+
+            var kySL=0,kyDS=0;
+            rows.forEach(function(r){kySL+=(r.so_luong||0);kyDS+=(r.doanhso||0)});
+            grandSL+=kySL;grandDS+=kyDS;totalRows+=rows.length;
+
+            html+='<tr class="row-ky"><td colspan="2"><button class="tklh-m-tog" onclick="togTklhM(\''+kyKey+'\',event)">'+(kyExp?togE:togC)+'</button>'+esc(kbc.ten_kbc)+' <span style="font-size:10px;font-weight:500;color:var(--g4)">('+rows.length+' dòng)</span></td><td class="r" style="font-weight:800">'+fmtV(kySL)+'</td><td class="r" style="font-weight:800">'+fmtV(kyDS)+'</td></tr>';
+
+            if(!kyExp)return;
+
+            var sorted=rows.slice().sort(function(a,b){
+                var da=a.ngay_ct||'',db=b.ngay_ct||'';
+                return String(da).localeCompare(String(db));
+            });
+            sorted.forEach(function(r){
+                var isHL=_tklhHlMaVt&&r.ma_vt===_tklhHlMaVt;
+                var dt=iso(r.ngay_ct)||'';
+                html+='<tr class="row-sp'+(isHL?' hl':'')+'"><td class="date" style="padding-left:28px">'+fmtD(dt)+'</td><td>'+esc(r.ten_vt||r.ma_vt||'')+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.doanhso||0)+'</td></tr>';
+            });
+        });
+
+        html+='</tbody></table>';
+        body.innerHTML=html;
+        document.getElementById('tklhMTotalLabel').textContent='Tổng doanh số ('+totalRows+' dòng)';
+        document.getElementById('tklhMTotalVal').textContent=fmtV(grandDS);
+    }
+}
+
+document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&document.getElementById('tklhModal').classList.contains('open'))closeTklhModal();
+});
+</script>

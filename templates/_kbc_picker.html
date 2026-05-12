@@ -82,6 +82,7 @@ var _kbcChecked=new Set();
 var _kbcCheckedSnapshot=new Set();  // snapshot khi mở picker
 
 function populateKBC(){
+    
     _kbcByParent={};_kbcMap={};
     var allIds={};
     kbcList.forEach(function(k){allIds[k.id]=true;_kbcMap[k.id]=k});
@@ -91,7 +92,7 @@ function populateKBC(){
         _kbcByParent[pid].push(k);
     });
     for(var pid in _kbcByParent){
-        _kbcByParent[pid].sort(function(a,b){return(a.sort_order||0)-(b.sort_order||0)});
+        _kbcByParent[pid].sort(function(a,b){return(a.sort_order||0)-(b.sort_order||0)||a.ten_kbc.localeCompare(b.ten_kbc)});
     }
     if(!currentKBC){
         var today=new Date().toISOString().substring(0,10);
@@ -106,11 +107,14 @@ function populateKBC(){
         if(!found){var m=kbcList.filter(function(k){return k.loai_kbc==='Tháng'});if(m.length)found=m[0]}
         if(found){_kbcChecked=new Set([found.id]);currentKBC=found}
     }
+    console.log('Children of 1017 (N2025):', _kbcByParent[1017]);
+    console.log('Children of 1005 (N2026):', _kbcByParent[1005]);
     _kbcChecked.forEach(function(id){
         var k=_kbcMap[id];
         if(k){var pid=k.parent_id;while(pid&&_kbcMap[pid]){kbcExp[pid]=true;pid=_kbcMap[pid].parent_id}}
     });
     updateKbcLabel();
+    
 }
 
 function updateKbcLabel(){
