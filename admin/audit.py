@@ -6,7 +6,7 @@ from auth import admin_required
 from admin import bp, _admin_bp_list, _can_manage_user
 
 try:
-    from config import DB_TYPE
+    from config2 import DB_TYPE
 except ImportError:
     DB_TYPE = 'sqlite'
 

@@ -1,7 +1,7 @@
 import sqlite3
 import hashlib
 from flask import g, request
-from config import DB_TYPE, SQLITE_PATH, SQLSERVER_CONFIG, DEFAULT_ADMIN_USER, DEFAULT_ADMIN_PASS
+from config2 import DB_TYPE, SQLITE_PATH, SQLSERVER_CONFIG, DEFAULT_ADMIN_USER, DEFAULT_ADMIN_PASS
 
 
 # ==============================================================

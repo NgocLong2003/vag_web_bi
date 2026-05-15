@@ -21,7 +21,7 @@ SP_TIMEOUT = 180
 
 
 def _get_conn():
-    from config import DATASOURCES
+    from config2 import DATASOURCES
     c = DATASOURCES.get('sanxuat')
     if not c:
         raise RuntimeError("DATASOURCES['sanxuat'] chưa cấu hình")

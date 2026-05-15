@@ -157,7 +157,7 @@ def user_delete(user_id):
 def bulk_create_users():
     import json
     try:
-        from config import SQLSERVER_CONFIG
+        from config2 import SQLSERVER_CONFIG
         import pyodbc
         c = SQLSERVER_CONFIG
         conn = pyodbc.connect(

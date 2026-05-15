@@ -17,7 +17,7 @@ bp.api_report = 'bao-cao-ban-ra'
 
 def _get_sqlserver():
     """Lấy SQL Server connection từ pyodbc."""
-    from config import SQLSERVER_CONFIG
+    from config2 import SQLSERVER_CONFIG
     import pyodbc
     c = SQLSERVER_CONFIG
     return pyodbc.connect(
@@ -63,7 +63,7 @@ def api_data():
         if not ngay_a or not ngay_b:
             return api_response(ok=False, error='Thiếu ngày', status_code=400)
 
-        conditions = ["ngay_ct >= ?", "ngay_ct <= ?", "ma_bp != 'TN'"]
+        conditions = ["ngay_ct >= ?", "ngay_ct <= ?"]
         params = [ngay_a, ngay_b]
 
         if ma_bp:

@@ -57,7 +57,7 @@ GROUP BY dt.ma_kh, dt.ma_bp, COALESCE(ds.ma_nvkd, dmkh.ma_nvkd)
 SELECT dt.ngay_ct, dt.ma_kh, dt.ma_kh_ct, dt.ma_bp, dt.ps_co
 INTO #TempDoanhThu_DT
 FROM [dbo].[PTHUBAOCO_VIEW] dt
-WHERE dt.tk_co = '131' AND dt.ma_bp != 'TN' 
+WHERE dt.tk_co = '131'
     AND (
         (dt.ngay_ct >= '2026-01-01' AND dt.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
         OR (dt.ngay_ct < '2026-01-01' AND dt.ma_ct = 'CA1')

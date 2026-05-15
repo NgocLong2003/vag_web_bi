@@ -8,7 +8,7 @@ from database import get_db, hash_password, sql_now
 from auth import admin_required
 
 try:
-    from config import DB_TYPE
+    from config2 import DB_TYPE
 except ImportError:
     DB_TYPE = 'sqlite'
 

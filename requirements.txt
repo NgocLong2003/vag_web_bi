@@ -4,3 +4,4 @@ openpyxl
 waitress
 duckdb
 pyarrow
+deltalake

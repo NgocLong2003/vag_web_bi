@@ -16,7 +16,7 @@ bp = Blueprint('bckpi', __name__,
 from query_loader import load_sql
 
 try:
-    from config import SQLSERVER_CONFIG
+    from config2 import SQLSERVER_CONFIG
 except ImportError:
     SQLSERVER_CONFIG = None
 
@@ -214,7 +214,7 @@ def api_data():
                     sql_bp = f"""
                         SELECT ma_bp, SUM(ps_co) as total
                         FROM PTHUBAOCO
-                        WHERE tk_co = '131' AND ma_bp != 'TN'
+                        WHERE tk_co = '131'
                           AND (
                             (ngay_ct >= '2026-01-01' AND tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
                             OR (ngay_ct < '2026-01-01' AND ma_ct = 'CA1')

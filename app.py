@@ -13,7 +13,7 @@ Cấu trúc thư mục data/:
 from waitress import serve
 from datetime import timedelta, datetime
 from flask import Flask, jsonify
-from config import SECRET_KEY, SESSION_TIMEOUT_MINUTES
+from config2 import SECRET_KEY, SESSION_TIMEOUT_MINUTES
 from database import init_db, close_db
 from duckdb_store import DuckDBStore
 import logging
@@ -41,22 +41,23 @@ app.teardown_appcontext(close_db)
 
 # ─── DuckDB Store (đọc Parquet, không sync) ───
 DATA_DIR = Path('data')
-CURRENT_DIR = DATA_DIR / 'current'
+CURRENT_DIR = DATA_DIR / 'silver'
 
 store = DuckDBStore(data_dir=str(CURRENT_DIR))
 
 # Load DuckDB lần đầu
-if any(CURRENT_DIR.glob('*.parquet')):
-    print('  Loading DuckDB từ Parquet...')
-    store.load()
+print('  Loading DuckDB...')
+store.load()
+if store.table_stats:
+    print(f'  ✓ {len(store.table_stats)} tables loaded ({store._mode} mode)')
 else:
-    print('  ⚠ Chưa có data Parquet. Chờ sync_worker chạy.')
+    print('  ⚠ Chưa có data. Chờ pipeline chạy.')
 
 app.config['DUCKDB_STORE'] = store
 
 # ─── [MỚI] Init DataSource registry ───
 try:
-    from config import DATASOURCES
+    from config2 import DATASOURCES
     from datasource import init_datasources
     init_datasources(DATASOURCES, duckdb_store=store)
     print('  ✓ DataSources initialized')
@@ -79,12 +80,15 @@ class ParquetWatcher:
         self._thread = None
 
     def _get_max_mtime(self):
-        """Lấy mtime lớn nhất của các file Parquet."""
         try:
-            files = list(self.data_dir.glob('*.parquet'))
-            if not files:
-                return 0
-            return max(f.stat().st_mtime for f in files)
+            mtimes = []
+            for d in self.data_dir.iterdir():
+                if d.is_dir() and (d / '_delta_log').exists():
+                    for f in (d / '_delta_log').iterdir():
+                        mtimes.append(f.stat().st_mtime)
+            for f in self.data_dir.glob('*.parquet'):
+                mtimes.append(f.stat().st_mtime)
+            return max(mtimes) if mtimes else 0
         except:
             return 0
 

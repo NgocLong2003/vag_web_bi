@@ -45,7 +45,7 @@ def main():
 
     # Load config
     try:
-        from config import SQLSERVER_CONFIG
+        from config2 import SQLSERVER_CONFIG
     except ImportError:
         logger.error("Không tìm thấy config.py hoặc SQLSERVER_CONFIG")
         sys.exit(1)

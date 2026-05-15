@@ -19,7 +19,6 @@ SELECT
 FROM [dbo].[BKHDBANHANG_VIEW]
 WHERE ngay_ct >= @NgayA
   AND ngay_ct <= @NgayB
-  AND ma_bp != 'TN'
   AND (@MaBP IS NULL OR ma_bp = @MaBP)
   AND (@DSMaKH = '' OR ma_kh IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH, ',')))
   AND (@DSMaNVKD = '' OR 

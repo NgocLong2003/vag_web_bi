@@ -9,6 +9,7 @@ WITH RECURSIVE NV_BASE AS (
                END AS ma_ql,
                ten_nvkd
         FROM DMNHANVIENKD
+        UNION ALL SELECT 'TN99','TN00','Khác'
         UNION ALL SELECT 'VB99','VB00','Khác'
         UNION ALL SELECT 'VA99','TVV01','Khác'
         UNION ALL SELECT 'SF99','PVT04','Khác'
