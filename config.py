@@ -27,7 +27,7 @@ SQLITE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.db'
 
 # database.py dùng (backward compat)
 SQLSERVER_CONFIG = {
-    'server': '192.168.4.17',
+    'server': '192.168.4.2',
     'port': '1433',
     'database': 'VietAnhBI',
     'username': 'sa',
@@ -55,7 +55,7 @@ DATASOURCES = {
 
     'source.asia': {
         'type': 'sqlserver',
-        'server': '192.168.4.17',
+        'server': '192.168.4.2',
         'port': '1433',
         'database': 'VietAnhBI',
         'username': 'sa',
@@ -106,7 +106,7 @@ DATASOURCES = {
 
     'app.database': {
         'type': 'sqlserver',
-        'server': '192.168.4.17',
+        'server': '192.168.4.2',
         'port': '1433',
         'database': 'VietAnhBI',
         'username': 'sa',
@@ -117,7 +117,7 @@ DATASOURCES = {
 
     'warehouse': {
         'type': 'sqlserver',
-        'server': '192.168.4.17',
+        'server': '192.168.4.2',
         'port': '1433',
         'database': 'VietAnhBI',
         'username': 'sa',

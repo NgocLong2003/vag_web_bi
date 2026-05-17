@@ -16,7 +16,7 @@ bp = Blueprint('bckpi', __name__,
 from query_loader import load_sql
 
 try:
-    from config2 import SQLSERVER_CONFIG
+    from config import SQLSERVER_CONFIG
 except ImportError:
     SQLSERVER_CONFIG = None
 

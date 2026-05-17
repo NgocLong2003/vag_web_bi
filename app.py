@@ -13,7 +13,7 @@ Cấu trúc thư mục data/:
 from waitress import serve
 from datetime import timedelta, datetime
 from flask import Flask, jsonify
-from config2 import SECRET_KEY, SESSION_TIMEOUT_MINUTES
+from config import SECRET_KEY, SESSION_TIMEOUT_MINUTES
 from database import init_db, close_db
 from duckdb_store import DuckDBStore
 import logging
@@ -57,7 +57,7 @@ app.config['DUCKDB_STORE'] = store
 
 # ─── [MỚI] Init DataSource registry ───
 try:
-    from config2 import DATASOURCES
+    from config import DATASOURCES
     from datasource import init_datasources
     init_datasources(DATASOURCES, duckdb_store=store)
     print('  ✓ DataSources initialized')

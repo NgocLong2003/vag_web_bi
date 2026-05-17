@@ -5,3 +5,5 @@ waitress
 duckdb
 pyarrow
 deltalake
+pandas
+requests

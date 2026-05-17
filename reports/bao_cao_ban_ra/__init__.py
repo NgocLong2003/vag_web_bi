@@ -17,7 +17,7 @@ bp.api_report = 'bao-cao-ban-ra'
 
 def _get_sqlserver():
     """Lấy SQL Server connection từ pyodbc."""
-    from config2 import SQLSERVER_CONFIG
+    from config import SQLSERVER_CONFIG
     import pyodbc
     c = SQLSERVER_CONFIG
     return pyodbc.connect(
