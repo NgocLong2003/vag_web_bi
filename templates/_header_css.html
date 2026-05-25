@@ -130,11 +130,8 @@
        MOBILE RESPONSIVE
        ============================================================ */
     @media (max-width: 768px) {
-        .vbi-topbar { height: 44px; padding: 0 10px; }
-
-        /* Hide desktop-only elements */
-        .vbi-fullscreen-btn { display: none; }
-        .vbi-topbar .user-info { display: none; }
+        .vbi-topbar { display: none !important; }
+        .vbi-mob-menu, .vbi-mob-menu-overlay { display: none !important; }
 
         /* Show hamburger */
         .vbi-hamburger { display: flex; }
@@ -166,15 +163,11 @@
 
     /* ============================================================
        PHONE LANDSCAPE — short viewport, wide screen
-       Detect: landscape + short height + no hover (touch device)
-       Typical phone landscape: 700-920px wide × 320-420px tall
        ============================================================ */
     @media (orientation: landscape) and (max-height: 500px) and (hover: none) {
-        .vbi-topbar { height: 34px; padding: 0 10px; }
+        .vbi-topbar { display: none !important; }
+        .vbi-mob-menu, .vbi-mob-menu-overlay { display: none !important; }
 
-        /* Hide desktop-only, show hamburger */
-        .vbi-fullscreen-btn { display: none; }
-        .vbi-topbar .user-info { display: none; }
         .vbi-hamburger { display: flex; width: 28px; height: 28px; }
         .vbi-hamburger svg { width: 15px; height: 15px; }
 

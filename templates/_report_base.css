@@ -185,7 +185,14 @@ tfoot td{height:38px;padding:0 var(--pad);background:var(--white);font-weight:60
    ═══════════════════════════════════════ */
 @media(max-width:768px){
   :root{--pad:8px;--row-h:36px;--topbar-h:48px}
-  .topbar{padding:0 10px}
+
+  /* App full height — no header offset on mobile */
+  .app{height:100vh;height:100dvh}
+  @supports(height:100dvh){.app{height:100dvh}}
+  .app.hybrid-scroll{height:100vh;height:100dvh}
+  @supports(height:100dvh){.app.hybrid-scroll{height:100dvh}}
+
+  .topbar{display:none!important}
   .topbar-right>*:not(.status-chip){display:none!important}
   .topbar-right .v-div{display:none!important}
   .brand-sub{display:none}.brand-name{font-size:13px}
@@ -223,7 +230,14 @@ tfoot td{height:38px;padding:0 var(--pad);background:var(--white);font-weight:60
    ═══════════════════════════════════════ */
 @media(orientation:landscape) and (max-height:500px) and (hover:none){
   :root{--topbar-h:32px;--row-h:26px;--pad:5px}
-  .topbar{height:32px;padding:0 6px}
+
+  /* App full height — no header offset on landscape phone */
+  .app{height:100vh;height:100dvh}
+  @supports(height:100dvh){.app{height:100dvh}}
+  .app.hybrid-scroll{height:100vh;height:100dvh}
+  @supports(height:100dvh){.app.hybrid-scroll{height:100dvh}}
+
+  .topbar{display:none!important}
   .brand-mark{width:20px;height:20px;border-radius:4px}.brand-mark svg{width:10px;height:10px}
   .brand-name{font-size:11px}.brand-sub{display:none}
   .topbar-right>*:not(.status-chip){display:none!important}.topbar-right .v-div{display:none!important}

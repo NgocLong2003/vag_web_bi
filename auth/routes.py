@@ -1,5 +1,6 @@
 import secrets
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, g
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, g, jsonify
+from database import get_db, hash_password, log_activity, sql_now, DB_TYPE
 from database import get_db, hash_password, log_activity, sql_now
 from auth import login_required
 
@@ -120,3 +121,57 @@ def api_me():
             ],
         }
     })
+
+@bp.route('/api/report-state/<report_slug>', methods=['GET'])
+@login_required
+def api_get_report_state(report_slug):
+    """Lấy trạng thái đã lưu của user cho 1 report."""
+    import json
+    user_id = session['user_id']
+    try:
+        db = get_db()
+        row = db.execute(
+            'SELECT state_json FROM user_report_state WHERE user_id = ? AND report_slug = ?',
+            (user_id, report_slug)
+        ).fetchone()
+        if row:
+            state = json.loads(row['state_json'])
+            return jsonify({'success': True, 'state': state})
+        else:
+            return jsonify({'success': True, 'state': None})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+ 
+ 
+@bp.route('/api/report-state/<report_slug>', methods=['POST'])
+@login_required
+def api_save_report_state(report_slug):
+    """Lưu trạng thái UI của user cho 1 report (UPSERT)."""
+    import json
+    user_id = session['user_id']
+    body = request.get_json(force=True)
+    state = body.get('state', {})
+    state_json = json.dumps(state, ensure_ascii=False)
+ 
+    try:
+        db = get_db()
+        if DB_TYPE == 'sqlserver':
+            db.execute('''
+                MERGE user_report_state AS target
+                USING (SELECT ? AS user_id, ? AS report_slug) AS source
+                ON target.user_id = source.user_id AND target.report_slug = source.report_slug
+                WHEN MATCHED THEN
+                    UPDATE SET state_json = ?, updated_at = GETDATE()
+                WHEN NOT MATCHED THEN
+                    INSERT (user_id, report_slug, state_json, updated_at)
+                    VALUES (?, ?, ?, GETDATE());
+            ''', (user_id, report_slug, state_json, user_id, report_slug, state_json))
+        else:
+            db.execute('''
+                INSERT OR REPLACE INTO user_report_state (user_id, report_slug, state_json, updated_at)
+                VALUES (?, ?, ?, datetime('now','localtime'))
+            ''', (user_id, report_slug, state_json))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})

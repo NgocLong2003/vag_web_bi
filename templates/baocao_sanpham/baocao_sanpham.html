@@ -76,6 +76,7 @@ tr.row-sp .nametxt{font-size:11px;color:var(--g5)}
 <div class="bottom-sheet" id="bottom-sheet"><div class="sheet-handle"></div><div class="sheet-title" id="sheet-title"></div><div class="sheet-body" id="sheet-body"></div></div>
 <div id="toasts"></div>
 
+{% include "baocao_sanpham/_vung_modal.html" %}
 {% include "_header_js.html" %}
 {% include "_sidebar_js.html" %}
 {% include "_report_utils.js" %}
@@ -131,7 +132,7 @@ async function init(){
         hierarchy.forEach(function(h){nvMap[h.ma_nvkd]={...h,children:[]};if(!(h.ma_nvkd in expState))expState[h.ma_nvkd]=true});
         hierarchy.forEach(function(h){if(h.ma_ql&&nvMap[h.ma_ql])nvMap[h.ma_ql].children.push(nvMap[h.ma_nvkd])});
         khMap={};khNames={};
-        if(rK.success)rK.data.forEach(function(k){if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
+        if(rK.success)rK.data.forEach(function(k){if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||'',ten_plkh1:k.ten_plkh1||''};khNames[k.ma_kh]=k.ten_kh}});
         computeAllowedNV();
         hierarchy.forEach(function(h){pickerExp[h.ma_nvkd]=(h.level===0)});
         var bps=getAllowedBP();
@@ -272,7 +273,8 @@ function renderAll(){
             var prices=distinctPrices(sp.rows);
             var v=spValues(s,prices);
             var indent='<span style="display:inline-block;width:'+indentLevel*16+'px"></span>';
-            html+='<tr class="row-sp"><td><div class="cell-name">'+indent+'<span class="tog-sp"></span><span class="nametxt">'+esc(sp.ten_vt)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(sp.ma_vt)+'</span></td>'+valCells(v,'')+'</tr>';
+            var _spMv=sp.ma_vt.replace(/'/g,"\\'"),_spTn=sp.ten_vt.replace(/'/g,"\\'");
+            html+='<tr class="row-sp"><td><div class="cell-name">'+indent+'<span class="tog-sp"></span><span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openVungModal(\''+_spMv+'\',\''+_spTn+'\')">'+esc(sp.ten_vt)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(sp.ma_vt)+'</span></td>'+valCells(v,'')+'</tr>';
             lastPayload.push({type:'sp',depth:0,name:sp.ten_vt,values:exportValues(v)});
         });
     }
