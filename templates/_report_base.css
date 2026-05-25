@@ -213,10 +213,10 @@ tfoot td{height:38px;padding:0 var(--pad);background:var(--white);font-weight:60
   tr.row-ds td:first-child{background:var(--white)}
   tr.row-dt td:first-child{background:#f0faf5}
 
-  /* Hide code column (scoped to #tbl to not affect modals) */
-  #tbl thead th:nth-child(2),
-  #tbl tbody td:nth-child(2),
-  #tbl tfoot td:nth-child(2){display:none}
+  /* Hide code column — last column (Mã) */
+  #tbl thead th:last-child,
+  #tbl tbody td:last-child,
+  #tbl tfoot td:last-child{display:none}
 
   .tree-seg{width:12px}
   tr.row-nv .nametxt{font-size:11.5px}tr.row-kh .nametxt{font-size:11px}
@@ -255,7 +255,7 @@ tfoot td{height:38px;padding:0 var(--pad);background:var(--white);font-weight:60
   tr.row-nv td:first-child{background:inherit}
   tr.row-nv.lv0 td:first-child{background:#d2dcf2}tr.row-nv.lv1 td:first-child{background:#dee6f6}tr.row-nv.lv2 td:first-child{background:#e6ecf8}
   tr.row-kh td:first-child{background:var(--white)}
-  #tbl thead th:nth-child(2),#tbl tbody td:nth-child(2),#tbl tfoot td:nth-child(2){display:none}
+  #tbl thead th:last-child,#tbl tbody td:last-child,#tbl tfoot td:last-child{display:none}
   .bottom-sheet{max-height:70vh;border-radius:12px 12px 0 0}
   .sheet-handle{margin:6px auto 4px}.sheet-title{font-size:13px;padding:3px 14px 8px}.sheet-body{padding:8px 14px 14px}
   tfoot td{height:28px}

@@ -9,7 +9,17 @@
 {% include "_report_base.css" %}
 {% include "_sidebar_css.html" %}
 <style>
-thead th:nth-child(2){text-align:left}
+thead th:last-child{text-align:center!important}
+/* Grid nhẹ cho bảng */
+#tbl{width:max-content;min-width:0}
+@media(max-width:768px){
+  #tbl{width:100%!important}
+}
+#tbl td,#tbl th{border-right:1px solid var(--g1);border-bottom:1px solid var(--g1)}
+#tbl td:last-child,#tbl th:last-child{border-right:none}
+/* Left border màu cho Doanh số và SL */
+#tbl td:nth-child(2),#tbl th:nth-child(2){border-left:3px solid var(--blue)}
+#tbl td:nth-child(3),#tbl th:nth-child(3){border-left:3px solid var(--emr,#056944)}
 .app,.app.hybrid-scroll{height:100vh}
 @supports(height:100dvh){.app,.app.hybrid-scroll{height:100dvh}}
 tr.row-kh{background:#fff8e1;border-bottom:1px solid #f0e6b8}tr.row-kh:hover{background:#fff3cd!important}
@@ -31,6 +41,10 @@ tr.row-dong:hover{background:var(--g0)!important}
 tr.row-dong td:first-child{background:var(--white)}
 tr.row-dong:hover td:first-child{background:var(--g0)}
 tr.row-dong .nametxt{font-size:12px;font-weight:700;color:var(--g6)}
+.toolbar-slim{overflow:visible!important}
+@media(max-width:768px){
+  .toolbar-slim .toolbar-title{font-size:15px!important;font-weight:800!important;display:block!important}
+}
 </style>
 </head>
 <body>
@@ -42,18 +56,26 @@ tr.row-dong .nametxt{font-size:12px;font-weight:700;color:var(--g6)}
   <div class="v-div"></div>
   <span class="toolbar-title">{{ dashboard_name }}</span>
   <div class="v-div"></div>
-  <div class="mode-pills" id="mode-pills">
-    <button class="mode-pill" data-m="thuonghieu" onclick="setViewMode('thuonghieu')">Thương hiệu</button>
-    <button class="mode-pill" data-m="giamdoc" onclick="setViewMode('giamdoc')">Giám đốc</button>
-    <button class="mode-pill" data-m="ql1" onclick="setViewMode('ql1')">QL cấp 1</button>
-    <button class="mode-pill" data-m="ql2" onclick="setViewMode('ql2')">QL cấp 2</button>
-    <button class="mode-pill" data-m="nhanvien" onclick="setViewMode('nhanvien')">Nhân viên</button>
-    <button class="mode-pill active" data-m="khachhang" onclick="setViewMode('khachhang')">Khách hàng</button>
-  </div>
+  <span class="bp-label">Cấp:</span><select class="bp-select" id="mode-select" onchange="setViewMode(this.value)">
+    <option value="thuonghieu">Thương hiệu</option>
+    <option value="giamdoc">Giám đốc</option>
+    <option value="ql1">QL cấp 1</option>
+    <option value="ql2">QL cấp 2</option>
+    <option value="nhanvien">Nhân viên</option>
+    <option value="khachhang" selected>Khách hàng</option>
+  </select>
+  <span class="bp-label">Hiện:</span><select class="bp-select" id="sp-display" onchange="setSpDisplay(this.value)">
+    <option value="both" selected>Cả 2</option>
+    <option value="dong">Dòng SP</option>
+    <option value="sp">Sản phẩm</option>
+  </select>
+  <div class="v-div"></div>
   <div class="v-div"></div>
   <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NV</span><span class="picker-badge all" id="picker-badge">—</span></button></div>
-  <div class="kh-search-wrap" id="kh-wrap"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="kh-q" placeholder="Tìm KH..." oninput="onKHInput(this.value)" autocomplete="off"/><button class="kh-clear" id="kh-clear" onclick="clearKH()" style="display:none">✕</button><div class="kh-suggest" id="kh-suggest"></div></div>
+  <div class="kh-search-wrap" id="kh-wrap"><button class="kh-picker-trigger" id="kh-picker-trigger" onclick="toggleKHPicker()"><svg class="ico-kh" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="kh-picker-label">KH</span><span class="kh-picker-badge all" id="kh-picker-badge">—</span></button></div>
   <span id="kh-chip-area"></span>
+  <!-- SP Picker trigger — cùng class picker-trigger / picker-badge giống NV picker -->
+  <div class="picker-wrap" id="sp-picker-wrap"><button class="picker-trigger" id="sp-picker-trigger" onclick="toggleSPPicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="sp-picker-label">Tất cả SP</span><span class="picker-badge all" id="sp-picker-badge">Tất cả</span></button></div>
   <span class="bp-label">BP:</span><select class="bp-select" id="bp-select" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select>
   <div class="kbc-wrap">
     <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()"><svg viewBox="0 0 16 16" stroke-width="1.8"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="10" x2="9" y2="10"/></svg><span class="kbc-lbl" id="kbc-lbl">Đang tải...</span></div>
@@ -103,20 +125,25 @@ let kbcList=[];
 let rawData=[];
 let viewMode='khachhang';
 let lastPayload=[];
-let dsSort=0; // 0=mặc định, 1=giảm dần, -1=tăng dần
-var _dsRank=0; // counter thứ tự hiện tại
-/* Cột hiển thị: SL, Đơn giá, Thành tiền, CK, Thuế, Doanh số
-   Đơn giá (index 1) KHÔNG được aggregate — chỉ hiện ở cấp SP */
-const COL_HEADERS=['SL','Đơn giá','Thành tiền','CK','Thuế','Doanh số'];
-/* Các field được SUM bình thường (không có gia_nt2) */
-const SUM_FIELDS=['so_luong','tien_nt2','tien_ck_nt','thue_gtgt_nt','doanhso'];
-/* Thứ tự output: so_luong, gia_nt2(special), tien_nt2, tien_ck_nt, thue_gtgt_nt, doanhso */
+let dsSort=0;
+var _dsRank=0;
+let spDisplay='both';
+var spPickerOpen=false;
+/* ── SP picker: null = tất cả (không filter) — giống selectedNV ── */
+var selectedDongSP=null;
+var selectedSP=null;
+/* pending chỉ dùng khi picker đang mở */
+var pendingDongSP=new Set(), pendingSP=new Set();
+var spPickerExp={};
+
+const COL_HEADERS=['Doanh số','SL','Đơn giá','Thành tiền','CK + Thuế'];
+const SUM_FIELDS=['doanhso','so_luong','tien_nt2','tien_ck_nt','thue_gtgt_nt'];
 
 const MODE_MAX_LEVEL={thuonghieu:1,giamdoc:2,ql1:3,ql2:4,nhanvien:999,khachhang:999};
 function getMaxLevel(){return MODE_MAX_LEVEL[viewMode]||999}
 function showKHMode(){return viewMode==='khachhang'}
 
-function pickerHasKH(nd){return rawData.some(function(r){return r.ma_nvkd===nd.ma_nvkd})}
+function pickerHasKH(nd){return !!_rowsByNV[nd.ma_nvkd]}
 function pickerDataLoaded(){return rawData.length>0}
 function onPickerApply(){renderAll()}
 function onKHSelected(mk,name){if(currentKBC)loadAllData()}
@@ -124,9 +151,92 @@ function onKHCleared(){if(currentKBC)loadAllData()}
 </script>
 
 {% include "_nv_picker.html" %}
+
+<!-- SP Picker panel — reuse .picker-panel / .picker-head / .picker-tree / .picker-foot từ _nv_picker.html -->
+<div class="picker-panel" id="sp-picker-panel">
+  <div class="picker-head">
+    <div class="picker-search-row">
+      <svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+      <input type="text" id="sp-picker-q" placeholder="Tìm dòng SP / SP..." oninput="renderSPPickerTree()" style="width:100%;height:30px;padding:0 8px 0 27px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;outline:none"/>
+    </div>
+    <div class="picker-actions">
+      <button class="picker-act-btn" onclick="spPickerSelectAll()">Chọn tất cả</button>
+      <button class="picker-act-btn" onclick="spPickerClearAll()">Bỏ chọn</button>
+    </div>
+  </div>
+  <div class="picker-tree" id="sp-picker-tree"></div>
+  <div class="picker-foot">
+    <button class="picker-close" onclick="closeSPPicker()">Đóng</button>
+    <button class="picker-apply" onclick="applySPPicker()">Áp dụng</button>
+  </div>
+</div>
+
 {% include "_kbc_picker.html" %}
 
 <script>
+/* ═══════════════════════════════════════════════════
+   PERFORMANCE: Pre-index rawData by ma_nvkd
+   Xây 1 lần khi renderAll(), dùng cho tất cả lookup.
+   ═══════════════════════════════════════════════════ */
+var _rowsByNV={};   /* ma_nvkd → [rows...] (đã filter theo selectedSP) */
+
+function _buildRowIndex(){
+    _rowsByNV={};
+    for(var i=0,len=rawData.length;i<len;i++){
+        var r=rawData[i];
+        if(selectedSP!==null&&!selectedSP.has(r.ma_vt))continue;
+        var k=r.ma_nvkd;
+        if(!_rowsByNV[k])_rowsByNV[k]=[];
+        _rowsByNV[k].push(r);
+    }
+}
+
+/* ═══════════════════════════════════════════════════
+   PERFORMANCE: nvTotal cache — build bottom-up 1 lần
+   ═══════════════════════════════════════════════════ */
+var _nvTotalCache={};
+
+function _buildNvTotalCache(){
+    _nvTotalCache={};
+    /* Duyệt từ level cao nhất (leaf) → level thấp nhất (root) */
+    var sorted=hierarchy.slice().sort(function(a,b){return b.level-a.level});
+    for(var i=0,len=sorted.length;i<len;i++){
+        var h=sorted[i];
+        var nd=nvMap[h.ma_nvkd];
+        if(!nd)continue;
+        var sel=selectedNV===null||selectedNV.has(nd.ma_nvkd);
+        var s={};for(var fi=0;fi<SUM_FIELDS.length;fi++)s[SUM_FIELDS[fi]]=0;
+        var has=false;
+        /* Own rows — tra index O(1) */
+        if(sel&&allowedNV.has(nd.ma_nvkd)){
+            var own=_rowsByNV[nd.ma_nvkd];
+            if(own){
+                for(var ri=0;ri<own.length;ri++){
+                    var r=own[ri];
+                    for(var fi2=0;fi2<SUM_FIELDS.length;fi2++)s[SUM_FIELDS[fi2]]+=(r[SUM_FIELDS[fi2]]||0);
+                    has=true;
+                }
+            }
+        }
+        /* Children — tra cache O(1) */
+        var ch=nd.children;
+        for(var ci=0;ci<ch.length;ci++){
+            var ct=_nvTotalCache[ch[ci].ma_nvkd];
+            if(ct&&ct.has){
+                for(var fi3=0;fi3<SUM_FIELDS.length;fi3++)s[SUM_FIELDS[fi3]]+=ct.s[SUM_FIELDS[fi3]];
+                has=true;
+            }
+        }
+        _nvTotalCache[nd.ma_nvkd]={s:s,has:has};
+    }
+}
+
+function nvTotal(nd){return _nvTotalCache[nd.ma_nvkd]||{s:{},has:false}}
+function hasData(nd){
+    if(!allowedNV.has(nd.ma_nvkd))return false;
+    var c=_nvTotalCache[nd.ma_nvkd];
+    return c?c.has:false;
+}
 
 async function init(){
     setS('busy','Tải...');showLoading('Đang tải dữ liệu…');
@@ -151,6 +261,7 @@ async function init(){
         kbcList=rKBC.success?rKBC.data:[];populateKBC();
         setS('ok',hierarchy.length+' NV');toast(allowedNV.size+' NV');
         updatePickerBadge();
+        updateSPPickerBadge();
         if(currentKBC)loadAllData();
         else{hideLoading();document.getElementById('empty').style.display='flex';document.getElementById('emptyMsg').textContent='Chưa có kỳ báo cáo phù hợp';}
     }catch(e){hideLoading();setS('err','Lỗi');document.getElementById('emptyMsg').textContent='⚠ '+e.message;toast(e.message,'err')}
@@ -158,7 +269,8 @@ async function init(){
 
 function onKBCSelected(){if(currentKBC)loadAllData()}
 function onBPChange(v){selectedBP=v;renderPickerTree();if(currentKBC)loadAllData()}
-function setViewMode(m){viewMode=m;document.querySelectorAll('#mode-pills .mode-pill').forEach(function(b){b.classList.toggle('active',b.dataset.m===m)});renderAll()}
+function setViewMode(m){viewMode=m;document.getElementById('mode-select').value=m;renderAll()}
+function setSpDisplay(v){spDisplay=v;renderAll()}
 
 async function loadAllData(){
     if(!currentKBC)return;var k=currentKBC;
@@ -178,46 +290,33 @@ async function loadAllData(){
 }
 
 /* ─── Aggregate helpers ─── */
-/* Sum only SUM_FIELDS (excludes gia_nt2) */
 function sumFields(rows){
     var s={};SUM_FIELDS.forEach(function(f){s[f]=0});
     rows.forEach(function(r){SUM_FIELDS.forEach(function(f){s[f]+=(r[f]||0)})});
     return s;
 }
 function addAgg(a,b){SUM_FIELDS.forEach(function(f){a[f]=(a[f]||0)+(b[f]||0)})}
-
-/* Get distinct prices from rows, sorted */
 function distinctPrices(rows){
     var set={};
     rows.forEach(function(r){if(r.gia_nt2!=null&&r.gia_nt2!==0)set[r.gia_nt2]=true});
     return Object.keys(set).map(Number).sort(function(a,b){return a-b});
 }
-
-/* Build 6-element array for SP row: [SL, đơn giá string, thành tiền, CK, thuế, doanh số] */
 function spValues(s,prices){
-    return [s.so_luong, prices, s.tien_nt2, s.tien_ck_nt, s.thue_gtgt_nt, s.doanhso];
+    return [s.doanhso, s.so_luong, prices, s.tien_nt2, (s.tien_ck_nt||0)+(s.thue_gtgt_nt||0)];
 }
-
-/* Build 6-element array for aggregate row (NV/KH/total): đơn giá = null */
 function aggValues(s){
-    return [s.so_luong, null, s.tien_nt2, s.tien_ck_nt, s.thue_gtgt_nt, s.doanhso];
+    return [s.doanhso, s.so_luong, null, s.tien_nt2, (s.tien_ck_nt||0)+(s.thue_gtgt_nt||0)];
 }
-
-/* Render a single value cell. val can be: number, null, or array of prices */
 function renderCell(val,cls){
     if(val===null||val===undefined) return '<td style="text-align:right"></td>';
     if(Array.isArray(val)){
-        /* Array of prices */
         if(val.length===0) return '<td style="text-align:right"></td>';
         if(val.length===1) return '<td style="text-align:right">'+numH(val[0],cls)+'</td>';
         return '<td style="text-align:right"><span class="multi-price">'+val.map(function(v){return fmtV(v)}).join(', ')+'</span></td>';
     }
     return '<td style="text-align:right">'+numH(val,cls)+'</td>';
 }
-
 function valCells(vals,cls){return vals.map(function(v){return renderCell(v,cls)}).join('')}
-
-/* Export: flatten prices array to comma string */
 function exportValues(vals){
     return vals.map(function(v){
         if(Array.isArray(v)) return v.length?v.map(function(p){return fmtV(p)}).join(', '):'';
@@ -225,30 +324,18 @@ function exportValues(vals){
     });
 }
 
+/* collectRows dùng _rowsByNV index thay vì scan rawData */
 function collectRows(nd){
     var rows=[];
     var sel=selectedNV===null||selectedNV.has(nd.ma_nvkd);
     if(sel&&allowedNV.has(nd.ma_nvkd)){
-        rawData.forEach(function(r){if(r.ma_nvkd===nd.ma_nvkd)rows.push(r)});
+        var own=_rowsByNV[nd.ma_nvkd];
+        if(own)rows=rows.concat(own);
     }
     nd.children.forEach(function(c){rows=rows.concat(collectRows(c))});
     return rows;
 }
 
-function nvTotal(nd){
-    var sel=selectedNV===null||selectedNV.has(nd.ma_nvkd);
-    var s={};SUM_FIELDS.forEach(function(f){s[f]=0});var has=false;
-    if(sel&&allowedNV.has(nd.ma_nvkd)){rawData.forEach(function(r){if(r.ma_nvkd===nd.ma_nvkd){SUM_FIELDS.forEach(function(f){s[f]+=(r[f]||0)});has=true}})}
-    nd.children.forEach(function(c){var ct=nvTotal(c);if(ct.has){addAgg(s,ct.s);has=true}});
-    return{s:s,has:has};
-}
-
-function hasData(nd){
-    if(!allowedNV.has(nd.ma_nvkd))return false;
-    var sel=selectedNV===null||selectedNV.has(nd.ma_nvkd);
-    if(sel&&rawData.some(function(r){return r.ma_nvkd===nd.ma_nvkd}))return true;
-    return nd.children.some(function(c){return hasData(c)});
-}
 function dsSortCmp(a,b){
     if(!dsSort)return 0;
     var va=a.doanhso||0,vb=b.doanhso||0;
@@ -260,27 +347,203 @@ function dsSortNV(a,b){
     return dsSort===1?(vb-va):(va-vb);
 }
 
+/* ═══════════════════════════════════════════════════
+   SP PICKER — theo đúng pattern NV picker
+   
+   selectedSP = null → tất cả (không filter) — DEFAULT
+   selectedSP = Set([...]) → chỉ hiện các ma_vt trong set
+   
+   Khi mở picker:
+     selectedSP===null → pendingSP = new Set() (rỗng, giống NV)
+     selectedSP=Set → pendingSP = copy
+   
+   Khi apply:
+     pendingSP.size===0 → selectedSP=null (tất cả)
+     pendingSP.size===allSPs.size → selectedSP=null (tất cả)
+     else → selectedSP=new Set(pendingSP)
+   ═══════════════════════════════════════════════════ */
+function buildSPTree(){
+    var tree={};
+    rawData.forEach(function(r){
+        var dong=r.ten_thuoc||'(Chưa phân loại)';
+        var mv=r.ma_vt||'_UNK';
+        if(!tree[dong])tree[dong]={sps:{}};
+        if(!tree[dong].sps[mv])tree[dong].sps[mv]={ten_vt:r.ten_vt||mv};
+    });
+    return tree;
+}
+
+function _spGetAllMaVt(){
+    var all=new Set();
+    rawData.forEach(function(r){if(r.ma_vt)all.add(r.ma_vt)});
+    return all;
+}
+
+function _spGetAllDescendants(dong,tree){
+    if(!tree[dong])return[];
+    return Object.keys(tree[dong].sps);
+}
+
+function getSPCheckState(dong,tree){
+    var sps=Object.keys(tree[dong].sps);
+    var checked=sps.filter(function(mv){return pendingSP.has(mv)}).length;
+    return checked===0?'none':checked===sps.length?'checked':'indeterm';
+}
+
+function spPickerToggle(dong){
+    var tree=buildSPTree();
+    var sps=_spGetAllDescendants(dong,tree);
+    var st=getSPCheckState(dong,tree);
+    if(st==='none'){
+        pendingDongSP.add(dong);
+        sps.forEach(function(mv){pendingSP.add(mv)});
+    }else{
+        pendingDongSP.delete(dong);
+        sps.forEach(function(mv){pendingSP.delete(mv)});
+    }
+    renderSPPickerTree();
+}
+
+function spPickerToggleSP(mv,dong){
+    if(pendingSP.has(mv))pendingSP.delete(mv);else pendingSP.add(mv);
+    /* Cập nhật parent dong check state */
+    var tree=buildSPTree();
+    if(tree[dong]){
+        var sps=Object.keys(tree[dong].sps);
+        if(sps.every(function(m){return pendingSP.has(m)}))pendingDongSP.add(dong);
+        else pendingDongSP.delete(dong);
+    }
+    renderSPPickerTree();
+}
+
+function spPickerSelectAll(){
+    var tree=buildSPTree();
+    Object.keys(tree).forEach(function(dong){
+        pendingDongSP.add(dong);
+        Object.keys(tree[dong].sps).forEach(function(mv){pendingSP.add(mv)});
+    });
+    renderSPPickerTree();
+}
+
+function spPickerClearAll(){
+    pendingDongSP=new Set();pendingSP=new Set();
+    renderSPPickerTree();
+}
+
+/* Badge — phản ánh selectedSP (applied state), giống updatePickerBadge */
+function updateSPPickerBadge(){
+    var b=document.getElementById('sp-picker-badge'),l=document.getElementById('sp-picker-label');
+    if(!b||!l)return;
+    if(selectedSP===null){
+        b.textContent='Tất cả';b.className='picker-badge all';l.textContent='Tất cả SP';
+    }else{
+        var c=selectedSP.size;
+        b.textContent=c;b.className='picker-badge'+(c===0?' all':'');
+        l.textContent=c===0?'Chưa chọn':c+' SP';
+    }
+}
+
+function renderSPPickerTree(){
+    var q=(document.getElementById('sp-picker-q')?document.getElementById('sp-picker-q').value:'').toLowerCase().trim();
+    var tree=buildSPTree();var html='';
+    Object.keys(tree).sort().forEach(function(dong){
+        var sps=tree[dong].sps;
+        var spKeys=Object.keys(sps).sort(function(a,b){return(sps[a].ten_vt||a).localeCompare(sps[b].ten_vt||b)});
+        var matchDong=!q||(dong.toLowerCase().indexOf(q)>=0);
+        var matchSPs=spKeys.filter(function(mv){return!q||(sps[mv].ten_vt||'').toLowerCase().indexOf(q)>=0||mv.toLowerCase().indexOf(q)>=0});
+        if(!matchDong&&!matchSPs.length)return;
+        var isE=spPickerExp[dong]!==false||!!q;
+        var dongSt=getSPCheckState(dong,tree);
+        var _dEsc=dong.replace(/'/g,"\\'");
+        /* Dòng SP = parent node, giống NV parent trong NV picker */
+        var hasKids=spKeys.length>0;
+        var tog=hasKids?'<span class="pi-tog" onclick="event.stopPropagation();spPickerExp[\''+_dEsc+'\']=!(spPickerExp[\''+_dEsc+'\']!==false);renderSPPickerTree()"><svg viewBox="0 0 8 8">'+(isE?'<path d="M1 2.5L4 5.5L7 2.5"/>':'<path d="M2.5 1L5.5 4L2.5 7"/>')+'</svg></span>':'<span class="pi-tog-sp"></span>';
+        html+='<div class="pi '+dongSt+'" onclick="spPickerToggle(\''+_dEsc+'\')" style="padding-left:8px"><span class="pi-cb"></span>'+tog+'<span class="pi-name lv0">'+esc(dong)+'</span><span style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--g3)">'+spKeys.length+'</span></div>';
+        if(isE){(matchDong?spKeys:matchSPs).forEach(function(mv){
+            var sp=sps[mv];var spChecked=pendingSP.has(mv)?'checked':'none';var _mvEsc=mv.replace(/'/g,"\\'");
+            html+='<div class="pi '+spChecked+'" onclick="spPickerToggleSP(\''+_mvEsc+'\',\''+_dEsc+'\')" style="padding-left:34px"><span class="pi-cb"></span><span class="pi-tog-sp"></span><span class="pi-name">'+esc(sp.ten_vt)+'</span><span style="margin-left:5px;font-family:var(--mono);font-size:10px;color:var(--g3)">'+esc(mv)+'</span></div>';
+        })}
+    });
+    document.getElementById('sp-picker-tree').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">Không tìm thấy</div>';
+}
+
+function toggleSPPicker(){spPickerOpen?closeSPPicker():openSPPicker()}
+
+function openSPPicker(){
+    spPickerOpen=true;
+    /* Giống NV picker openPicker():
+       selectedSP===null → pendingSP = rỗng (chưa chọn gì)
+       selectedSP=Set → pendingSP = copy */
+    if(selectedSP===null){
+        pendingSP=new Set();
+        pendingDongSP=new Set();
+    }else{
+        pendingSP=new Set(selectedSP);
+        pendingDongSP=new Set(selectedDongSP||[]);
+    }
+    var p=document.getElementById('sp-picker-panel'),tr=document.getElementById('sp-picker-trigger');
+    if(typeof isLandscapePhone==='function'&&isLandscapePhone()){
+        p.style.position='fixed';p.style.top='0';p.style.left='0';p.style.right='auto';p.style.bottom='0';
+        p.style.width='300px';p.style.borderRadius='0 10px 10px 0';p.style.maxHeight='100vh';
+    }else if(typeof isMobile==='function'&&isMobile()){
+        p.style.position='fixed';p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';
+        p.style.width='100%';p.style.borderRadius='16px 16px 0 0';p.style.maxHeight='80vh';
+    }else{
+        p.style.position='fixed';var r=tr.getBoundingClientRect();
+        p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-310)+'px';
+        p.style.bottom='auto';p.style.right='auto';p.style.width='300px';p.style.borderRadius='10px';p.style.maxHeight='';
+    }
+    p.classList.add('open');tr.classList.add('open');
+    document.getElementById('sp-picker-q').value='';renderSPPickerTree();
+}
+
+function closeSPPicker(){
+    spPickerOpen=false;
+    document.getElementById('sp-picker-panel').classList.remove('open');
+    document.getElementById('sp-picker-trigger').classList.remove('open');
+}
+
+function applySPPicker(){
+    var allSPs=_spGetAllMaVt();
+    /* Giống NV picker applyPicker():
+       pending rỗng OR pending = tất cả → null (không filter)
+       else → Set(pending) */
+    if(pendingSP.size===0||pendingSP.size===allSPs.size){
+        selectedSP=null;selectedDongSP=null;
+    }else{
+        selectedSP=new Set(pendingSP);selectedDongSP=new Set(pendingDongSP);
+    }
+    closeSPPicker();updateSPPickerBadge();renderAll();
+}
+
+document.addEventListener('mousedown',function(e){
+    if(spPickerOpen&&!document.getElementById('sp-picker-wrap').contains(e.target)&&!document.getElementById('sp-picker-panel').contains(e.target))closeSPPicker();
+});
 
 /* ─── Render ─── */
 function renderAll(){
     if(!hierarchy.length||!currentKBC)return;
+
+    /* ── PERF: build index + cache 1 lần ── */
+    _buildRowIndex();
+    _buildNvTotalCache();
+
     lastPayload=[];
     var maxLv=getMaxLevel();
 
     var th='<th style="text-align:left;min-width:220px">NV / Chi tiết<div class="col-grip" onmousedown="startResize(event,this)" ontouchstart="startResizeTouch(event,this)"></div></th>';
-    th+='<th style="text-align:left;min-width:60px;width:70px">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
     COL_HEADERS.forEach(function(c,i){
         var cls=i===COL_HEADERS.length-1?'col-ds':'';
-        if(i===COL_HEADERS.length-1){
+        if(i===0){
             var arrow=dsSort===1?'▼':dsSort===-1?'▲':'⇅';
             var abg=dsSort?'background:var(--blue);color:#fff':'background:var(--g1);color:var(--g4)';
-            th+='<th class="'+cls+'" style="min-width:100px"><div class="th-main">'+c+' <button onclick="toggleDsSort()" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;border:none;cursor:pointer;font-size:10px;vertical-align:middle;margin-left:3px;'+abg+'" title="'+(dsSort===1?'Giảm dần → Tăng dần':dsSort===-1?'Tăng dần → Bỏ sắp xếp':'Sắp xếp theo Doanh số')+'">'+arrow+'</button></div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+            th+='<th class="col-ds" style="min-width:100px"><div class="th-main">'+c+' <button onclick="toggleDsSort()" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;border:none;cursor:pointer;font-size:10px;vertical-align:middle;margin-left:3px;'+abg+'" title="'+(dsSort===1?'Giảm dần → Tăng dần':dsSort===-1?'Tăng dần → Bỏ sắp xếp':'Sắp xếp theo Doanh số')+'">'+arrow+'</button></div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
         }else{
             th+='<th class="'+cls+'" style="min-width:100px"><div class="th-main">'+c+'</div><div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
         }
     });
+    th+='<th style="text-align:left;min-width:60px;width:70px">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
     document.getElementById('theadRow').innerHTML=th;
-
     var treeRoots;
     if(userNvkdList.length)treeRoots=userNvkdList.filter(function(id){return nvMap[id]}).map(function(id){return nvMap[id]}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
     else treeRoots=hierarchy.filter(function(h){return !h.ma_ql||!nvMap[h.ma_ql]}).map(function(h){return nvMap[h.ma_nvkd]}).sort(function(a,b){return a.stt_nhom.localeCompare(b.stt_nhom)});
@@ -301,42 +564,43 @@ function renderAll(){
             var indent='<span style="display:inline-block;width:'+indentLevel*16+'px"></span>';
             var _spMv=sp.ma_vt.replace(/'/g,"\\'"),_spTn=sp.ten_vt.replace(/'/g,"\\'");
             var spRank='';if(dsSort){_dsRank++;spRank='<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--g3);color:#fff;font-size:9px;font-weight:800;margin-right:4px;flex-shrink:0">'+_dsRank+'</span>'}
-            html+='<tr class="row-sp"><td><div class="cell-name">'+indent+'<span class="tog-sp"></span>'+spRank+'<span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openVungModal(\''+_spMv+'\',\''+_spTn+'\')">'+esc(sp.ten_vt)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(sp.ma_vt)+'</span></td>'+valCells(v,'')+'</tr>';
+            html+='<tr class="row-sp"><td><div class="cell-name">'+indent+'<span class="tog-sp"></span>'+spRank+'<span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openVungModal(\''+_spMv+'\',\''+_spTn+'\')">'+esc(sp.ten_vt)+'</span></div></td>'+valCells(v,'')+'<td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(sp.ma_vt)+'</span></td></tr>';
             lastPayload.push({type:'sp',depth:0,name:sp.ten_vt,values:exportValues(v)});
         });
     }
     function renderDongSPRows(rows,indentLevel){
-    var byDong={};
-    rows.forEach(function(r){
-        var dong=r.ten_thuoc||'(Chưa phân loại)';
-        if(!byDong[dong])byDong[dong]={ten_thuoc:dong,rows:[]};
-        byDong[dong].rows.push(r);
-    });
-    var dongs=Object.values(byDong);
-    if(dongs.length<=1){
-        renderSPRows(rows,indentLevel);return;
-    }
-    dongs.sort(function(a,b){
-        if(dsSort){var va=sumFields(a.rows).doanhso||0,vb=sumFields(b.rows).doanhso||0;return dsSort===1?(vb-va):(va-vb)}
-        return a.ten_thuoc.localeCompare(b.ten_thuoc);
-    });
-    dongs.forEach(function(dong){
-        var ds=sumFields(dong.rows),dv=aggValues(ds);
-        var dongKey='dong_all_'+dong.ten_thuoc.replace(/[^a-zA-Z0-9]/g,'_');
-        var dongExp=expState[dongKey]!==false;
-        var indent='<span style="display:inline-block;width:'+indentLevel*16+'px"></span>';
-        var _dTn=dong.ten_thuoc.replace(/'/g,"\\'");
-        var dongRank='';if(dsSort){_dsRank++;dongRank='<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#8b5cf6;color:#fff;font-size:9px;font-weight:800;margin-right:4px;flex-shrink:0">'+_dsRank+'</span>'}
-        var dongTog='<button class="tog" onclick="togExp(\''+dongKey+'\',event)"><svg viewBox="0 0 9 9">'+(dongExp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>';
-        html+='<tr class="row-dong"><td><div class="cell-name">'+indent+dongTog+dongRank+'<span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openDspModal(\''+_dTn+'\')">'+esc(dong.ten_thuoc)+'</span></div></td><td></td>'+valCells(dv,'sub')+'</tr>';
-        lastPayload.push({type:'dong',depth:0,name:dong.ten_thuoc,values:exportValues(dv)});
-        if(dongExp){
-            var _pr=_dsRank;_dsRank=0;
-            renderSPRows(dong.rows,indentLevel+1);
-            _dsRank=_pr;
+        if(spDisplay==='sp'){renderSPRows(rows,indentLevel);return}
+        var byDong={};
+        rows.forEach(function(r){
+            var dong=r.ten_thuoc||'(Chưa phân loại)';
+            if(!byDong[dong])byDong[dong]={ten_thuoc:dong,rows:[]};
+            byDong[dong].rows.push(r);
+        });
+        var dongs=Object.values(byDong);
+        if(dongs.length<=1&&spDisplay==='both'){
+            renderSPRows(rows,indentLevel);return;
         }
-    });
-}
+        dongs.sort(function(a,b){
+            if(dsSort){var va=sumFields(a.rows).doanhso||0,vb=sumFields(b.rows).doanhso||0;return dsSort===1?(vb-va):(va-vb)}
+            return a.ten_thuoc.localeCompare(b.ten_thuoc);
+        });
+        dongs.forEach(function(dong){
+            var ds=sumFields(dong.rows),dv=aggValues(ds);
+            var dongKey='dong_all_'+dong.ten_thuoc.replace(/[^a-zA-Z0-9]/g,'_');
+            var dongExp=expState[dongKey]!==false;
+            var indent='<span style="display:inline-block;width:'+indentLevel*16+'px"></span>';
+            var _dTn=dong.ten_thuoc.replace(/'/g,"\\'");
+            var dongRank='';if(dsSort){_dsRank++;dongRank='<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#8b5cf6;color:#fff;font-size:9px;font-weight:800;margin-right:4px;flex-shrink:0">'+_dsRank+'</span>'}
+            var dongTog='<button class="tog" onclick="togExp(\''+dongKey+'\',event)"><svg viewBox="0 0 9 9">'+(dongExp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>';
+            html+='<tr class="row-dong"><td><div class="cell-name">'+indent+dongTog+dongRank+'<span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openDspModal(\''+_dTn+'\')">'+esc(dong.ten_thuoc)+'</span></div></td>'+valCells(dv,'sub')+'<td></td></tr>';
+            lastPayload.push({type:'dong',depth:0,name:dong.ten_thuoc,values:exportValues(dv)});
+            if(dongExp&&spDisplay==='both'){
+                var _pr=_dsRank;_dsRank=0;
+                renderSPRows(dong.rows,indentLevel+1);
+                _dsRank=_pr;
+            }
+        });
+    }
     /* ─── KH → SP rows ─── */
     function renderKHRows(rows,indentLevel){
         var byKh={};
@@ -347,10 +611,9 @@ function renderAll(){
             var indent='<span style="display:inline-block;width:'+indentLevel*16+'px"></span>';
             var tog='<button class="tog" onclick="togExp(\''+expKey+'\',event)"><svg viewBox="0 0 9 9">'+(exp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>';
             var khRank='';if(dsSort){_dsRank++;khRank='<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#d97706;color:#fff;font-size:9px;font-weight:800;margin-right:4px;flex-shrink:0">'+_dsRank+'</span>'}
-            html+='<tr class="row-kh"><td><div class="cell-name">'+indent+tog+khRank+'<span class="nametxt">'+esc(kh.ten_kh)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(kh.ma_kh)+'</span></td>'+valCells(kv,'sub')+'</tr>';
+            html+='<tr class="row-kh"><td><div class="cell-name">'+indent+tog+khRank+'<span class="nametxt">'+esc(kh.ten_kh)+'</span></div></td>'+valCells(kv,'sub')+'<td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(kh.ma_kh)+'</span></td></tr>';
             lastPayload.push({type:'kh',depth:0,name:kh.ten_kh,values:exportValues(kv)});
             if(exp){
-                // Group by dòng SP (ten_thuoc)
                 var byDong={};
                 kh.rows.forEach(function(r){
                     var dong=r.ten_thuoc||'(Chưa phân loại)';
@@ -358,11 +621,11 @@ function renderAll(){
                     byDong[dong].rows.push(r);
                 });
                 var dongs=Object.values(byDong);
-                if(dongs.length<=1){
-                    // Chỉ 1 dòng hoặc không có → render SP trực tiếp (không thêm cấp thừa)
-                    var _pr3=_dsRank;_dsRank=0;renderSPRows(kh.rows,indentLevel+1);_dsRank=_pr3;
+                if(spDisplay==='sp'||(dongs.length<=1&&spDisplay==='both')){
+                    var _pr3=_dsRank;_dsRank=0;
+                    if(spDisplay!=='dong')renderSPRows(kh.rows,indentLevel+1);
+                    _dsRank=_pr3;
                 }else{
-                    // Nhiều dòng → thêm cấp Dòng SP
                     dongs.sort(function(a,b){
                         if(dsSort){var va=sumFields(a.rows).doanhso||0,vb=sumFields(b.rows).doanhso||0;return dsSort===1?(vb-va):(va-vb)}
                         return a.ten_thuoc.localeCompare(b.ten_thuoc);
@@ -376,9 +639,9 @@ function renderAll(){
                         var _dTn=dong.ten_thuoc.replace(/'/g,"\\'");
                         var dongRank='';if(dsSort){_dsRank++;dongRank='<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#8b5cf6;color:#fff;font-size:9px;font-weight:800;margin-right:4px;flex-shrink:0">'+_dsRank+'</span>'}
                         var dongTog='<button class="tog" onclick="togExp(\''+dongKey+'\',event)"><svg viewBox="0 0 9 9">'+(dongExp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>';
-                        html+='<tr class="row-dong"><td><div class="cell-name">'+indentD+dongTog+dongRank+'<span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openDspModal(\''+_dTn+'\')">'+esc(dong.ten_thuoc)+'</span></div></td><td></td>'+valCells(dv,'sub')+'</tr>';
+                        html+='<tr class="row-dong"><td><div class="cell-name">'+indentD+dongTog+dongRank+'<span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openDspModal(\''+_dTn+'\')">'+esc(dong.ten_thuoc)+'</span></div></td>'+valCells(dv,'sub')+'<td></td></tr>';
                         lastPayload.push({type:'dong',depth:0,name:dong.ten_thuoc,values:exportValues(dv)});
-                        if(dongExp){
+                        if(dongExp&&spDisplay==='both'){
                             var _pr4=_dsRank;_dsRank=0;
                             renderSPRows(dong.rows,indentLevel+2);
                             _dsRank=_pr4;
@@ -411,7 +674,7 @@ function renderAll(){
         var indent=rd>0?'<span style="display:inline-block;width:'+rd*16+'px"></span>':'';
         var tog=hasKids?'<button class="tog" onclick="togNV(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 9 9">'+(exp?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>':'<span class="tog-sp"></span>';
         var rankBadge='';if(dsSort){_dsRank++;rankBadge='<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--blue);color:#fff;font-size:9px;font-weight:800;margin-right:4px;flex-shrink:0">'+_dsRank+'</span>'}
-        html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+indent+tog+rankBadge+'<span class="nametxt">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+valCells(vals,'sub')+'</tr>';
+        html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+indent+tog+rankBadge+'<span class="nametxt">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td>'+valCells(vals,'sub')+'<td><span class="code">'+esc(nd.ma_nvkd)+'</span></td></tr>';
         lastPayload.push({type:'nv',depth:rd,name:nd.ten_nvkd||nd.ma_nvkd,values:exportValues(vals)});
 
         if(exp){
@@ -447,8 +710,9 @@ function renderAll(){
     var gv=aggValues(grandTotal);
 
     document.getElementById('tbody').innerHTML=html;
-    var tf='<td><span class="foot-lbl">Tổng cộng</span></td><td></td>';
+    var tf='<td><span class="foot-lbl">Tổng cộng</span></td>';
     gv.forEach(function(v){tf+=renderCell(grandHas?v:null,'grand')});
+    tf+='<td></td>';
     document.getElementById('tfootRow').innerHTML=tf;
     lastPayload.push({type:'total',depth:0,name:'TỔNG CỘNG',values:exportValues(gv)});
 }
@@ -463,11 +727,17 @@ function openSheet(type){
     if(type==='filter'){
         title='Bộ lọc';
         var modeOpts=[{v:'thuonghieu',l:'Thương hiệu'},{v:'giamdoc',l:'Giám đốc'},{v:'ql1',l:'QL cấp 1'},{v:'ql2',l:'QL cấp 2'},{v:'nhanvien',l:'Nhân viên'},{v:'khachhang',l:'Khách hàng'}];
-        body='<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="kh-search-wrap" style="width:100%;height:40px"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" placeholder="Tìm KH..." oninput="onKHInput(this.value)" style="width:100%"/></div></div></div>'
+        body='<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="sheet-btn" onclick="closeSheet();toggleKHPicker()">'+(selectedKH?esc(selectedKH.ten_kh):'Chọn khách hàng')+'</div></div></div>'
         +'<div class="sheet-section"><div class="sheet-section-label">Bộ phận</div><div class="sheet-row"><select class="bp-select" style="width:100%;height:40px;font-size:13px" onchange="onBPChange(this.value);document.getElementById(\'bp-select\').value=this.value" id="mob-bp-sel"></select></div></div>'
         +'<div class="sheet-section"><div class="sheet-section-label">Cấp hiển thị</div><div style="display:flex;gap:6px;flex-wrap:wrap">'
-        +modeOpts.map(function(o){return '<div class="sheet-btn'+(viewMode===o.v?' active':'')+'" style="flex:1;min-width:80px" onclick="setViewMode(\''+o.v+'\');closeSheet()">'+o.l+'</div>'}).join('')
-        +'</div></div>';
+        +modeOpts.map(function(o){return '<div class="sheet-btn'+(viewMode===o.v?' active':'')+'" style="flex:1;min-width:80px" onclick="setViewMode(\''+o.v+'\');document.getElementById(\'mode-select\').value=\''+o.v+'\';closeSheet()">'+o.l+'</div>'}).join('')
+        +'</div></div>'
+        +'<div class="sheet-section"><div class="sheet-section-label">Hiển thị SP</div><div style="display:flex;gap:6px">'
+        +'<div class="sheet-btn'+(spDisplay==='both'?' active':'')+'" style="flex:1" onclick="setSpDisplay(\'both\');document.getElementById(\'sp-display\').value=\'both\';closeSheet()">Cả 2</div>'
+        +'<div class="sheet-btn'+(spDisplay==='dong'?' active':'')+'" style="flex:1" onclick="setSpDisplay(\'dong\');document.getElementById(\'sp-display\').value=\'dong\';closeSheet()">Dòng SP</div>'
+        +'<div class="sheet-btn'+(spDisplay==='sp'?' active':'')+'" style="flex:1" onclick="setSpDisplay(\'sp\');document.getElementById(\'sp-display\').value=\'sp\';closeSheet()">Sản phẩm</div>'
+        +'</div></div>'
+        +'<div class="sheet-section"><div class="sheet-section-label">Sản phẩm</div><div class="sheet-row"><div class="sheet-btn" onclick="closeSheet();toggleSPPicker()">Chọn SP / Dòng SP</div></div></div>';
     }else if(type==='kbc'){
         closeSheet();openKbcPicker();return;
     }else if(type==='actions'){

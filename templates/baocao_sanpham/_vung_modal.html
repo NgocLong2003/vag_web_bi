@@ -66,6 +66,7 @@
 var _vungExp={};
 var _vungMaVt='';
 var _vungTenVt='';
+var _vungDsSort=0;
 
 function closeVungModal(){
     document.getElementById('vungOverlay').classList.remove('open');
@@ -73,8 +74,9 @@ function closeVungModal(){
 }
 
 /* ─── Open modal ─── */
+function toggleVungDsSort(){_vungDsSort=_vungDsSort===0?1:_vungDsSort===1?-1:0;renderVungModal()}
 function openVungModal(maVt,tenVt){
-    _vungMaVt=maVt;_vungTenVt=tenVt;_vungExp={};
+    _vungMaVt=maVt;_vungTenVt=tenVt;_vungExp={};_vungDsSort=0;
     document.getElementById('vungMTitle').textContent='PHÂN BỔ VÙNG — '+tenVt;
     document.getElementById('vungMSub').textContent=maVt+(currentKBC?' · '+currentKBC.ten_kbc:'');
     document.getElementById('vungOverlay').classList.add('open');
@@ -113,10 +115,15 @@ function renderVungModal(){
 
     var togE='<svg viewBox="0 0 9 9"><path d="M1.5 3L4.5 6.5L7.5 3"/></svg>';
     var togC='<svg viewBox="0 0 9 9"><path d="M3 1.5L6.5 4.5L3 7.5"/></svg>';
-    var html='<table class="vung-m-tbl"><thead><tr><th>Vùng / Khách hàng</th><th class="r">SL</th><th class="r">Thành tiền</th><th class="r">Doanh số</th></tr></thead><tbody>';
+    var arrow=_vungDsSort===1?'▼':_vungDsSort===-1?'▲':'⇅';
+    var abg=_vungDsSort?'background:var(--blue);color:#fff':'background:var(--g1);color:var(--g4)';
+    var html='<table class="vung-m-tbl"><thead><tr><th>Vùng / Khách hàng</th><th class="r">SL</th><th class="r">Thành tiền</th><th class="r">Doanh số <button onclick="toggleVungDsSort()" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;border:none;cursor:pointer;font-size:10px;vertical-align:middle;margin-left:3px;'+abg+'">'+arrow+'</button></th></tr></thead><tbody>';
     var grandSL=0,grandDS=0,grandTT=0,totalKH=0;
 
-    Object.keys(byVung).sort().forEach(function(vung){
+    Object.keys(byVung).sort(function(a,b){
+        if(_vungDsSort){var va=0,vb=0;byVung[a].rows.forEach(function(r){va+=(r.doanhso||0)});byVung[b].rows.forEach(function(r){vb+=(r.doanhso||0)});return _vungDsSort===1?(vb-va):(va-vb)}
+        return a.localeCompare(b);
+    }).forEach(function(vung){
         var vRows=byVung[vung].rows;
         var vKey='v_'+vung.replace(/'/g,'');
         var vExp=_vungExp[vKey]!==false;
@@ -145,7 +152,7 @@ function renderVungModal(){
         if(!vExp)return;
 
         // KH rows — sort by doanh số giảm dần
-        var khSorted=Object.keys(byKH).sort(function(a,b){return byKH[b].ds-byKH[a].ds});
+        var khSorted=Object.keys(byKH).sort(function(a,b){if(_vungDsSort===-1)return byKH[a].ds-byKH[b].ds;return byKH[b].ds-byKH[a].ds});
         khSorted.forEach(function(mk){
             var kd=byKH[mk];
             var khKey='kh_'+vKey+'_'+mk.replace(/'/g,'');

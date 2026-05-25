@@ -69,6 +69,7 @@
 <script>
 var _dspExp={};
 var _dspTenThuoc='';
+var _dspDsSort=0;
 
 function closeDspModal(){
     document.getElementById('dspOverlay').classList.remove('open');
@@ -76,8 +77,9 @@ function closeDspModal(){
 }
 
 /* ─── Open modal ─── */
+function toggleDspDsSort(){_dspDsSort=_dspDsSort===0?1:_dspDsSort===1?-1:0;renderDspModal()}
 function openDspModal(tenThuoc){
-    _dspTenThuoc=tenThuoc;_dspExp={};
+    _dspTenThuoc=tenThuoc;_dspExp={};_dspDsSort=0;
     document.getElementById('dspMTitle').textContent='DÒNG SẢN PHẨM — '+tenThuoc;
     document.getElementById('dspMSub').textContent=currentKBC?currentKBC.ten_kbc:'';
     document.getElementById('dspOverlay').classList.add('open');
@@ -115,10 +117,15 @@ function renderDspModal(){
         byVung[vung].rows.push(r);
     });
 
-    var html='<table class="dsp-m-tbl"><thead><tr><th>Vùng / KH / Ngày</th><th>Sản phẩm</th><th class="r">SL</th><th class="r">Thành tiền</th><th class="r">Doanh số</th></tr></thead><tbody>';
+    var arrow=_dspDsSort===1?'▼':_dspDsSort===-1?'▲':'⇅';
+    var abg=_dspDsSort?'background:var(--blue);color:#fff':'background:var(--g1);color:var(--g4)';
+    var html='<table class="dsp-m-tbl"><thead><tr><th>Vùng / KH / Ngày</th><th>Sản phẩm</th><th class="r">SL</th><th class="r">Thành tiền</th><th class="r">Doanh số <button onclick="toggleDspDsSort()" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;border:none;cursor:pointer;font-size:10px;vertical-align:middle;margin-left:3px;'+abg+'">'+arrow+'</button></th></tr></thead><tbody>';
     var grandSL=0,grandTT=0,grandDS=0,totalKH=0;
 
-    Object.keys(byVung).sort().forEach(function(vung){
+    Object.keys(byVung).sort(function(a,b){
+        if(_dspDsSort){var va=0,vb=0;byVung[a].rows.forEach(function(r){va+=(r.doanhso||0)});byVung[b].rows.forEach(function(r){vb+=(r.doanhso||0)});return _dspDsSort===1?(vb-va):(va-vb)}
+        return a.localeCompare(b);
+    }).forEach(function(vung){
         var vRows=byVung[vung].rows;
         var vKey='v_'+vung.replace(/'/g,'');
         var vExp=_dspExp[vKey]!==false;
@@ -146,7 +153,7 @@ function renderDspModal(){
         if(!vExp)return;
 
         // KH rows — sort DS giảm dần
-        var khSorted=Object.keys(byKH).sort(function(a,b){return byKH[b].ds-byKH[a].ds});
+        var khSorted=Object.keys(byKH).sort(function(a,b){if(_dspDsSort===-1)return byKH[a].ds-byKH[b].ds;return byKH[b].ds-byKH[a].ds});
         khSorted.forEach(function(mk){
             var kd=byKH[mk];
             var khKey='kh_'+vKey+'_'+mk.replace(/'/g,'');
