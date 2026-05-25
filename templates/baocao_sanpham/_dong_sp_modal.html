@@ -1,0 +1,178 @@
+<!-- ══ MODAL: Dòng sản phẩm — Báo cáo Sản Phẩm ══
+     Click tên Dòng SP row → modal giống Tổng nhóm của TKLH
+     Phân cấp: Dòng SP (header) → Vùng → KH (collapsible) → Ngày
+     Data: lọc rawData theo ten_thuoc, dùng khMap cho vùng
+-->
+<style>
+.dsp-overlay{position:fixed;inset:0;background:rgba(15,22,35,.5);z-index:9970;opacity:0;pointer-events:none;transition:opacity .2s}
+.dsp-overlay.open{opacity:1;pointer-events:all}
+.dsp-modal{position:fixed;z-index:9975;background:var(--white);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:scale(.96) translateY(12px);transition:all .25s cubic-bezier(.32,.72,0,1);pointer-events:none;top:5vh;left:5vw;right:5vw;bottom:5vh}
+.dsp-modal.open{opacity:1;transform:none;pointer-events:all}
+.dsp-m-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--g2);flex-shrink:0}
+.dsp-m-title{font-size:15px;font-weight:800;color:var(--g7)}
+.dsp-m-sub{font-size:11px;color:var(--g4);font-weight:500;margin-top:2px}
+.dsp-m-close{width:32px;height:32px;border-radius:8px;border:none;background:var(--g1);color:var(--g5);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}.dsp-m-close:hover{background:var(--red-lt);color:var(--red)}
+.dsp-m-body{flex:1;overflow:auto;padding:0}
+.dsp-m-empty{padding:40px 20px;text-align:center;color:var(--g4);font-size:12px}
+.dsp-m-total{display:flex;justify-content:space-between;align-items:center;padding:10px 18px;border-top:2px solid var(--g2);background:var(--g0);flex-shrink:0}
+.dsp-m-total-label{font-size:11px;font-weight:700;color:var(--g5);text-transform:uppercase}
+.dsp-m-total-val{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--g7)}
+
+/* Table */
+.dsp-m-tbl{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}
+.dsp-m-tbl th{position:sticky;top:0;background:var(--g0);padding:8px 10px;font-size:10px;font-weight:700;color:var(--g5);text-transform:uppercase;text-align:left;border-bottom:1px solid var(--g2);white-space:nowrap;z-index:2}
+.dsp-m-tbl th.r{text-align:right}
+.dsp-m-tbl td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--g1);white-space:nowrap}
+.dsp-m-tbl td.r{text-align:right;font-family:var(--mono);font-size:11px}
+.dsp-m-tbl tr:hover{background:var(--g0)}
+
+/* Vùng row */
+.dsp-m-tbl tr.row-vung{background:#eef2ff;font-weight:700}
+.dsp-m-tbl tr.row-vung td{font-size:12px;color:var(--blue);border-bottom:2px solid var(--g2);padding:9px 10px}
+/* KH row */
+.dsp-m-tbl tr.row-kh{background:var(--white)}
+/* Ngày row */
+.dsp-m-tbl tr.row-ngay{background:#fafbfd}
+.dsp-m-tbl tr.row-ngay td{font-size:11px;color:var(--g5)}
+/* SP row (chi tiết SP dưới KH) */
+.dsp-m-tbl tr.row-sp{background:#f9fafb}
+.dsp-m-tbl tr.row-sp td{font-size:11px;color:var(--g5)}
+
+/* Toggle */
+.dsp-m-tog{width:18px;height:18px;margin-right:3px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:none;background:none;cursor:pointer;color:var(--g4);vertical-align:middle;flex-shrink:0}
+.dsp-m-tog:hover{background:var(--g2)}
+.dsp-m-tog svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-linecap:round}
+
+@media(max-width:768px){
+  .dsp-modal{top:0;left:0;right:0;bottom:0;border-radius:0}
+  .dsp-m-tbl td{padding:6px 8px;font-size:11px}
+  .dsp-m-tbl th{padding:6px 8px;font-size:9px}
+}
+</style>
+
+<div class="dsp-overlay" id="dspOverlay" onclick="closeDspModal()"></div>
+<div class="dsp-modal" id="dspModal">
+    <div class="dsp-m-head">
+        <div>
+            <div class="dsp-m-title" id="dspMTitle">DÒNG SẢN PHẨM</div>
+            <div class="dsp-m-sub" id="dspMSub"></div>
+        </div>
+        <button class="dsp-m-close" onclick="closeDspModal()">✕</button>
+    </div>
+    <div class="dsp-m-body" id="dspMBody"></div>
+    <div class="dsp-m-total">
+        <span class="dsp-m-total-label" id="dspMTotalLabel">Tổng</span>
+        <span class="dsp-m-total-val" id="dspMTotalVal">—</span>
+    </div>
+</div>
+
+<script>
+var _dspExp={};
+var _dspTenThuoc='';
+
+function closeDspModal(){
+    document.getElementById('dspOverlay').classList.remove('open');
+    document.getElementById('dspModal').classList.remove('open');
+}
+
+/* ─── Open modal ─── */
+function openDspModal(tenThuoc){
+    _dspTenThuoc=tenThuoc;_dspExp={};
+    document.getElementById('dspMTitle').textContent='DÒNG SẢN PHẨM — '+tenThuoc;
+    document.getElementById('dspMSub').textContent=currentKBC?currentKBC.ten_kbc:'';
+    document.getElementById('dspOverlay').classList.add('open');
+    document.getElementById('dspModal').classList.add('open');
+    renderDspModal();
+}
+
+/* ─── Toggle ─── */
+function togDspM(key,e){
+    if(e){e.stopPropagation();e.preventDefault()}
+    _dspExp[key]=_dspExp[key]===true?false:true;
+    renderDspModal();
+}
+
+/* ─── Render ─── */
+function renderDspModal(){
+    var body=document.getElementById('dspMBody');
+
+    var rows=rawData.filter(function(r){return(r.ten_thuoc||'')=== _dspTenThuoc});
+    if(!rows.length){
+        body.innerHTML='<div class="dsp-m-empty">Không có dữ liệu</div>';
+        document.getElementById('dspMTotalVal').textContent='0';
+        document.getElementById('dspMTotalLabel').textContent='Tổng';
+        return;
+    }
+
+    var togE='<svg viewBox="0 0 9 9"><path d="M1.5 3L4.5 6.5L7.5 3"/></svg>';
+    var togC='<svg viewBox="0 0 9 9"><path d="M3 1.5L6.5 4.5L3 7.5"/></svg>';
+
+    // Group by Vùng → KH (bỏ cấp SP)
+    var byVung={};
+    rows.forEach(function(r){
+        var vung=(khMap[r.ma_kh]&&khMap[r.ma_kh].ten_plkh1)||'(Chưa phân vùng)';
+        if(!byVung[vung])byVung[vung]={rows:[]};
+        byVung[vung].rows.push(r);
+    });
+
+    var html='<table class="dsp-m-tbl"><thead><tr><th>Vùng / KH / Ngày</th><th>Sản phẩm</th><th class="r">SL</th><th class="r">Thành tiền</th><th class="r">Doanh số</th></tr></thead><tbody>';
+    var grandSL=0,grandTT=0,grandDS=0,totalKH=0;
+
+    Object.keys(byVung).sort().forEach(function(vung){
+        var vRows=byVung[vung].rows;
+        var vKey='v_'+vung.replace(/'/g,'');
+        var vExp=_dspExp[vKey]!==false;
+
+        var vSL=0,vTT=0,vDS=0;
+        vRows.forEach(function(r){vSL+=(r.so_luong||0);vTT+=(r.tien_nt2||0);vDS+=(r.doanhso||0)});
+        grandSL+=vSL;grandTT+=vTT;grandDS+=vDS;
+
+        // Group by KH
+        var byKH={};
+        vRows.forEach(function(r){
+            var mk=r.ma_kh||'_UNK';
+            if(!byKH[mk])byKH[mk]={ten_kh:r.ten_kh||khNames[mk]||mk,sl:0,tt:0,ds:0,rows:[]};
+            byKH[mk].sl+=(r.so_luong||0);
+            byKH[mk].tt+=(r.tien_nt2||0);
+            byKH[mk].ds+=(r.doanhso||0);
+            byKH[mk].rows.push(r);
+        });
+        var khCount=Object.keys(byKH).length;
+        totalKH+=khCount;
+
+        // Vùng row
+        html+='<tr class="row-vung"><td colspan="2"><button class="dsp-m-tog" onclick="togDspM(\''+vKey.replace(/'/g,"\\'")+'\',event)">'+(vExp?togE:togC)+'</button>'+esc(vung)+' <span style="font-size:9px;font-weight:500;color:var(--g4)">('+khCount+' KH)</span></td><td class="r" style="font-weight:700">'+fmtV(vSL)+'</td><td class="r" style="font-weight:700">'+fmtV(vTT)+'</td><td class="r" style="font-weight:700">'+fmtV(vDS)+'</td></tr>';
+
+        if(!vExp)return;
+
+        // KH rows — sort DS giảm dần
+        var khSorted=Object.keys(byKH).sort(function(a,b){return byKH[b].ds-byKH[a].ds});
+        khSorted.forEach(function(mk){
+            var kd=byKH[mk];
+            var khKey='kh_'+vKey+'_'+mk.replace(/'/g,'');
+            var khExp=_dspExp[khKey]===true; // default collapse
+
+            var khTog='<button class="dsp-m-tog" onclick="togDspM(\''+khKey.replace(/'/g,"\\'")+'\',event)">'+(khExp?togE:togC)+'</button>';
+            html+='<tr class="row-kh"><td colspan="2" style="padding-left:28px">'+khTog+esc(kd.ten_kh)+' <span style="font-size:9px;color:var(--g4)">('+kd.rows.length+' dòng)</span></td><td class="r">'+fmtV(kd.sl)+'</td><td class="r">'+fmtV(kd.tt)+'</td><td class="r">'+fmtV(kd.ds)+'</td></tr>';
+
+            if(khExp){
+                // Chi tiết theo ngày + tên SP — sort ngày ASC
+                var dateRows=kd.rows.slice().sort(function(a,b){return String(a.ngay_ct||'').localeCompare(String(b.ngay_ct||''))});
+                dateRows.forEach(function(r){
+                    var dt=iso(r.ngay_ct)||'';
+                    html+='<tr class="row-ngay"><td class="date" style="padding-left:52px">'+fmtD(dt)+'</td><td>'+esc(r.ten_vt||r.ma_vt||'')+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.tien_nt2||0)+'</td><td class="r">'+fmtV(r.doanhso||0)+'</td></tr>';
+                });
+            }
+        });
+    });
+
+    html+='</tbody></table>';
+    body.innerHTML=html;
+    document.getElementById('dspMTotalLabel').textContent='Tổng doanh số ('+totalKH+' KH, '+Object.keys(byVung).length+' vùng)';
+    document.getElementById('dspMTotalVal').textContent=fmtV(grandDS);
+}
+
+document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&document.getElementById('dspModal').classList.contains('open'))closeDspModal();
+});
+</script>

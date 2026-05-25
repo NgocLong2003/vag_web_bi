@@ -30,6 +30,9 @@
 .vung-m-tbl tr.row-vung td{font-size:12px;color:var(--blue);border-bottom:2px solid var(--g2);padding:9px 10px}
 /* KH row */
 .vung-m-tbl tr.row-kh{background:var(--white)}
+/* Ngày row */
+.vung-m-tbl tr.row-ngay{background:#fafbfd}
+.vung-m-tbl tr.row-ngay td{font-size:11px;color:var(--g5)}
 
 /* Toggle */
 .vung-m-tog{width:18px;height:18px;margin-right:3px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:none;background:none;cursor:pointer;color:var(--g4);vertical-align:middle;flex-shrink:0}
@@ -127,10 +130,11 @@ function renderVungModal(){
         var byKH={};
         vRows.forEach(function(r){
             var mk=r.ma_kh||'_UNK';
-            if(!byKH[mk])byKH[mk]={ten_kh:r.ten_kh||khNames[mk]||mk,sl:0,tt:0,ds:0};
+            if(!byKH[mk])byKH[mk]={ten_kh:r.ten_kh||khNames[mk]||mk,sl:0,tt:0,ds:0,rows:[]};
             byKH[mk].sl+=(r.so_luong||0);
             byKH[mk].tt+=(r.tien_nt2||0);
             byKH[mk].ds+=(r.doanhso||0);
+            byKH[mk].rows.push(r);
         });
         var khCount=Object.keys(byKH).length;
         totalKH+=khCount;
@@ -144,7 +148,18 @@ function renderVungModal(){
         var khSorted=Object.keys(byKH).sort(function(a,b){return byKH[b].ds-byKH[a].ds});
         khSorted.forEach(function(mk){
             var kd=byKH[mk];
-            html+='<tr class="row-kh"><td style="padding-left:28px">'+esc(kd.ten_kh)+'</td><td class="r">'+fmtV(kd.sl)+'</td><td class="r">'+fmtV(kd.tt)+'</td><td class="r">'+fmtV(kd.ds)+'</td></tr>';
+            var khKey='kh_'+vKey+'_'+mk.replace(/'/g,'');
+            var khExp=_vungExp[khKey]===true; // mặc định collapse
+            var khTog='<button class="vung-m-tog" onclick="togVungM(\''+khKey.replace(/'/g,"\\'")+'\',event)">'+(khExp?togE:togC)+'</button>';
+            html+='<tr class="row-kh"><td style="padding-left:28px">'+khTog+esc(kd.ten_kh)+' <span style="font-size:9px;color:var(--g4)">('+kd.rows.length+' dòng)</span></td><td class="r">'+fmtV(kd.sl)+'</td><td class="r">'+fmtV(kd.tt)+'</td><td class="r">'+fmtV(kd.ds)+'</td></tr>';
+            if(khExp){
+                // Chi tiết theo ngày — sort ASC
+                var dateRows=kd.rows.slice().sort(function(a,b){return String(a.ngay_ct||'').localeCompare(String(b.ngay_ct||''))});
+                dateRows.forEach(function(r){
+                    var dt=iso(r.ngay_ct)||'';
+                    html+='<tr class="row-ngay"><td class="date" style="padding-left:52px">'+fmtD(dt)+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.tien_nt2||0)+'</td><td class="r">'+fmtV(r.doanhso||0)+'</td></tr>';
+                });
+            }
         });
     });
 
