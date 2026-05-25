@@ -26,6 +26,7 @@ DuckDB đọc silver qua:
 """
 
 import logging
+import os
 import time as _time
 from dataclasses import dataclass
 from datetime import datetime
@@ -72,7 +73,7 @@ def write_delta(table_path, df, mode='overwrite'):
     Returns:
         int version number
     """
-    table_path = str(table_path)
+    table_path = os.path.abspath(str(table_path))
 
     if isinstance(df, pd.DataFrame):
         pa_table = pa.Table.from_pandas(df, preserve_index=False)
@@ -103,7 +104,7 @@ def read_bronze(bronze_ds, layer, table_name):
     Returns:
         pandas DataFrame hoặc None nếu file không tồn tại
     """
-    data_dir = Path(get_ds(bronze_ds))
+    data_dir = Path(os.path.abspath(get_ds(bronze_ds)))
     path = data_dir / layer / f"{table_name}.parquet"
     if not path.exists():
         logger.warning(f"[Transform] Bronze file not found: {path}")
@@ -112,9 +113,9 @@ def read_bronze(bronze_ds, layer, table_name):
 
 
 def silver_path(table_name):
-    """Trả về path đến silver Delta table."""
-    silver_dir = Path(get_ds('silver'))
-    return silver_dir / table_name
+    """Trả về absolute path đến silver Delta table."""
+    silver_dir = os.path.abspath(get_ds('silver'))
+    return os.path.join(silver_dir, table_name)
 
 
 # ═══════════════════════════════════════════════════════

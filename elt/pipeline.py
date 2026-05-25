@@ -135,15 +135,29 @@ def run_pipeline(skip_extract=False, skip_transform=False, tables=None,
             logger.error(f"[Pipeline] Transform exception: {e}")
             result['status'] = 'partial'
 
+    # ── GOLD ──
+    if not skip_transform:
+        print("\n" + "=" * 60)
+        print("  GOLD → Aggregated Tables")
+        print("=" * 60)
+
+        try:
+            from elt.gold.input_doanhso_doanhthu_tpbvsk import run_gold_tpbvsk
+            gold_results = run_gold_tpbvsk()
+            result['gold'] = gold_results
+        except Exception as e:
+            logger.warning(f"[Pipeline] Gold exception (non-blocking): {e}")
+
     result['seconds'] = round(_time.time() - t0, 2)
 
     # Summary
     asia_ok = sum(1 for r in result['extract_asia'] if r.status == 'ok')
     cns_ok = sum(1 for r in result['extract_cns'] if r.status == 'ok')
     tr_ok = sum(1 for r in result['transform'] if r.status == 'ok')
+    gold_ok = sum(1 for r in result.get('gold', []) if r.get('status') == 'ok')
     print(f"\n{'=' * 60}")
     print(f"  PIPELINE {'✓' if result['status'] == 'ok' else '⚠'} "
-          f"Asia: {asia_ok}, CNS: {cns_ok}, Transform: {tr_ok} OK, "
+          f"Asia: {asia_ok}, CNS: {cns_ok}, Transform: {tr_ok}, Gold: {gold_ok} OK, "
           f"Total: {result['seconds']:.1f}s")
     print(f"{'=' * 60}")
 

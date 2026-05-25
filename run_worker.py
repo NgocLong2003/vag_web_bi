@@ -9,6 +9,11 @@ import os
 import sys
 import signal
 
+# Đảm bảo working directory = thư mục chứa run_worker.py
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+print(f"  CWD: {os.getcwd()}")
+print(f"  abspath test: {os.path.abspath('data/silver/TEST')}")
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,

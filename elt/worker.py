@@ -93,9 +93,11 @@ class Worker:
     def _loop(self):
         """Background loop."""
         while not self._stop_event.is_set():
-            self.run_once()
             logger.info(f"[Worker] Ngủ {self.interval}s...")
             self._stop_event.wait(self.interval)
+            if self._stop_event.is_set():
+                break
+            self.run_once()
 
     def start(self):
         """Chạy 1 lần rồi start background loop + health check."""
