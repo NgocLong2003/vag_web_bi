@@ -217,7 +217,7 @@ var hasBpFilter=false;
 var allBps=new Set();
 var searchQ='';
 
-var NODE_MIN_W=190,NODE_PAD=20,NODE_H=74,DONUT_R=38,LEVEL_GAP=140,SIB_GAP=34,LEAF_VGAP=16,LEAF_MAX=10,PORT_R=8;
+var NODE_MIN_W=190,NODE_PAD=20,NODE_H=84,DONUT_R=38,LEVEL_GAP=140,SIB_GAP=34,LEAF_VGAP=16,LEAF_MAX=10,PORT_R=8;
 var FMT=new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0});
 function fN(v){return v==null||isNaN(v)?'—':FMT.format(Math.round(v))}
 
@@ -227,8 +227,8 @@ function mT(text,font){if(!_mc)_mc=document.createElement('canvas').getContext('
 function calcNodeW(n){
     var nameW=mT(n.ten_nvkd||'','700 12px '+F);
     var numW=mT(fN(n.actual||0),'800 17px '+F);
-    var k1W=mT('KPI nội bộ: '+fN(n.kpi||0),'400 7.5px '+F);
-    var k2W=mT('KPI công ty: '+fN(n.kpi_cty||0),'400 7.5px '+F);
+    var k1W=mT('KPI nội bộ: '+fN(n.kpi||0),'700 10px '+F);
+    var k2W=mT('KPI công ty: '+fN(n.kpi_cty||0),'700 10px '+F);
     var maxW=Math.max(nameW,numW,k1W,k2W);
     return Math.max(NODE_MIN_W,Math.ceil(DONUT_R+8+maxW+NODE_PAD));
 }
@@ -386,10 +386,12 @@ function render(){
 
         // Text — name centered in full card, rest centered in donut-right to card-right
         var tCx=cardL+(DONUT_R+nw)/2;
+        var nbFill=scope==='nb'?'#1e2a3a':'#aab2c2', nbWt=scope==='nb'?'700':'400';
+        var ctyFill=scope==='cty'?'#1e2a3a':'#aab2c2', ctyWt=scope==='cty'?'700':'400';
         html+='<text x="'+(cardL+nw/2)+'" y="'+(ny+17)+'" text-anchor="middle" font-family="'+F+'" font-size="12" font-weight="700" fill="#1e2a3a">'+esc(n.ten_nvkd)+'</text>';
-        html+='<text x="'+tCx+'" y="'+(ny+37)+'" text-anchor="middle" font-family="'+F+'" font-size="17" font-weight="800" fill="'+col.text+'">'+fN(actual)+'</text>';
-        html+='<text x="'+tCx+'" y="'+(ny+51)+'" text-anchor="middle" font-family="'+F+'" font-size="7.5" font-weight="400" fill="#aab2c2">KPI nội bộ: '+fN(kpi)+'</text>';
-        html+='<text x="'+tCx+'" y="'+(ny+62)+'" text-anchor="middle" font-family="'+F+'" font-size="7.5" font-weight="400" fill="#aab2c2">KPI công ty: '+fN(kpi_cty)+'</text>';
+        html+='<text x="'+tCx+'" y="'+(ny+38)+'" text-anchor="middle" font-family="'+F+'" font-size="17" font-weight="800" fill="'+col.text+'">'+fN(actual)+'</text>';
+        html+='<text x="'+tCx+'" y="'+(ny+55)+'" text-anchor="middle" font-family="'+F+'" font-size="10" font-weight="'+nbWt+'" fill="'+nbFill+'">KPI nội bộ: '+fN(kpi)+'</text>';
+        html+='<text x="'+tCx+'" y="'+(ny+70)+'" text-anchor="middle" font-family="'+F+'" font-size="10" font-weight="'+ctyWt+'" fill="'+ctyFill+'">KPI công ty: '+fN(kpi_cty)+'</text>';
 
         // Badge
         if(n.months!==null&&n.months!==undefined){
@@ -681,13 +683,13 @@ window.loadReport=function(){
         buildTree();
         // Nếu user có ma_nvkd → chỉ hiện subtree từ node đó trở xuống
 if(USER_NVKD && nodeMap[USER_NVKD]){
-    // Override root: chỉ giữ subtree của user
+    // Chỉ giữ node hiện tại + cấp dưới, KHÔNG giữ cấp trên
     var allowedSet=new Set();
     (function walkAllow(ma){allowedSet.add(ma);var kids=byParent[ma];if(kids)kids.forEach(function(c){walkAllow(c.ma_nvkd)})})(USER_NVKD);
-    // Cũng thêm ancestors để giữ context
-    var cur=USER_NVKD;while(nodeMap[cur]){allowedSet.add(cur);cur=nodeMap[cur].ma_ql}
     nodes=nodes.filter(function(n){return allowedSet.has(n.ma_nvkd)});
-    buildTree(); // rebuild with filtered nodes
+    // Sửa ma_ql của USER_NVKD thành root để nó trở thành gốc cây
+    nodes.forEach(function(n){if(n.ma_nvkd===USER_NVKD)n.ma_ql=''});
+    buildTree();
 }render();
         setTimeout(fitCanvas,50);
     });
