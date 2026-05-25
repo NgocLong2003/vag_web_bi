@@ -41,7 +41,7 @@ SELECT
 FROM (
     SELECT DISTINCT ma_kh, ten_kh, ma_bp, ma_nvkd
     FROM [dbo].[DMKHACHHANG_VIEW]
-    WHERE ma_bp IS NOT NULL AND ma_bp != 'TN' AND ma_kh != 'TTT'
+    WHERE ma_bp IS NOT NULL AND ma_kh != 'TTT'
       AND (@MaBP IS NULL OR ma_bp = @MaBP)
       AND (@DSMaNVKD = '' OR ma_nvkd IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaNVKD, ',')))
       AND (@DSMaKH = '' OR ma_kh IN (SELECT TRIM(value) FROM STRING_SPLIT(@DSMaKH, ',')))

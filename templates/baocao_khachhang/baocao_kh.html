@@ -274,11 +274,30 @@ th+='<th class="col-th" style="min-width:120px"><div class="th-main">THƯỞNG</
     function getCellNV(nd,c){
     if(c==='tt_merged'){const l1=colLoaded.tt1,l2=colLoaded.tt2;if(!l1&&!l2)return null;const v1=(nd._vals.tt1?nd._vals.tt1.total:null),v2=(nd._vals.tt2?nd._vals.tt2.total:null);if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}
     if(c==='ds_tru_tl'){const vDS=(nd._vals.ban_ra?nd._vals.ban_ra.total:null),vTL=(nd._vals.tra_lai?nd._vals.tra_lai.total:null);if(vDS==null&&vTL==null)return null;return(vDS||0)-(vTL||0)}
+    if(c==='du_no_ck'){
+        if(selectedBP&&!isBPNhomA(selectedBP)){const cv=nd._vals.du_no_ct;return cv?cv.total:null}
+        const ck=nd._vals.du_no_ck,ct=nd._vals.du_no_ct;
+        if(!ck&&!ct)return null;
+        const allKH=new Set();
+        if(ck)Object.keys(ck.kh).forEach(k=>allKH.add(k));
+        if(ct)Object.keys(ct.kh).forEach(k=>allKH.add(k));
+        let sum=0,has=false;
+        allKH.forEach(function(mk){
+            var bpKH=khMap[mk]?khMap[mk].ma_bp:'';
+            var v;
+            if(bpKH&&!BP_NHOM_A.includes(bpKH)){v=ct&&ct.kh[mk]!=null?ct.kh[mk]:null}
+            else{v=ck&&ck.kh[mk]!=null?ck.kh[mk]:null}
+            if(v!=null){sum+=v;has=true}
+        });
+        nd.children.forEach(function(child){var ct2=getCellNV(child,'du_no_ck');if(ct2!=null){sum+=ct2;has=true}});
+        return has?sum:null;
+    }
     const cv=nd._vals[c];return cv?cv.total:null
 }
     function getCellKH(pNV,mk,c){
     if(c==='tt_merged'){const v1=(pNV._vals.tt1&&pNV._vals.tt1.kh[mk])!=null?pNV._vals.tt1.kh[mk]:null;const v2=(pNV._vals.tt2&&pNV._vals.tt2.kh[mk])!=null?pNV._vals.tt2.kh[mk]:null;if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}
     if(c==='ds_tru_tl'){const vDS=(pNV._vals.ban_ra&&pNV._vals.ban_ra.kh[mk])!=null?pNV._vals.ban_ra.kh[mk]:null;const vTL=(pNV._vals.tra_lai&&pNV._vals.tra_lai.kh[mk])!=null?pNV._vals.tra_lai.kh[mk]:null;if(vDS==null&&vTL==null)return null;return(vDS||0)-(vTL||0)}
+    if(c==='du_no_ck'){var bpKH=khMap[mk]?khMap[mk].ma_bp:'';if(bpKH&&!BP_NHOM_A.includes(bpKH))return(pNV._vals.du_no_ct&&pNV._vals.du_no_ct.kh[mk])!=null?pNV._vals.du_no_ct.kh[mk]:null}
     return(pNV._vals[c]&&pNV._vals[c].kh[mk])!=null?pNV._vals[c].kh[mk]:null
 }
     function isLoading(c){if(c==='tt_merged')return colLoading.tt1||colLoading.tt2;if(c==='ds_tru_tl')return colLoading.ban_ra||colLoading.tra_lai;return colLoading[c]}
@@ -339,7 +358,7 @@ async function exportExcel(){
     const colHeaderMap={du_no_dk:'DƯ NỢ ĐẦU THÁNG\nADMIN chốt số '+fmtD(ngayDNDKPlus1),ban_ra:'BÁN RA\n'+fmtD(iso(k.ngay_bd_xuat_ban))+' → '+fmtD(iso(k.ngay_kt_xuat_ban)),tra_lai:'TRẢ LẠI\n'+fmtD(iso(k.ngay_bd_xuat_ban))+' → '+fmtD(iso(k.ngay_kt_xuat_ban)), ds_tru_tl:'DS - TRẢ LẠI\nBán ra − Trả lại',
 thuong:'THƯỞNG\n'+(selectedBP&&!isBPNhomA(selectedBP)?(fmtD(iso(k.ngay_bd_xuat_ban))+' → '+fmtD(iso(k.ngay_kt_xuat_ban))):(fmtD(iso(k.ngay_bd_thu_tien))+' → '+fmtD(iso(k.ngay_kt_thu_tien)))),tt1:'THANH TOÁN\n'+fmtD(iso(k.ngay_bd_thu_tien))+' → '+fmtD(ngayTruocLK),tt2:'THANH TOÁN\n'+fmtD(iso(k.ngay_bd_lan_ki))+' → '+fmtD(iso(k.ngay_kt_thu_tien)),tt_merged:'THANH TOÁN\n'+fmtD(iso(k.ngay_bd_thu_tien))+' → '+fmtD(iso(k.ngay_kt_thu_tien)),du_no_tk:'DƯ NỢ CẦN THU\nTRONG KỲ',du_no_ct:'DƯ NỢ CUỐI THÁNG\nADMIN chốt số '+fmtD(iso(k.ngay_du_no_cuoi_ki)),du_no_ck:'DƯ NỢ CUỐI KỲ\nSau TT tới '+fmtD(iso(k.ngay_kt_thu_tien))};
     const colHeaders=lastDispCols.map(c=>colHeaderMap[c]||c);
-    function getCellNV(nd,c){if(c==='tt_merged'){const v1=(nd._vals.tt1?nd._vals.tt1.total:null),v2=(nd._vals.tt2?nd._vals.tt2.total:null);if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}if(c==='ds_tru_tl'){const vDS=(nd._vals.ban_ra?nd._vals.ban_ra.total:null),vTL=(nd._vals.tra_lai?nd._vals.tra_lai.total:null);if(vDS==null&&vTL==null)return null;return(vDS||0)-(vTL||0)}const cv=nd._vals[c];return cv?cv.total:null}
+    function getCellNV(nd,c){if(c==='tt_merged'){const v1=(nd._vals.tt1?nd._vals.tt1.total:null),v2=(nd._vals.tt2?nd._vals.tt2.total:null);if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}if(c==='ds_tru_tl'){const vDS=(nd._vals.ban_ra?nd._vals.ban_ra.total:null),vTL=(nd._vals.tra_lai?nd._vals.tra_lai.total:null);if(vDS==null&&vTL==null)return null;return(vDS||0)-(vTL||0)}if(c==='du_no_ck'){if(selectedBP&&!isBPNhomA(selectedBP)){const cv=nd._vals.du_no_ct;return cv?cv.total:null}const ck=nd._vals.du_no_ck,ct=nd._vals.du_no_ct;if(!ck&&!ct)return null;const allKH=new Set();if(ck)Object.keys(ck.kh).forEach(k=>allKH.add(k));if(ct)Object.keys(ct.kh).forEach(k=>allKH.add(k));let sum=0,has=false;allKH.forEach(function(mk){var bpKH=khMap[mk]?khMap[mk].ma_bp:'';var v;if(bpKH&&!BP_NHOM_A.includes(bpKH)){v=ct&&ct.kh[mk]!=null?ct.kh[mk]:null}else{v=ck&&ck.kh[mk]!=null?ck.kh[mk]:null}if(v!=null){sum+=v;has=true}});nd.children.forEach(function(child){var ct2=getCellNV(child,'du_no_ck');if(ct2!=null){sum+=ct2;has=true}});return has?sum:null}const cv=nd._vals[c];return cv?cv.total:null}
     function getCellKH(pNV,mk,c){if(c==='tt_merged'){const v1=(pNV._vals.tt1&&pNV._vals.tt1.kh[mk])!=null?pNV._vals.tt1.kh[mk]:null;const v2=(pNV._vals.tt2&&pNV._vals.tt2.kh[mk])!=null?pNV._vals.tt2.kh[mk]:null;if(v1==null&&v2==null)return null;return(v1||0)+(v2||0)}if(c==='ds_tru_tl'){const vDS=(pNV._vals.ban_ra&&pNV._vals.ban_ra.kh[mk])!=null?pNV._vals.ban_ra.kh[mk]:null;const vTL=(pNV._vals.tra_lai&&pNV._vals.tra_lai.kh[mk])!=null?pNV._vals.tra_lai.kh[mk]:null;if(vDS==null&&vTL==null)return null;return(vDS||0)-(vTL||0)}return(pNV._vals[c]&&pNV._vals[c].kh[mk])!=null?pNV._vals[c].kh[mk]:null}
     const payload=[];
     lastRenderedRows.forEach(function(row){if(row.type==='nv'){payload.push({type:'nv',depth:row.depth,name:row.node.ten_nvkd||row.node.ma_nvkd,values:lastDispCols.map(c=>getCellNV(row.node,c))})}else{payload.push({type:'kh',depth:0,name:row.ten_kh,values:lastDispCols.map(c=>getCellKH(row.parentNV,row.ma_kh,c))})}});

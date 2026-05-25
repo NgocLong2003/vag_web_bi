@@ -6,7 +6,7 @@
 WITH dt_raw AS (
     SELECT ngay_ct, ma_kh_ct, ma_bp, ps_co
     FROM PTHUBAOCO
-    WHERE tk_co = '131' AND ma_bp != 'TN'
+    WHERE tk_co = '131'
       AND (
         (ngay_ct >= '2026-01-01' AND tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
         OR (ngay_ct < '2026-01-01' AND ma_ct = 'CA1')

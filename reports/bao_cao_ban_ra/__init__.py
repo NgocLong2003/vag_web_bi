@@ -63,7 +63,7 @@ def api_data():
         if not ngay_a or not ngay_b:
             return api_response(ok=False, error='Thiếu ngày', status_code=400)
 
-        conditions = ["ngay_ct >= ?", "ngay_ct <= ?", "ma_bp != 'TN'"]
+        conditions = ["ngay_ct >= ?", "ngay_ct <= ?"]
         params = [ngay_a, ngay_b]
 
         if ma_bp:
