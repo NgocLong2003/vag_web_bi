@@ -51,9 +51,6 @@
 .kh-picker-apply{height:28px;padding:0 14px;background:var(--emr,#0a7c50);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
 .kh-picker-apply:hover{opacity:.9}
 .kh-picker-close-btn{height:28px;padding:0 12px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-size:12px;font-weight:600;color:var(--g5);cursor:pointer}
-.kh-selected-chip{display:flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 10px;background:var(--emr-lt,#eafaf4);border:1px solid var(--emr-md,#0a7c50);border-radius:13px;font-size:11px;font-weight:600;color:var(--emr,#0a7c50);white-space:nowrap}
-.kh-selected-chip .kh-chip-x{cursor:pointer;font-size:14px;opacity:.6}
-.kh-selected-chip .kh-chip-x:hover{opacity:1}
 @media(max-width:768px){
   .kh-picker-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:80vh}
   .kh-picker-list{max-height:55vh}.khi{height:40px}
@@ -88,7 +85,7 @@
 
 <!-- KH PICKER JS -->
 <script>
-var selectedKH=null; // compat: null=tất cả, {ma_kh,ten_kh}=1 KH
+var selectedKH=null; // compat: null=tất cả, {ma_kh,ten_kh}=1+ KH (ma_kh comma-separated nếu multi)
 var _khPickerOpen=false;
 var _khPending=new Set(); // set of ma_kh đang chọn trong picker
 
@@ -111,7 +108,9 @@ function updateKHPickerBadge(){
     if(selectedKH===null){
         b.textContent='Tất cả';b.className='kh-picker-badge all';l.textContent='KH';
     }else{
-        b.textContent='1';b.className='kh-picker-badge';l.textContent=selectedKH.ten_kh;
+        var count=selectedKH.ma_kh.split(',').length;
+        b.textContent=count;b.className='kh-picker-badge';
+        l.textContent=count===1?selectedKH.ten_kh:count+' KH';
     }
 }
 
@@ -165,9 +164,13 @@ function toggleKHPicker(){_khPickerOpen?closeKHPicker():openKHPicker()}
 
 function openKHPicker(){
     _khPickerOpen=true;
-    // Init pending from current selection
+    // Init pending from current selection — split comma-separated ma_kh
     _khPending=new Set();
-    if(selectedKH)_khPending.add(selectedKH.ma_kh);
+    if(selectedKH){
+        selectedKH.ma_kh.split(',').forEach(function(mk){
+            if(mk)_khPending.add(mk);
+        });
+    }
     var p=document.getElementById('kh-picker-panel');
     var tr=document.getElementById('kh-picker-trigger');
     if(typeof isLandscapePhone==='function'&&isLandscapePhone()){
@@ -201,41 +204,34 @@ function applyKHPicker(){
         // Tất cả hoặc không chọn → clear filter
         if(selectedKH!==null){
             selectedKH=null;
-            updateKHChipArea();updateKHPickerBadge();
+            updateKHPickerBadge();
             closeKHPicker();
             if(typeof onKHCleared==='function')onKHCleared();
         }else{
             closeKHPicker();
         }
     }else if(_khPending.size===1){
-        // Chọn đúng 1 KH → compat với selectedKH cũ
+        // Chọn đúng 1 KH
         var mk=[..._khPending][0];
         var info=khMap[mk];
         selectedKH={ma_kh:mk,ten_kh:info?info.ten_kh:mk};
-        updateKHChipArea();updateKHPickerBadge();
+        updateKHPickerBadge();
         closeKHPicker();
         if(typeof onKHSelected==='function')onKHSelected(mk,selectedKH.ten_kh);
     }else{
-        // Nhiều KH → dùng KH đầu tiên cho compat, nhưng hiện badge số lượng
-        // Giới hạn: API hiện chỉ nhận 1 ds_kh, nên join bằng comma
+        // Nhiều KH → join bằng comma
         var mks=[..._khPending];
         selectedKH={ma_kh:mks.join(','),ten_kh:mks.length+' KH'};
-        updateKHChipArea();updateKHPickerBadge();
+        updateKHPickerBadge();
         closeKHPicker();
         if(typeof onKHSelected==='function')onKHSelected(selectedKH.ma_kh,selectedKH.ten_kh);
     }
 }
 
-function updateKHChipArea(){
-    var area=document.getElementById('kh-chip-area');if(!area)return;
-    if(selectedKH===null){area.innerHTML='';return}
-    area.innerHTML='<span class="kh-selected-chip">'+esc(selectedKH.ten_kh)+' <span class="kh-chip-x" onclick="clearKH()">✕</span></span>';
-}
-
 function clearKH(){
     selectedKH=null;
     _khPending=new Set();
-    updateKHChipArea();updateKHPickerBadge();
+    updateKHPickerBadge();
     if(typeof onKHCleared==='function')onKHCleared();
 }
 
@@ -243,7 +239,7 @@ function clearKH(){
 function onKHInput(){}
 function selectKH(mk,name){
     selectedKH={ma_kh:mk,ten_kh:name};
-    updateKHChipArea();updateKHPickerBadge();
+    updateKHPickerBadge();
     if(typeof onKHSelected==='function')onKHSelected(mk,name);
 }
 

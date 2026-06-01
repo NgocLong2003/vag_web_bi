@@ -45,8 +45,7 @@ thead th:nth-child(2){text-align:left}
   <span class="toolbar-title">{{ dashboard_name }}</span>
   <div class="v-div"></div>
   <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NV</span><span class="picker-badge all" id="picker-badge">—</span></button></div>
-  <div class="kh-search-wrap" id="kh-wrap"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" id="kh-q" placeholder="Tìm KH..." oninput="onKHInput(this.value)" autocomplete="off"/><button class="kh-clear" id="kh-clear" onclick="clearKH()" style="display:none">✕</button><div class="kh-suggest" id="kh-suggest"></div></div>
-  <span id="kh-chip-area"></span>
+  <div class="kh-search-wrap" id="kh-wrap"><button class="kh-picker-trigger" id="kh-picker-trigger" onclick="toggleKHPicker()"><svg class="ico-kh" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="kh-picker-label">KH</span><span class="kh-picker-badge all" id="kh-picker-badge">Tất cả</span></button></div>
   <span class="bp-label">BP:</span><select class="bp-select" id="bp-select" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select>
   <div class="kbc-wrap">
     <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()"><svg viewBox="0 0 16 16" stroke-width="1.8"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="10" x2="9" y2="10"/></svg><span class="kbc-lbl" id="kbc-lbl">Đang tải...</span></div>
@@ -606,7 +605,7 @@ function treeH(anc,isL,dep){if(dep===0)return'';let h='';for(let i=0;i<anc.lengt
 function buildRows(){
     const isF=selectedNV!==null;const rows=[];
     function getKH(nd){const s=new Set();COLS.forEach(c=>{if(colLoaded[c]&&nd._vals[c])Object.keys(nd._vals[c].kh).forEach(k=>s.add(k))});return[...s]}
-    function fKH(keys){return keys.filter(k=>{if(selectedKH&&k!==selectedKH.ma_kh)return false;return true})}
+    function fKH(keys){if(!selectedKH)return keys;var allowed=new Set(selectedKH.ma_kh.split(','));return keys.filter(k=>allowed.has(k))}
     function hasData(nd){
         if(!allowedNV.has(nd.ma_nvkd))return false;
         for(const c of COLS){if(!colLoaded[c])continue;const cv=nd._vals[c];if(cv&&cv.total!=null&&cv.total!==0)return true}
@@ -837,7 +836,7 @@ function openSheet(type){
     let title='',body='';
     if(type==='filter'){
         title='Bộ lọc';
-        body='<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="kh-search-wrap" style="width:100%;height:40px"><svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><input type="text" placeholder="Tìm KH..." oninput="onKHInput(this.value)" style="width:100%"/></div></div></div>'
+        body='<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="sheet-btn" onclick="closeSheet();toggleKHPicker()">'+(selectedKH?esc(selectedKH.ten_kh):'Chọn khách hàng')+'</div></div></div>'
         +'<div class="sheet-section"><div class="sheet-section-label">Bộ phận</div><div class="sheet-row"><select class="bp-select" style="width:100%;height:40px;font-size:13px" onchange="onBPChange(this.value);document.getElementById(\'bp-select\').value=this.value" id="mob-bp-sel"></select></div></div>';
     }else if(type==='kbc'){
         closeSheet();openKbcPicker();return;
