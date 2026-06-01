@@ -20,7 +20,7 @@
 /* ═══════════════════════════════════════
    FORMATTERS
    ═══════════════════════════════════════ */
-const FMT=new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0});
+const FMT=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
 const fmtV=v=>FMT.format(Math.round(v));
 const fmtD=function(s){if(!s)return'';s=s.substring(0,10);var p=s.split('-');return p[2]+'/'+p[1]+'/'+p[0]};
 const fmtDF=fmtD; // alias

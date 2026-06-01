@@ -195,10 +195,16 @@ html { padding-left: var(--sb-collapsed); }
     .vbi-topbar { left: 0 !important; }
     .sb-aware { left: 0 !important; width: 100vw !important; }
 
-    /* Hide sidebar, overlay, and toolbar-slim completely on mobile */
-    .sb, .sb-overlay { display: none !important; }
-    .toolbar-slim { display: none !important; }
+    /* Sidebar hidden by default, shown when pinned via Menu button */
+    .sb { display: none !important; }
+    .sb.pinned { display: flex !important; width: var(--sb-expanded); z-index: 9999; }
+    .sb.pinned .sb-label,
+    .sb.pinned .sb-item-col .sb-label-wrap { opacity: 1; }
 
+    .sb-overlay { display: none !important; }
+    .sb-overlay.open { display: block !important; opacity: 1; pointer-events: auto; z-index: 9998; }
+
+    .toolbar-slim { display: none !important; }
     .sb-item::after { display: none; }
 }
 
@@ -208,10 +214,16 @@ html { padding-left: var(--sb-collapsed); }
     .vbi-topbar { left: 0 !important; }
     .sb-aware { left: 0 !important; width: 100vw !important; }
 
-    /* Hide sidebar, overlay, and toolbar-slim completely on landscape phone */
-    .sb, .sb-overlay { display: none !important; }
-    .toolbar-slim { display: none !important; }
+    /* Same: hidden by default, shown when pinned */
+    .sb { display: none !important; }
+    .sb.pinned { display: flex !important; width: var(--sb-expanded); z-index: 9999; }
+    .sb.pinned .sb-label,
+    .sb.pinned .sb-item-col .sb-label-wrap { opacity: 1; }
 
+    .sb-overlay { display: none !important; }
+    .sb-overlay.open { display: block !important; opacity: 1; pointer-events: auto; z-index: 9998; }
+
+    .toolbar-slim { display: none !important; }
     .sb-item::after { display: none; }
 }
 </style>

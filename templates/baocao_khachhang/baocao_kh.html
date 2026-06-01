@@ -4,13 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <title>DÒNG TIỀN THEO KỲ</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 {% include "_header_css.html" %}
 {% include "_report_base.css" %}
 {% include "_sidebar_css.html" %}
 <style>
 /* ═══ CSS RIÊNG trang DÒNG TIỀN THEO KỲ ═══ */
 thead th:nth-child(2){text-align:left}
+#tbl{width:max-content;min-width:0}
+.col-end-spacer{padding:0!important;border:none!important;background:transparent!important;width:0;min-width:0;max-width:0}
+@media(max-width:768px){.col-end-spacer{width:48px;min-width:48px}}
 .app,.app.hybrid-scroll{height:100vh}
 @supports(height:100dvh){.app,.app.hybrid-scroll{height:100dvh}}
 .col-picker-overlay{position:fixed;inset:0;z-index:899;background:transparent}
@@ -66,9 +69,8 @@ thead th:nth-child(2){text-align:left}
 <!-- MOBILE TOOLBAR -->
 <nav class="mob-toolbar">
   <button class="mob-btn" onclick="toggleSidebar()"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="4" y1="5" x2="16" y2="5"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="15" x2="16" y2="15"/></svg><span>Menu</span></button>
-  <button class="mob-btn" onclick="togglePicker()"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="8" cy="8" r="5"/><line x1="12" y1="12" x2="17" y2="17"/></svg><span>NV</span></button>
-  <button class="mob-btn accent" onclick="openSheet('kbc')"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="3" x2="7" y2="8"/><line x1="13" y1="3" x2="13" y2="8"/></svg><span>Kỳ</span></button>
   <button class="mob-btn" onclick="openSheet('cols')"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="5" height="14" rx="1"/><rect x="10" y="3" width="3" height="14" rx="0.5" opacity="0.4"/><rect x="15" y="3" width="2" height="14" rx="0.5" opacity="0.4"/></svg><span>Cột</span></button>
+  <button class="mob-btn accent" onclick="openSheet('kbc')"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="3" x2="7" y2="8"/><line x1="13" y1="3" x2="13" y2="8"/></svg><span>Kỳ</span></button>
   <button class="mob-btn" onclick="openSheet('filter')"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="3" y1="5" x2="17" y2="5"/><line x1="5" y1="10" x2="15" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg><span>Lọc</span></button>
   <button class="mob-btn" onclick="openSheet('actions')"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="10" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="16" r="1.5" fill="currentColor" stroke="none"/></svg><span>Khác</span></button>
 </nav>
@@ -81,6 +83,11 @@ thead th:nth-child(2){text-align:left}
 {% include "_header_js.html" %}
 {% include "_sidebar_js.html" %}
 {% include "_report_utils.js" %}
+<script>
+/* Override: dấu "," ngăn nghìn, "." ngăn thập phân */
+var FMT=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
+fmtV=function(v){return FMT.format(Math.round(v))};
+</script>
 
 <!-- ═══ Server permissions + shared modules ═══ -->
 <script>
@@ -360,6 +367,7 @@ async function loadDuNoDauKy(){
             ma_bp:bp,ds_nvkd:nv,ds_kh:kh
         });
         compData.du_no_dau_ky=parseDNCK(r);
+        rekeyCompDebt('du_no_dau_ky');
         compLoaded.du_no_dau_ky=true;compLoading.du_no_dau_ky=false;
         renderAll();
     }catch(e){
@@ -499,6 +507,46 @@ async function loadCompCol(compId,apiType){
         compLoaded[compId]=true;compLoading[compId]=false;renderAll();
     }
 }
+/* ─── Re-key công nợ khi xem nhiều kỳ ─── */
+function rekeyDebtCols(){
+    if(!currentKBC||currentKBC.loai_kbc==='Tháng')return;
+    var khToNV={};
+    Object.keys(colData.du_no_ck).forEach(function(nvkd){
+        Object.keys(colData.du_no_ck[nvkd]).forEach(function(mk){
+            khToNV[mk]=nvkd;
+        });
+    });
+    console.log('[rekeyDebtCols] mapping',Object.keys(khToNV).length,'KH → NV cuối kỳ');
+    ['du_no_dk','du_no_ct','du_no_tk'].forEach(function(col){
+        var oldData=colData[col],newData={};
+        Object.keys(oldData).forEach(function(nvkd){
+            Object.entries(oldData[nvkd]).forEach(function(entry){
+                var mk=entry[0],val=entry[1];
+                var targetNV=khToNV[mk]||nvkd;
+                if(!newData[targetNV])newData[targetNV]={};
+                newData[targetNV][mk]=(newData[targetNV][mk]||0)+val;
+            });
+        });
+        colData[col]=newData;
+    });
+}
+function rekeyCompDebt(compId){
+    if(!currentKBC||currentKBC.loai_kbc==='Tháng')return;
+    var khToNV={};
+    Object.keys(colData.du_no_ck).forEach(function(nvkd){
+        Object.keys(colData.du_no_ck[nvkd]).forEach(function(mk){khToNV[mk]=nvkd});
+    });
+    var oldData=compData[compId],newData={};
+    Object.keys(oldData).forEach(function(nvkd){
+        Object.entries(oldData[nvkd]).forEach(function(entry){
+            var mk=entry[0],val=entry[1];
+            var targetNV=khToNV[mk]||nvkd;
+            if(!newData[targetNV])newData[targetNV]={};
+            newData[targetNV][mk]=(newData[targetNV][mk]||0)+val;
+        });
+    });
+    compData[compId]=newData;
+}
 async function loadAllData(){
     if(!currentKBC)return;const k=currentKBC;
     console.log('[loadAllData] currentKBC:', JSON.stringify({id:k.id,ten:k.ten_kbc,loai:k.loai_kbc,bd_xb:iso(k.ngay_bd_xuat_ban),kt_xb:iso(k.ngay_kt_xuat_ban),bd_tt:iso(k.ngay_bd_thu_tien),kt_tt:iso(k.ngay_kt_thu_tien),dn_dk:iso(k.ngay_du_no_dau_ki),dn_ck:iso(k.ngay_du_no_cuoi_ki)}));
@@ -535,6 +583,8 @@ async function loadAllData(){
     ]);
         colData.du_no_dk=parseCN(r1);colData.ban_ra=parseDS(r2);colData.tra_lai=parseTL(r2b);colData.tt1=parseDT(r3);colData.tt2=parseDT(r4);colData.thuong=parseTH(r4b);colData.du_no_tk=parseDNTK(r5);colData.du_no_ct=parseCN(r6);colData.du_no_ck=parseDNCK(r7);
         Object.keys(colData.tt2).forEach(function(nv){Object.keys(colData.tt2[nv]).forEach(function(kh){var bpKH=khMap[kh]?khMap[kh].ma_bp:'';if(bpKH&&!BP_NHOM_A.includes(bpKH))delete colData.tt2[nv][kh]})});
+        // Re-key công nợ khi xem nhiều kỳ
+        rekeyDebtCols();
         COLS.forEach(c=>{colLoaded[c]=true;colLoading[c]=false});
         hideLoading();setS('ok','OK');renderAll();toast('Đã tải xong');
         // Lazy load comp data
@@ -727,6 +777,7 @@ function renderAll(){
     let th='<th style="text-align:left;min-width:220px">NV / KH<div class="col-grip" onmousedown="startResize(event,this)" ontouchstart="startResizeTouch(event,this)"></div></th>';
     th+='<th style="text-align:left;min-width:60px;width:70px">Mã<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
     dispCols.forEach(function(colId){th+=buildColTH(colId)});
+    th+='<th class="col-end-spacer"></th>';
     document.getElementById('theadRow').innerHTML=th;
 
     function getCellNV(nd,c){
@@ -812,12 +863,12 @@ function renderAll(){
             const tl=dep>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,dep)+'</span>':'';
             const tog=row.hasKids?'<button class="tog" onclick="togNV(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 9 9">'+(row.expanded?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>':'<span class="tog-sp"></span>';
             let tds='';dispCols.forEach(c=>{if(isLoading(c)){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const v=getCellNV(nd,c);tds+='<td style="text-align:right">'+(isLoaded(c)?renderCellHtml(v,c,'sub'):'<span class="dash">—</span>')+'</td>'});
-            html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+tl+tog+'<span class="nametxt" style="cursor:pointer" onclick="openHistNV(\''+nd.ma_nvkd.replace(/'/g,"\\'")+'\',\''+esc(nd.ten_nvkd||nd.ma_nvkd).replace(/'/g,"\\'")+'\')">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+tds+'</tr>';
+            html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+tl+tog+'<span class="nametxt" style="cursor:pointer" onclick="openHistNV(\''+nd.ma_nvkd.replace(/'/g,"\\'")+'\',\''+esc(nd.ten_nvkd||nd.ma_nvkd).replace(/'/g,"\\'")+'\')">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+tds+'<td class="col-end-spacer"></td></tr>';
         }else{
             const mk=row.ma_kh,pNV=row.parentNV;
             const tl=row.depth>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,row.depth)+'</span>':'';
             let tds='';dispCols.forEach(c=>{if(isLoading(c)){tds+='<td style="text-align:right">'+shimH()+'</td>';return}const v=getCellKH(pNV,mk,c);tds+='<td style="text-align:right">'+(isLoaded(c)?renderCellHtml(v,c,''):'<span class="dash">—</span>')+'</td>'});
-            html+='<tr class="row-kh"><td><div class="cell-name">'+tl+'<span class="tog-sp"></span><span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openHist(\''+mk.replace(/'/g,"\\'")+'\',\''+esc(row.ten_kh).replace(/'/g,"\\'")+'\')">'+esc(row.ten_kh)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(mk)+'</span></td>'+tds+'</tr>';
+            html+='<tr class="row-kh"><td><div class="cell-name">'+tl+'<span class="tog-sp"></span><span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openHist(\''+mk.replace(/'/g,"\\'")+'\',\''+esc(row.ten_kh).replace(/'/g,"\\'")+'\')">'+esc(row.ten_kh)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(mk)+'</span></td>'+tds+'<td class="col-end-spacer"></td></tr>';
         }
     });
     document.getElementById('tbody').innerHTML=html;
@@ -826,6 +877,7 @@ function renderAll(){
     else{footRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd])}
     let tf='<td><span class="foot-lbl">Tổng cộng</span></td><td></td>';
     dispCols.forEach(c=>{if(!isLoaded(c)){tf+='<td style="text-align:right"><span class="n grand">—</span></td>';return}let sum=0,has=false;var compPctSum=null;footRoots.forEach(r=>{const t=getCellNV(r,c);if(isCompCol(c)){if(t!=null&&t.val!=null){sum+=t.val;has=true}}else{if(t!=null){sum+=t;has=true}}});if(isCompCol(c)&&has){var mainCol=getMainColForComp(c);var curSum=0,curHas=false;footRoots.forEach(r=>{var cv=getCellNV(r,mainCol);if(cv!=null){curSum+=cv;curHas=true}});compPctSum=calcPct(curSum,sum);tf+='<td style="text-align:right"><div class="comp-cell"><span class="n grand">'+(has?fmtV(sum):'—')+'</span>'+pctBadge(compPctSum)+'</div></td>'}else{tf+='<td style="text-align:right"><span class="n grand">'+(has?fmtV(sum):'—')+'</span></td>'}});
+    tf+='<td class="col-end-spacer"></td>';
     document.getElementById('tfootRow').innerHTML=tf;
 }
 function togNV(id,e){if(e)e.stopPropagation();expState[id]=!expState[id];renderAll()}
@@ -836,7 +888,9 @@ function openSheet(type){
     let title='',body='';
     if(type==='filter'){
         title='Bộ lọc';
-        body='<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="sheet-btn" onclick="closeSheet();toggleKHPicker()">'+(selectedKH?esc(selectedKH.ten_kh):'Chọn khách hàng')+'</div></div></div>'
+        var nvLabel=selectedNV===null?'Tất cả NV':(selectedNV.size+' NV');
+        body='<div class="sheet-section"><div class="sheet-section-label">Nhân viên</div><div class="sheet-row"><div class="sheet-btn" onclick="closeSheet();togglePicker()">'+esc(nvLabel)+'</div></div></div>'
+        +'<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="sheet-btn" onclick="closeSheet();toggleKHPicker()">'+(selectedKH?esc(selectedKH.ten_kh):'Tất cả KH')+'</div></div></div>'
         +'<div class="sheet-section"><div class="sheet-section-label">Bộ phận</div><div class="sheet-row"><select class="bp-select" style="width:100%;height:40px;font-size:13px" onchange="onBPChange(this.value);document.getElementById(\'bp-select\').value=this.value" id="mob-bp-sel"></select></div></div>';
     }else if(type==='kbc'){
         closeSheet();openKbcPicker();return;

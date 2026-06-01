@@ -12,7 +12,7 @@
   --red:#aa1c1c;--red-lt:#fef2f2;
   --amber:#964a06;
   --purple:#7c3aed;--purple-lt:#f5f3ff;
-  --sans:'Nunito Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sans:'Nunito Sans',sans-serif;--mono:'Nunito Sans',sans-serif;
   --topbar-h:54px;--row-h:34px;--pad:12px;
   --tree-line:rgba(168,176,197,.35)
 }
@@ -70,7 +70,7 @@ thead th{position:sticky;top:0;z-index:30;background:var(--white);border-bottom:
 thead th:first-child{text-align:left}
 th{position:relative;overflow:visible}
 .th-main{padding:8px var(--pad);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
-.th-date{font-family:var(--mono);font-size:10px;color:var(--g3);font-weight:500;padding:4px var(--pad);text-align:center;line-height:1.5}
+.th-date{font-family:var(--mono);font-size:10px;color:var(--g3);font-weight:600;padding:4px var(--pad);text-align:center;line-height:1.5}
 
 /* Column color borders */
 .col-cn{border-left:3px solid var(--blue);color:var(--blue)}
@@ -116,7 +116,7 @@ td{height:var(--row-h);padding:0 var(--pad);vertical-align:middle;white-space:no
 tr.row-nv .nametxt{font-size:12.5px;font-weight:600}
 tr.row-nv.lv0 .nametxt{font-size:13px;font-weight:700}
 tr.row-kh .nametxt{font-size:12px;color:var(--g5)}
-.code{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;background:var(--g1);color:var(--g4)}
+.code{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;background:var(--g1);color:var(--g4);font-weight:600}
 .tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;margin-right:4px}
 .tag-ds{background:var(--emr-lt);color:var(--emr);border:1px solid var(--emr-md)}
 .tag-dt{background:var(--purple-lt);color:var(--purple);border:1px solid rgba(124,58,237,.3)}
@@ -124,8 +124,8 @@ tr.row-kh .nametxt{font-size:12px;color:var(--g5)}
 .desc-cell{font-size:11px;color:var(--g5);max-width:200px;overflow:hidden;text-overflow:ellipsis}
 
 /* Numbers */
-.n{font-family:var(--mono);font-size:11.5px;display:block;text-align:right}
-.n.pos{color:var(--g7)}.n.neg{color:var(--red)}.n.zero{color:var(--g3)}.n.sub{font-weight:600;font-size:12px}
+.n{font-family:var(--mono);font-size:11.5px;display:block;text-align:right;font-weight:600}
+.n.pos{color:var(--g7)}.n.neg{color:var(--red)}.n.zero{color:var(--g3)}.n.sub{font-weight:700;font-size:12px}
 .dash{color:var(--g3);font-family:var(--mono);font-size:11px}
 
 /* Skeleton shimmer */
@@ -136,7 +136,7 @@ tr.row-kh .nametxt{font-size:12px;color:var(--g5)}
 tfoot tr{border-top:2px solid var(--g2)}
 tfoot td{height:38px;padding:0 var(--pad);background:var(--white);font-weight:600;position:sticky;bottom:0;z-index:20;box-shadow:0 -1px 0 var(--g2)}
 .foot-lbl{font-size:11px;font-weight:700;color:var(--g5);text-transform:uppercase}
-.n.grand{font-size:12.5px;font-weight:700}
+.n.grand{font-size:12.5px;font-weight:800}
 
 /* ═══════════════════════════════════════
    TOASTS
