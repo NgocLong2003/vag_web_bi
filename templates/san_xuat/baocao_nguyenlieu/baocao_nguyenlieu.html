@@ -169,6 +169,17 @@ html,body{height:100%;background:var(--g0);color:var(--g7);font-family:var(--san
 .sp-dtbl.collapsed .sp-dtbl-header{border-radius:8px;border-bottom:1px solid var(--g2)}
 
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g2);border-radius:3px}
+/* Embed mode (iframe trong modal canhbao_tonkho) */
+body.embed-mode{overflow:auto!important}
+body.embed-mode>*:not(.app){display:none!important}
+body.embed-mode .app{margin-left:0!important;width:100%!important;height:auto}
+body.embed-mode .toolbar-slim,
+body.embed-mode .filter-row,
+body.embed-mode #infoFields,
+body.embed-mode #spSection,
+body.embed-mode #emptyState,
+body.embed-mode #btnExcelXuat{display:none!important}
+body.embed-mode .content{padding:8px 12px;overflow:visible}
 </style>
 </head>
 <body>
@@ -859,6 +870,18 @@ renderAllTables=function(){
     _origRender();
     setTimeout(renderCharts,20);
 };
+// URL param: auto-load ma_vt (embed hoặc tab mới)
+var _ep=new URLSearchParams(window.location.search);
+var _ema=_ep.get('ma_vt');
+if(_ep.get('embed')==='1'){
+  document.body.classList.add('embed-mode');
+  if(_ema){selectedVt=_ema;selectedInfo={};loadData()}
+}else if(_ema){
+  selectedVt=_ema;selectedInfo={};
+  var inp=document.getElementById('vtInput');
+  if(inp)inp.value=_ema;
+  loadData();
+}
 })();
 </script>
 </body>
