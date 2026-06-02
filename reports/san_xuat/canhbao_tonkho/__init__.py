@@ -140,8 +140,8 @@ def api_vattu():
         return api_response(ok=False, error=str(e))
 
 
-DG_KEEP = ('ngay_dat', 'ten_kh', 'ten_nha_sx', 'dang_giao')
-DG_NUM = ('dang_giao')
+DG_KEEP = ('ngay_dat', 'ten_kh', 'ten_nha_sx', 'sl_dat', 'sl_da_nhap', 'dang_giao')
+DG_NUM = ('sl_dat', 'sl_da_nhap', 'dang_giao')
 
 
 @bp.route('/api/danggiao')

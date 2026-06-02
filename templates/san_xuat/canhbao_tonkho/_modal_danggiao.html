@@ -154,6 +154,8 @@ function dgRender(rows){
     +'<th>Ngày đặt</th>'
     +'<th>Khách hàng</th>'
     +'<th>Nhà sản xuất</th>'
+    +'<th class="right">Đặt</th>'          // ← thêm
+    +'<th class="right">Đã nhập</th>'      // ← thêm
     +'<th class="right">Đang giao</th>'
     +'</tr></thead><tbody>';
 
@@ -171,6 +173,8 @@ function dgRender(rows){
       +'<td class="c-date">'+formatDate(r.ngay_dat)+'</td>'
       +'<td class="c-name" title="'+dgEscAttr(r.ten_kh)+'">'+dgEsc(r.ten_kh)+'</td>'
       +'<td class="c-name" title="'+dgEscAttr(r.ten_nha_sx)+'">'+dgEsc(r.ten_nha_sx)+'</td>'
+      +'<td class="right c-num '+((r.sl_dat||0)===0?'zero':'')+'">'+dgFN(r.sl_dat||0)+'</td>'          // ← thêm
+      +'<td class="right c-num '+((r.sl_da_nhap||0)===0?'zero':'')+'">'+dgFN(r.sl_da_nhap||0)+'</td>'  // ← thêm
       +'<td class="right c-dg '+(dg===0?'zero':'')+'">'+dgFN(dg)+'</td>'
       +'</tr>';
   }
@@ -179,6 +183,8 @@ function dgRender(rows){
 
   document.getElementById('dgFooter').innerHTML=
     '<span><b>'+rows.length+'</b> đơn</span>'
+    +'<span>Tổng đặt: <b>'+dgFN(sumDat)+'</b></span>'              // ← thêm
+    +'<span>Tổng đã nhập: <b>'+dgFN(sumNhap)+'</b></span>'        // ← thêm
     +'<span>Tổng đang giao: <b style="color:var(--blue)">'+dgFN(sumGiao)+'</b></span>';
 }
 
