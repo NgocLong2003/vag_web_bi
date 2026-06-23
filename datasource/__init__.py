@@ -23,28 +23,26 @@ def init_datasources(app_config, duckdb_store=None):
         app_config: dict DATASOURCES từ config.py
         duckdb_store: DuckDBStore instance (cho 'default')
     """
+    from datasource.duckdb_ds import DuckDBDataSource
+    from datasource.sqlserver_ds import SQLServerDataSource
+
     for name, cfg in app_config.items():
         ds_type = cfg.get('type', '')
 
-        try:
-            if ds_type == 'duckdb':
-                if duckdb_store:
-                    from datasource.duckdb_ds import DuckDBDataSource
-                    _instances[name] = DuckDBDataSource(duckdb_store)
-                    logger.info(f"[DataSource] '{name}' → DuckDB (Parquet)")
-                else:
-                    logger.warning(f"[DataSource] '{name}' → DuckDB but no store provided")
-
-            elif ds_type == 'sqlserver':
-                from datasource.sqlserver_ds import SQLServerDataSource
-                pool_size = cfg.get('pool_size', 3)
-                _instances[name] = SQLServerDataSource(cfg, pool_size=pool_size)
-                logger.info(f"[DataSource] '{name}' → SQL Server {cfg['server']}:{cfg['port']}/{cfg['database']}")
-
+        if ds_type == 'duckdb':
+            if duckdb_store:
+                _instances[name] = DuckDBDataSource(duckdb_store)
+                logger.info(f"[DataSource] '{name}' → DuckDB (Parquet)")
             else:
-                logger.warning(f"[DataSource] '{name}' → Unknown type '{ds_type}', skipped")
-        except Exception as e:
-            logger.error(f"[DataSource] '{name}' init failed: {e}")
+                logger.warning(f"[DataSource] '{name}' → DuckDB but no store provided")
+
+        elif ds_type == 'sqlserver':
+            pool_size = cfg.get('pool_size', 3)
+            _instances[name] = SQLServerDataSource(cfg, pool_size=pool_size)
+            logger.info(f"[DataSource] '{name}' → SQL Server {cfg['server']}:{cfg['port']}/{cfg['database']}")
+
+        else:
+            logger.warning(f"[DataSource] '{name}' → Unknown type '{ds_type}', skipped")
 
 
 def get_ds(name='default'):
