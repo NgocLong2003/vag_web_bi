@@ -55,6 +55,16 @@ def run_pipeline(skip_extract=False, skip_transform=False, tables=None,
         'timestamp': datetime.now().isoformat(),
     }
 
+    # ── DIM HISTORY (SCD Type 2) — chạy trước extract để PTHUBAOCO query được data mới nhất ──
+    if not skip_extract:
+        try:
+            from dim_history import sync_dim_history
+            from config import SQLSERVER_CONFIG
+            print("\n[DIM HISTORY] Sync SCD Type 2...")
+            sync_dim_history(SQLSERVER_CONFIG)
+        except Exception as e:
+            logger.warning(f"[Pipeline] DimHistory error (non-blocking): {e}")
+
     # ── EXTRACT ASIA ──
     if not skip_extract:
         print("\n" + "=" * 60)
