@@ -58,13 +58,17 @@ app.config['DUCKDB_STORE'] = store
 # ─── [MỚI] Init DataSource registry ───
 try:
     from config import DATASOURCES
-    from datasource import init_datasources
-    init_datasources(DATASOURCES, duckdb_store=store)
-    print('  ✓ DataSources initialized')
 except ImportError:
+    DATASOURCES = None
     print('  ⚠ DATASOURCES not in config.py, skip (chỉ dùng DuckDB qua get_store())')
-except Exception as e:
-    print(f'  ✗ DataSource init error: {e}')
+
+if DATASOURCES:
+    try:
+        from datasource import init_datasources
+        init_datasources(DATASOURCES, duckdb_store=store)
+        print('  ✓ DataSources initialized')
+    except Exception as e:
+        print(f'  ✗ DataSource init error: {e}')
 
 
 # ─── File Watcher: detect Parquet changes → reload DuckDB ───
