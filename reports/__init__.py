@@ -100,3 +100,8 @@ from reports.thongke_layhang import bp as tklh_bp
 register_report('thong-ke-lay-hang', tklh_bp,
                 'thongke_layhang/thongke_layhang.html',
                 datasource='default', category='Kinh doanh')
+
+from reports.baocao_dachieu import bp as bcdc_bp
+register_report('bao-cao-da-chieu', bcdc_bp,
+                'baocao_dachieu/baocao_dachieu.html',
+                datasource='default', category='Kinh doanh')

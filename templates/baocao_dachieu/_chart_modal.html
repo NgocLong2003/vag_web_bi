@@ -1,0 +1,161 @@
+<!-- _chart_modal.html — Modal line chart xu hướng theo kỳ (Báo cáo Đa Chiều)
+     Dùng Chart.js (cùng CDN với analytics.html).
+     Trang gọi: openChart(scope) với scope = {title, sub, series}
+       series: { [measureId]: [valuePerPeriodCol...] }
+     Trang cần có sẵn: periodCols (mảng cột kỳ), getSelMeasures(), MEASURE_REGISTRY, fmtV
+-->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+.dcc-overlay{position:fixed;inset:0;background:rgba(20,24,40,.45);z-index:9995;opacity:0;pointer-events:none;transition:opacity .15s}
+.dcc-overlay.open{opacity:1;pointer-events:auto}
+.dcc-modal{position:fixed;z-index:9996;top:50%;left:50%;transform:translate(-50%,-48%) scale(.98);opacity:0;pointer-events:none;
+  width:min(860px,94vw);max-height:88vh;background:var(--white,#fff);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.28);
+  display:flex;flex-direction:column;overflow:hidden;transition:opacity .16s,transform .16s}
+.dcc-modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.dcc-head{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--g1,#eef0f4)}
+.dcc-title{font-size:15px;font-weight:800;color:var(--g7,#1c2233);line-height:1.25}
+.dcc-sub{font-size:11.5px;color:var(--g4,#8a93a8);margin-top:2px}
+.dcc-close{margin-left:auto;width:30px;height:30px;border:none;background:var(--g0,#f5f6f9);border-radius:8px;cursor:pointer;font-size:15px;color:var(--g5,#5b6580);flex-shrink:0}
+.dcc-close:hover{background:var(--g1,#e8eaf0)}
+.dcc-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px 4px}
+.dcc-mtab{height:28px;padding:0 12px;border-radius:14px;border:1px solid var(--g2,#dde0e8);background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g5,#5b6580);cursor:pointer;transition:.12s}
+.dcc-mtab:hover{border-color:var(--blue-md,#4a78df)}
+.dcc-mtab.active{background:var(--blue,#1a46c4);border-color:var(--blue,#1a46c4);color:#fff}
+.dcc-gran button{height:28px;padding:0 12px;border:none;background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g5,#5b6580);cursor:pointer;border-left:1px solid var(--g1,#eef0f4)}
+.dcc-gran button:first-child{border-left:none}
+.dcc-gran button.active{background:var(--g6,#3b4252);color:#fff}
+.dcc-body{padding:8px 16px 16px;overflow:auto}
+.dcc-canvas-wrap{position:relative;height:min(48vh,420px);width:100%}
+.dcc-empty{padding:40px;text-align:center;color:var(--g4,#8a93a8);font-size:13px}
+@media(max-width:768px){.dcc-modal{width:96vw;max-height:90vh}.dcc-canvas-wrap{height:46vh}}
+</style>
+
+<div class="dcc-overlay" id="dccOverlay" onclick="closeChart()"></div>
+<div class="dcc-modal" id="dccModal" role="dialog" aria-modal="true">
+  <div class="dcc-head">
+    <div>
+      <div class="dcc-title" id="dccTitle">—</div>
+      <div class="dcc-sub" id="dccSub"></div>
+    </div>
+    <button class="dcc-close" onclick="closeChart()" aria-label="Đóng">✕</button>
+  </div>
+  <div class="dcc-toolbar">
+    <div id="dccTabs" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    <div class="dcc-gran" id="dccGran" style="margin-left:auto;display:inline-flex;border:1px solid var(--g2,#dde0e8);border-radius:8px;overflow:hidden">
+      <button data-g="thang" onclick="chartSetGran('thang')">Tháng</button>
+      <button data-g="quy" onclick="chartSetGran('quy')">Quý</button>
+      <button data-g="nam" onclick="chartSetGran('nam')">Năm</button>
+    </div>
+  </div>
+  <div class="dcc-body">
+    <div class="dcc-canvas-wrap"><canvas id="dccCanvas"></canvas></div>
+  </div>
+</div>
+
+<script>
+var _dccChart=null, _dccScope=null, _dccMeasure=null;
+
+function openChart(scope){
+    // scope = {title, sub, series:{measureId:[vals...]}}
+    _dccScope=scope;
+    document.getElementById('dccTitle').textContent=scope.title||'';
+    document.getElementById('dccSub').textContent=scope.sub||'';
+    // Tabs = các measure đang chọn (chỉ measure có trong series)
+    var sel=getSelMeasures().filter(function(m){return scope.series&&scope.series[m.id]});
+    if(!sel.length){closeChart();return}
+    if(!_dccMeasure||!sel.some(function(m){return m.id===_dccMeasure}))_dccMeasure=sel[0].id;
+    var tabs='';
+    sel.forEach(function(m){
+        tabs+='<button class="dcc-mtab'+(m.id===_dccMeasure?' active':'')+'" onclick="_dccPick(\''+m.id+'\')">'+esc(m.label)+'</button>';
+    });
+    document.getElementById('dccTabs').innerHTML=tabs;
+    syncChartGranUI();
+    document.getElementById('dccOverlay').classList.add('open');
+    document.getElementById('dccModal').classList.add('open');
+    _dccRender();
+}
+function _dccPick(mid){_dccMeasure=mid;
+    document.querySelectorAll('#dccTabs .dcc-mtab').forEach(function(b){b.classList.remove('active')});
+    var sel=getSelMeasures().filter(function(m){return _dccScope.series&&_dccScope.series[m.id]});
+    var idx=sel.findIndex(function(m){return m.id===mid});
+    var btns=document.querySelectorAll('#dccTabs .dcc-mtab');if(btns[idx])btns[idx].classList.add('active');
+    _dccRender();
+}
+function closeChart(){
+    document.getElementById('dccOverlay').classList.remove('open');
+    document.getElementById('dccModal').classList.remove('open');
+    if(_dccChart){_dccChart.destroy();_dccChart=null}
+}
+function syncChartGranUI(){
+    if(typeof periodGran==='undefined')return;
+    document.querySelectorAll('#dccGran button').forEach(function(b){b.classList.toggle('active',b.dataset.g===periodGran)});
+}
+
+/* Rút gọn số: tỷ / triệu / nghìn (dấu phẩy thập phân) */
+function _abbr(v){
+    if(v==null)return'';
+    var n=Math.round(v),a=Math.abs(n),s,u;
+    if(a>=1e9){s=n/1e9;u=' tỷ'}
+    else if(a>=1e6){s=n/1e6;u=' tr'}
+    else if(a>=1e3){return Math.round(n/1e3).toLocaleString('en-US')+'k'}
+    else return fmtV(n);
+    var str=s.toFixed(2).replace(/\.?0+$/,'').replace('.',',');
+    return str+u;
+}
+
+/* Plugin vẽ nhãn giá trị trên mỗi điểm */
+var _dccLabelPlugin={
+    id:'dccLabels',
+    afterDatasetsDraw:function(chart){
+        var ds=chart.data.datasets[0];if(!ds)return;
+        var meta=chart.getDatasetMeta(0),ctx=chart.ctx;
+        ctx.save();
+        ctx.font='700 10.5px "Nunito Sans",sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
+        ctx.fillStyle=ds.borderColor||'#333';
+        meta.data.forEach(function(pt,i){var v=ds.data[i];if(v==null)return;ctx.fillText(_abbr(v),pt.x,pt.y-7)});
+        ctx.restore();
+    }
+};
+
+function _dccRender(){
+    if(!_dccScope)return;
+    var labels=periodCols.map(function(c){return c.axis||[c.label]});  // nhãn 3 cấp [Tháng,Quý,Năm]
+    var vals=(_dccScope.series[_dccMeasure]||[]).map(function(v){return v==null?null:Math.round(v)});
+    var reg=(typeof MEASURE_REGISTRY!=='undefined')?MEASURE_REGISTRY.find(function(m){return m.id===_dccMeasure}):null;
+    var color=(reg&&reg.color)||'#1a46c4';
+    var ctx=document.getElementById('dccCanvas').getContext('2d');
+    if(_dccChart){_dccChart.destroy();_dccChart=null}
+    _dccChart=new Chart(ctx,{
+        type:'line',
+        data:{labels:labels,datasets:[{
+            label:reg?reg.label:_dccMeasure,
+            data:vals,
+            borderColor:color,
+            backgroundColor:color+'1f',
+            borderWidth:2.5,tension:.25,fill:true,
+            pointRadius:4,pointHoverRadius:6,pointBackgroundColor:color,pointBorderColor:'#fff',pointBorderWidth:1.5,spanGaps:true
+        }]},
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            layout:{padding:{top:22,right:10}},
+            interaction:{mode:'index',intersect:false},
+            plugins:{
+                legend:{display:false},
+                tooltip:{callbacks:{
+                    title:function(items){var a=items[0]?items[0].label:'';return String(a).replace(/,/g,' · ')},
+                    label:function(c){return (reg?reg.label:'')+': '+fmtV(c.parsed.y||0)}
+                }}
+            },
+            scales:{
+                y:{ticks:{callback:function(v){return _abbr(v)},font:{size:11}},grid:{color:'rgba(120,130,160,.12)'}},
+                x:{
+                    grid:{display:true,color:'rgba(120,130,160,.14)',drawOnChartArea:true,drawTicks:false,lineWidth:1},
+                    ticks:{font:{size:10.5},autoSkip:false,maxRotation:0,minRotation:0}
+                }
+            }
+        },
+        plugins:[_dccLabelPlugin]
+    });
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&document.getElementById('dccModal').classList.contains('open'))closeChart()});
+</script>

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>BÁO CÁO ĐA CHIỀU</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{% include "_header_css.html" %}
+{% include "_report_base.css" %}
+{% include "_sidebar_css.html" %}
+<style>
+/* ═══ CSS RIÊNG trang BÁO CÁO ĐA CHIỀU ═══ */
+#tbl{width:max-content;min-width:0}
+thead th:first-child{text-align:left}
+.col-end-spacer{padding:0!important;border:none!important;background:transparent!important;width:0;min-width:0;max-width:0}
+@media(max-width:768px){.col-end-spacer{width:48px;min-width:48px}}
+.app,.app.hybrid-scroll{height:100vh}
+@supports(height:100dvh){.app,.app.hybrid-scroll{height:100dvh}}
+/* Header 2 tầng: kỳ → measure */
+.th-period{text-align:center!important;border-left:2px solid var(--g2,#dde0e8)!important;background:var(--g0,#f5f6f9)}
+.th-period .thp-main{font-weight:800;font-size:12px;color:var(--g7,#1c2233);letter-spacing:.01em}
+.th-period .thp-sub{font-size:9px;font-weight:600;color:var(--g4,#8a93a8);margin-top:1px}
+.th-measure{text-align:center!important;font-size:10.5px;font-weight:700;white-space:nowrap;border-left:1px solid var(--g1,#eef0f4)}
+.th-measure.mfirst{border-left:2px solid var(--g2,#dde0e8)}
+td.cellsep{border-left:2px solid var(--g1,#eef0f4)}
+/* ── Sticky header 2 tầng: kỳ (tầng 1) + measure (tầng 2) ── */
+#theadRow1 th{top:0;z-index:31}
+#theadRow1 th.th-period{height:44px}
+.th-measure{height:32px}
+#theadRow2 th{top:44px;z-index:30}
+/* ── Cố định cột NV/KH bên trái (desktop) ── */
+@media(min-width:769px){
+  #theadRow1 th:first-child{position:sticky;left:0;z-index:41;box-shadow:3px 0 8px rgba(0,0,0,.10)}
+  tbody td:first-child{position:sticky;left:0;z-index:22;background-color:inherit;box-shadow:3px 0 8px rgba(0,0,0,.10)}
+  tfoot td:first-child{position:sticky;left:0;z-index:23;background:var(--white);box-shadow:3px 0 8px rgba(0,0,0,.10)}
+}
+.gran-seg{display:inline-flex;border:1px solid var(--g2,#dde0e8);border-radius:6px;overflow:hidden;height:32px}
+.gran-seg button{height:30px;padding:0 11px;border:none;background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g5,#5b6580);cursor:pointer;border-left:1px solid var(--g1,#eef0f4)}
+.gran-seg button:first-child{border-left:none}
+.gran-seg button.active{background:var(--blue,#1a46c4);color:#fff}
+/* Measure picker (clone col-picker của baocao_kh) */
+.col-picker-overlay{position:fixed;inset:0;z-index:899;background:transparent}
+.col-picker{position:fixed;z-index:900;background:var(--white,#fff);border:1px solid var(--g2,#ddd);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:10px 0;min-width:230px;max-width:300px}
+.col-picker-title{padding:4px 14px 8px;font-size:11px;font-weight:700;color:var(--g4,#888);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--g1,#eee)}
+.col-picker-list{padding:6px 8px;max-height:55vh;overflow-y:auto}
+.col-picker-item{display:flex;align-items:center;gap:8px;padding:6px;border-radius:5px;cursor:pointer;font-size:12.5px;color:var(--g6,#333)}
+.col-picker-item:hover{background:var(--g0,#f5f5f5)}
+.col-picker-item input[type=checkbox]{width:15px;height:15px;accent-color:var(--blue,#1a46c4);cursor:pointer;flex-shrink:0}
+.mdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+{% include "_sidebar.html" %}
+{% include "_loading_overlay.html" %}
+<div class="app">
+<div class="toolbar-slim">
+  <button class="hamburger-btn" onclick="toggleSidebar()"><svg viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg></button>
+  <div class="v-div"></div>
+  <span class="toolbar-title">{{ dashboard_name }}</span>
+  <div class="v-div"></div>
+  <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NV</span><span class="picker-badge all" id="picker-badge">—</span></button></div>
+  <div class="kh-search-wrap" id="kh-wrap"><button class="kh-picker-trigger" id="kh-picker-trigger" onclick="toggleKHPicker()"><svg class="ico-kh" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="kh-picker-label">KH</span><span class="kh-picker-badge all" id="kh-picker-badge">Tất cả</span></button></div>
+  <span class="bp-label">BP:</span><select class="bp-select" id="bp-select" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select>
+  <div class="kbc-wrap">
+    <div class="kbc-trigger" id="kbc-trigger" onclick="toggleKbcPicker()"><svg viewBox="0 0 16 16" stroke-width="1.8"><rect x="2" y="2" width="12" height="12" rx="2"/><line x1="5" y1="6" x2="11" y2="6"/><line x1="5" y1="10" x2="9" y2="10"/></svg><span class="kbc-lbl" id="kbc-lbl">Đang tải...</span></div>
+  </div>
+  <div class="gran-seg" id="gran-seg">
+    <button data-g="thang" class="active" onclick="setGran('thang')">Tháng</button>
+    <button data-g="quy" onclick="setGran('quy')">Quý</button>
+    <button data-g="nam" onclick="setGran('nam')">Năm</button>
+  </div>
+  <div class="v-div"></div>
+  <button class="tbtn" id="btn-exp" onclick="toggleExp()"><svg viewBox="0 0 16 16" stroke-width="2"><polyline points="4,10 8,6 12,10"/></svg>Thu</button>
+  <button class="tbtn" id="btn-col" onclick="toggleColPicker()"><svg viewBox="0 0 16 16" stroke-width="2"><rect x="2" y="2" width="4" height="12" rx="1"/><rect x="8" y="2" width="2" height="12" rx="0.5" opacity="0.4"/><rect x="12" y="2" width="2" height="12" rx="0.5" opacity="0.4"/></svg>Chỉ số</button>
+  <button class="tbtn" onclick="loadData()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M2 8a6 6 0 1 1 1 3.5"/><polyline points="2,4 2,8 6,8"/></svg>Tải lại</button>
+  <button class="tbtn green" onclick="exportExcel()"><svg viewBox="0 0 16 16" stroke-width="2"><path d="M8 2v8m0 0l-3-3m3 3l3-3"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>Excel</button>
+  <div class="s-dot" id="sDot" style="display:none"></div><span id="sTxt" style="display:none"></span>
+</div>
+<div class="table-wrap">
+  <div class="empty-state" id="empty"><p id="emptyMsg">Đang tải…</p></div>
+  <table id="tbl" style="display:none"><thead><tr id="theadRow1"></tr><tr id="theadRow2"></tr></thead><tbody id="tbody"></tbody><tfoot><tr id="tfootRow"></tr></tfoot></table>
+</div>
+</div>
+
+<!-- MOBILE TOOLBAR -->
+<nav class="mob-toolbar">
+  <button class="mob-btn" onclick="toggleSidebar()"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="4" y1="5" x2="16" y2="5"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="15" x2="16" y2="15"/></svg><span>Menu</span></button>
+  <button class="mob-btn" onclick="openSheet('cols')"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="5" height="14" rx="1"/><rect x="10" y="3" width="3" height="14" rx="0.5" opacity="0.4"/></svg><span>Chỉ số</span></button>
+  <button class="mob-btn accent" onclick="openSheet('kbc')"><svg viewBox="0 0 20 20" stroke-width="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/></svg><span>Kỳ</span></button>
+  <button class="mob-btn" onclick="openSheet('filter')"><svg viewBox="0 0 20 20" stroke-width="1.8"><line x1="3" y1="5" x2="17" y2="5"/><line x1="5" y1="10" x2="15" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg><span>Lọc</span></button>
+  <button class="mob-btn" onclick="openSheet('actions')"><svg viewBox="0 0 20 20" stroke-width="1.8"><circle cx="10" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.5" fill="currentColor" stroke="none"/><circle cx="10" cy="16" r="1.5" fill="currentColor" stroke="none"/></svg><span>Khác</span></button>
+</nav>
+
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()"></div>
+<div class="bottom-sheet" id="bottom-sheet"><div class="sheet-handle"></div><div class="sheet-title" id="sheet-title"></div><div class="sheet-body" id="sheet-body"></div></div>
+<div id="toasts"></div>
+
+{% include "baocao_dachieu/_chart_modal.html" %}
+{% include "_header_js.html" %}
+{% include "_sidebar_js.html" %}
+{% include "_report_utils.js" %}
+<script>
+var FMT=new Intl.NumberFormat('en-US',{maximumFractionDigits:0});
+fmtV=function(v){return FMT.format(Math.round(v))};
+</script>
+
+<script>
+const API_BASE='/reports/bao-cao-da-chieu';
+const USER_NVKD='{{ user_ma_nvkd }}';
+const USER_BP='{{ user_ma_bp }}';
+</script>
+{% include "_report_permissions.js" %}
+{% include "_kh_search.html" %}
+
+<!-- ═══ STATE + measure registry + picker callbacks (TRƯỚC _nv_picker) ═══ -->
+<script>
+let hierarchy=[],nvMap={},khMap={},khNames={},expState={},allExp=true;
+let selectedBP='';
+let kbcList=[];
+let monthData={};        // {monthId(str): {measure: {nvkd:{kh:val}}}}
+let periodCols=[];       // cột kỳ hiển thị (thang/quy/nam)
+let dataLoaded=false,dataLoading=false;
+let periodGran='thang';
+let lastRenderedRows=[],lastColKeys=[];
+const REPORT_SLUG='bao-cao-da-chieu';
+
+/* ═══ Measure registry ═══ */
+const MEASURE_REGISTRY=[
+    {id:'doanhso', label:'Doanh số',      defaultOn:true,  stock:false, inv:false, color:'#1a46c4'},
+    {id:'doanhthu',label:'Doanh thu',     defaultOn:true,  stock:false, inv:false, color:'#0a7c50'},
+    {id:'soluong', label:'Số lượng',      defaultOn:false, stock:false, inv:false, color:'#b45309'},
+    {id:'tralai',  label:'Trả lại',       defaultOn:false, stock:false, inv:false, color:'#dc2626'},
+    {id:'thuong',  label:'Thưởng',        defaultOn:false, stock:false, inv:false, color:'#7c3aed'},
+    {id:'congno',  label:'Dư nợ cuối kỳ', defaultOn:false, stock:true,  inv:true,  color:'#475569'},
+];
+const MEASURE_DEFAULT=MEASURE_REGISTRY.filter(m=>m.defaultOn).map(m=>m.id);
+let selMeasureIds=[...MEASURE_DEFAULT];
+let _stateSaveTimer=null;
+
+function getSelMeasures(){return MEASURE_REGISTRY.filter(m=>selMeasureIds.includes(m.id))}
+function CK(colId,mid){return colId+'|'+mid}
+
+/* ── KBC: tháng được chọn + ancestor theo loại ── */
+function selectedMonths(){
+    return kbcList.filter(k=>k.loai_kbc==='Tháng'&&_kbcChecked.has(k.id))
+        .sort((a,b)=>(iso(a.ngay_bd_xuat_ban)||'').localeCompare(iso(b.ngay_bd_xuat_ban)||''));
+}
+function _ancestorByType(k,type){
+    var cur=k,guard=0;
+    while(cur&&guard++<12){
+        var pid=cur.parent_id;
+        if(!pid||!_kbcMap[pid])return null;
+        cur=_kbcMap[pid];
+        if(cur.loai_kbc===type)return cur;
+    }
+    return null;
+}
+
+/* ── Dựng cột kỳ theo granularity (thuần client-side) ── */
+function buildPeriodCols(){
+    var months=selectedMonths();
+    var groups=new Map();
+    months.forEach(function(m){
+        var key,label,sub='';
+        if(periodGran==='thang'){key='M'+m.id;label=m.ten_kbc;sub=fmtD(iso(m.ngay_bd_xuat_ban))+' → '+fmtD(iso(m.ngay_kt_xuat_ban));}
+        else{
+            var type=periodGran==='quy'?'Quý':'Năm';
+            var anc=_ancestorByType(m,type);
+            if(anc){key='K'+anc.id;label=anc.ten_kbc;}
+            else{
+                var d=iso(m.ngay_kt_xuat_ban)||iso(m.ngay_bd_xuat_ban)||'';
+                var y=d.substring(0,4);
+                if(periodGran==='nam'){key='Y'+y;label='Năm '+y;}
+                else{var mo=parseInt(d.substring(5,7)||'1',10);var q=Math.floor((mo-1)/3)+1;key='Q'+y+'_'+q;label='Quý '+q+'/'+y;}
+            }
+        }
+        var g=groups.get(key);
+        if(!g){g={id:key,label:label,sub:sub,monthIds:[],sortKey:iso(m.ngay_bd_xuat_ban)||'',lastMonthId:m.id,lastDate:iso(m.ngay_kt_thu_tien)||''};groups.set(key,g);}
+        g.monthIds.push(m.id);
+        var md=iso(m.ngay_kt_thu_tien)||'';
+        if(md>=g.lastDate){g.lastDate=md;g.lastMonthId=m.id;}
+        var sd=iso(m.ngay_bd_xuat_ban)||'';
+        if(sd&&(!g.sortKey||sd<g.sortKey))g.sortKey=sd;
+        if(periodGran!=='thang')g.sub=g.monthIds.length+' tháng';
+    });
+    periodCols=[...groups.values()].sort((a,b)=>a.sortKey.localeCompare(b.sortKey));
+    // Nhãn trục X 3 cấp [Tháng, Quý, Năm] — luôn hiển thị đủ cho dễ dóng
+    periodCols.forEach(function(g){
+        var ds=g.sortKey||'';var yy=ds.substring(0,4);var mo=parseInt(ds.substring(5,7)||'1',10);
+        var q='Q'+(Math.floor((mo-1)/3)+1);
+        if(periodGran==='thang')g.axis=['Th'+(mo<10?'0'+mo:mo),q,yy];
+        else if(periodGran==='quy')g.axis=['',q,yy];
+        else g.axis=['','',yy];
+    });
+}
+
+/* ── Persist state (measures + granularity) ── */
+async function loadReportState(){
+    try{var r=await fetch('/api/report-state/'+REPORT_SLUG);var j=await r.json();
+        if(j.success&&j.state){
+            if(Array.isArray(j.state.measures)){
+                var valid=new Set(MEASURE_REGISTRY.map(m=>m.id));
+                var loaded=j.state.measures.filter(id=>valid.has(id));
+                if(loaded.length)selMeasureIds=loaded;
+            }
+            if(['thang','quy','nam'].includes(j.state.gran))periodGran=j.state.gran;
+        }
+    }catch(e){console.warn('[State] load',e)}
+    syncGranUI();
+}
+function saveReportState(){
+    if(_stateSaveTimer)clearTimeout(_stateSaveTimer);
+    _stateSaveTimer=setTimeout(async function(){try{await fetch('/api/report-state/'+REPORT_SLUG,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:{measures:selMeasureIds,gran:periodGran}})})}catch(e){console.warn('[State] save',e)}},500);
+}
+
+function syncGranUI(){document.querySelectorAll('#gran-seg button').forEach(function(b){b.classList.toggle('active',b.dataset.g===periodGran)})}
+function setGran(g){if(g===periodGran)return;periodGran=g;syncGranUI();saveReportState();renderAll()}
+
+/* ── Measure picker ── */
+function toggleMeasure(id){
+    if(selMeasureIds.includes(id))selMeasureIds=selMeasureIds.filter(x=>x!==id);
+    else{var ord=MEASURE_REGISTRY.map(m=>m.id);selMeasureIds=ord.filter(x=>selMeasureIds.includes(x)||x===id);}
+    if(!selMeasureIds.length)selMeasureIds=[...MEASURE_DEFAULT];
+    renderMeasurePicker();saveReportState();
+    // measure mới chưa có dữ liệu → cần tải lại
+    loadData();
+}
+function resetMeasures(){selMeasureIds=[...MEASURE_DEFAULT];renderMeasurePicker();saveReportState();loadData();toast('Đã đặt lại chỉ số mặc định')}
+function renderMeasurePicker(){
+    var el=document.getElementById('col-picker-list');if(!el)return;
+    var h='';
+    MEASURE_REGISTRY.forEach(function(m){
+        var ck=selMeasureIds.includes(m.id)?'checked':'';
+        h+='<label class="col-picker-item"><input type="checkbox" '+ck+' onchange="toggleMeasure(\''+m.id+'\')"><span class="mdot" style="background:'+m.color+'"></span><span>'+m.label+'</span></label>';
+    });
+    el.innerHTML=h;
+}
+function toggleColPicker(){
+    var el=document.getElementById('col-picker'),ov=document.getElementById('col-picker-overlay');
+    if(el.style.display==='none'){
+        renderMeasurePicker();
+        var btn=document.getElementById('btn-col');
+        if(btn){var r=btn.getBoundingClientRect();el.style.top=(r.bottom+4)+'px';el.style.left=Math.max(4,Math.min(r.left,window.innerWidth-310))+'px';el.style.right='auto';}
+        el.style.display='';ov.style.display='';
+    }else closeColPicker();
+}
+function closeColPicker(){document.getElementById('col-picker').style.display='none';document.getElementById('col-picker-overlay').style.display='none'}
+
+/* ─── Picker callbacks ─── */
+function pickerHasKH(nd){
+    for(var i=0;i<lastColKeys.length;i++){var ck=lastColKeys[i].ck;if(nd._vals[ck]&&Object.keys(nd._vals[ck].kh).length>0)return true}
+    return false;
+}
+function pickerDataLoaded(){return dataLoaded}
+function onPickerApply(){renderAll()}
+function onKHSelected(mk,name){if(_kbcChecked.size)loadData()}
+function onKHCleared(){if(_kbcChecked.size)loadData()}
+function onKBCSelected(){loadData()}
+</script>
+
+{% include "_nv_picker.html" %}
+{% include "_kbc_picker.html" %}
+
+<!-- ═══ Data loading, rendering, chart, export ═══ -->
+<script>
+async function init(){
+    setS('busy','Tải...');showLoading('Đang tải dữ liệu…');
+    try{
+        const [rH,rK,rKBC]=await Promise.all([
+            fetch(API_BASE+'/api/hierarchy').then(r=>r.json()),
+            fetch(API_BASE+'/api/khachhang').then(r=>r.json()),
+            fetch(API_BASE+'/api/ky-bao-cao').then(r=>r.json())
+        ]);
+        if(!rH.success)throw new Error(rH.error||'Lỗi hierarchy');
+        hierarchy=rH.data;nvMap={};
+        hierarchy.forEach(h=>{nvMap[h.ma_nvkd]={...h,children:[],_vals:{}};if(!(h.ma_nvkd in expState))expState[h.ma_nvkd]=true});
+        hierarchy.forEach(h=>{if(h.ma_ql&&nvMap[h.ma_ql])nvMap[h.ma_ql].children.push(nvMap[h.ma_nvkd])});
+        khMap={};khNames={};
+        if(rK.success)rK.data.forEach(k=>{if(k.ma_kh){khMap[k.ma_kh]={ma_nvkd:k.ma_nvkd,ten_kh:k.ten_kh,ma_bp:k.ma_bp||''};khNames[k.ma_kh]=k.ten_kh}});
+        computeAllowedNV();
+        hierarchy.forEach(h=>{pickerExp[h.ma_nvkd]=(h.level===0)});
+        const bps=getAllowedBP();
+        const bpSel=document.getElementById('bp-select');
+        bpSel.innerHTML=(bps.length>1?'<option value="">Tất cả BP</option>':'')+bps.map(b=>'<option value="'+esc(b)+'">'+esc(b)+'</option>').join('');
+        if(bps.length===1){selectedBP=bps[0];bpSel.value=bps[0]}
+        kbcList=rKBC.success?rKBC.data:[];populateKBC();
+        await loadReportState();
+        setS('ok',hierarchy.length+' NV');toast(allowedNV.size+' NV, '+Object.keys(khMap).length+' KH');
+        updatePickerBadge();
+        if(_kbcChecked.size)loadData();
+        else{hideLoading();document.getElementById('empty').style.display='flex';document.getElementById('emptyMsg').textContent='Hãy chọn kỳ báo cáo';}
+    }catch(e){hideLoading();setS('err','Lỗi');document.getElementById('emptyMsg').textContent='⚠ '+e.message;toast(e.message,'err')}
+}
+function onBPChange(v){selectedBP=v;renderPickerTree();if(_kbcChecked.size)loadData()}
+
+/* ─── Tải dữ liệu (theo từng tháng) ─── */
+async function loadData(){
+    var months=selectedMonths();
+    if(!months.length){
+        dataLoaded=false;monthData={};
+        document.getElementById('tbl').style.display='none';
+        document.getElementById('empty').style.display='flex';
+        document.getElementById('emptyMsg').textContent='Hãy chọn kỳ báo cáo';
+        return;
+    }
+    dataLoading=true;setS('busy','Tải...');showLoading('Đang tải dữ liệu…');
+    const bp=selectedBP||(userBpList.length?userBpList.join(','):'');
+    const nv=allowedNV.size>0&&userNvkdList.length?[...allowedNV].join(','):'';
+    const kh=selectedKH?selectedKH.ma_kh:'';
+    const periods=months.map(function(m){return{
+        id:m.id,
+        bd_xb:iso(m.ngay_bd_xuat_ban),kt_xb:iso(m.ngay_kt_xuat_ban),
+        bd_tt:iso(m.ngay_bd_thu_tien),kt_tt:iso(m.ngay_kt_thu_tien),
+        bd_lk:iso(m.ngay_bd_lan_ki),kt_lk:iso(m.ngay_kt_lan_ki)
+    }});
+    try{
+        const r=await fetch(API_BASE+'/api/data',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({periods:periods,measures:selMeasureIds,ma_bp:bp,ds_nvkd:nv,ds_kh:kh})});
+        const j=await r.json();
+        if(!j.success)throw new Error(j.error||'Lỗi tải dữ liệu');
+        monthData=j.data||{};
+        if(j.kh_names)Object.assign(khNames,j.kh_names);
+        dataLoaded=true;dataLoading=false;
+        document.getElementById('tbl').style.display='';document.getElementById('empty').style.display='none';
+        hideLoading();setS('ok','OK');renderAll();toast('Đã tải xong');
+    }catch(e){dataLoading=false;hideLoading();setS('err','Lỗi');toast(e.message,'err')}
+}
+
+/* ─── Aggregate vào nvMap._vals theo từng colKey ─── */
+function aggregate(){
+    Object.values(nvMap).forEach(n=>{n._vals={}});
+    var measures=getSelMeasures();
+    periodCols.forEach(function(col){
+        measures.forEach(function(mz){
+            var ck=CK(col.id,mz.id);
+            Object.values(nvMap).forEach(n=>{n._vals[ck]={kh:{},total:null}});
+            var mids=mz.stock?[col.lastMonthId]:col.monthIds;
+            mids.forEach(function(mid){
+                var md=monthData[String(mid)];if(!md)return;var mm=md[mz.id];if(!mm)return;
+                Object.keys(mm).forEach(function(nvkd){
+                    var nd=nvMap[nvkd];if(!nd)return;
+                    Object.entries(mm[nvkd]).forEach(function(e){nd._vals[ck].kh[e[0]]=(nd._vals[ck].kh[e[0]]||0)+e[1]});
+                });
+            });
+            [...hierarchy].sort((a,b)=>b.level-a.level).forEach(function(h){
+                var nd=nvMap[h.ma_nvkd],cv=nd._vals[ck];
+                var sel=selectedNV===null||selectedNV.has(h.ma_nvkd);
+                var sum=0,has=false;
+                if(sel)Object.values(cv.kh).forEach(v=>{sum+=v;has=true});
+                nd.children.forEach(c=>{var ct=c._vals[ck]?c._vals[ck].total:null;if(ct!=null){sum+=ct;has=true}});
+                cv.total=has?sum:null;
+            });
+        });
+    });
+}
+function getKHName(mk){return khNames[mk]||(khMap[mk]&&khMap[mk].ten_kh)||mk}
+function treeH(anc,isL,dep){if(dep===0)return'';let h='';for(let i=0;i<anc.length;i++)h+=anc[i].cont?'<span class="tree-seg vline"></span>':'<span class="tree-seg"></span>';h+=isL?'<span class="tree-seg branch"></span>':'<span class="tree-seg branch-cont"></span>';return h}
+
+function buildRows(){
+    const isF=selectedNV!==null;const rows=[];
+    function getKH(nd){const s=new Set();lastColKeys.forEach(c=>{if(nd._vals[c.ck])Object.keys(nd._vals[c.ck].kh).forEach(k=>s.add(k))});return[...s]}
+    function fKH(keys){if(!selectedKH)return keys;var allowed=new Set(selectedKH.ma_kh.split(','));return keys.filter(k=>allowed.has(k))}
+    function hasData(nd){
+        if(!allowedNV.has(nd.ma_nvkd))return false;
+        for(var i=0;i<lastColKeys.length;i++){var cv=nd._vals[lastColKeys[i].ck];if(cv&&cv.total!=null&&cv.total!==0)return true}
+        return nd.children.some(c=>hasData(c));
+    }
+    let treeRoots;
+    if(userNvkdList.length){treeRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom))}
+    else{treeRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd]).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom))}
+    if(isF){
+        const list=hierarchy.filter(h=>selectedNV.has(h.ma_nvkd)&&allowedNV.has(h.ma_nvkd)&&hasData(nvMap[h.ma_nvkd])).sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom));
+        list.forEach((h,i)=>{
+            const nd=nvMap[h.ma_nvkd],exp=expState[nd.ma_nvkd]!==false,fk=fKH(getKH(nd));
+            rows.push({type:'nv',node:nd,expanded:exp,hasKids:fk.length>0,depth:0,ancestors:[],isLast:i===list.length-1});
+            if(exp&&fk.length)fk.forEach((k,ki)=>{rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:1,ancestors:[{cont:ki<fk.length-1}],isLast:ki===fk.length-1})});
+        });
+    }else{
+        function walk(nd,anc,isL,depthOffset){
+            if(!hasData(nd))return;
+            const fk=fKH(getKH(nd)),vc=[...nd.children].sort((a,b)=>a.stt_nhom.localeCompare(b.stt_nhom)).filter(c=>hasData(c));
+            const relDepth=nd.level-depthOffset,exp=expState[nd.ma_nvkd]!==false;
+            rows.push({type:'nv',node:nd,expanded:exp,hasKids:vc.length>0||fk.length>0,depth:relDepth,ancestors:[...anc],isLast:isL});
+            if(exp){const tot=fk.length+vc.length;let si=0;
+                fk.forEach(k=>{const il=si===tot-1;rows.push({type:'kh',ma_kh:k,ten_kh:getKHName(k),parentNV:nd,depth:relDepth+1,ancestors:[...anc,{cont:!il}],isLast:il});si++});
+                vc.forEach(child=>{const il=si===tot-1;walk(child,[...anc,{cont:!il}],il,depthOffset);si++});
+            }
+        }
+        const visRoots=treeRoots.filter(r=>hasData(r)),baseLevel=visRoots.length?visRoots[0].level:0;
+        visRoots.forEach((r,ri,arr)=>walk(r,[],ri===arr.length-1,baseLevel));
+    }
+    return rows;
+}
+
+/* ─── Render ─── */
+function renderAll(){
+    if(!hierarchy.length||!dataLoaded)return;
+    buildPeriodCols();
+    var measures=getSelMeasures();
+    // flat colKeys theo thứ tự cột × measure
+    lastColKeys=[];
+    periodCols.forEach(function(col){measures.forEach(function(mz,mi){lastColKeys.push({ck:CK(col.id,mz.id),col:col,mz:mz,mfirst:mi===0})})});
+    aggregate();
+    const rows=buildRows();lastRenderedRows=rows;
+
+    if(!periodCols.length){
+        document.getElementById('tbl').style.display='none';
+        document.getElementById('empty').style.display='flex';
+        document.getElementById('emptyMsg').textContent='Hãy chọn kỳ báo cáo';
+        return;
+    }
+
+    /* Header tầng 1: kỳ */
+    var th1='<th rowspan="2" style="text-align:left;min-width:220px">NV / KH<div class="col-grip" onmousedown="startResize(event,this)" ontouchstart="startResizeTouch(event,this)"></div></th>';
+    th1+='<th rowspan="2" style="text-align:left;min-width:58px;width:66px">Mã</th>';
+    periodCols.forEach(function(col){
+        th1+='<th class="th-period" colspan="'+measures.length+'"><div class="thp-main">'+esc(col.label)+'</div><div class="thp-sub">'+esc(col.sub||'')+'</div></th>';
+    });
+    th1+='<th rowspan="2" class="col-end-spacer"></th>';
+    document.getElementById('theadRow1').innerHTML=th1;
+
+    /* Header tầng 2: measure */
+    var th2='';
+    periodCols.forEach(function(col){
+        measures.forEach(function(mz,mi){
+            th2+='<th class="th-measure'+(mi===0?' mfirst':'')+'" style="min-width:104px;color:'+mz.color+'">'+esc(mz.label)+'<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+        });
+    });
+    document.getElementById('theadRow2').innerHTML=th2;
+
+    function cellNV(nd,c){var cv=nd._vals[c.ck];return cv?cv.total:null}
+    function cellKH(pNV,mk,c){return(pNV._vals[c.ck]&&pNV._vals[c.ck].kh[mk])!=null?pNV._vals[c.ck].kh[mk]:null}
+    function cellHtml(v,mz,cls){return v!=null?numH(v,cls,mz.inv):'<span class="n zero">0</span>'}
+
+    let html='';
+    rows.forEach(function(row){
+        if(row.type==='nv'){
+            const nd=row.node,dep=row.depth,lv='lv'+Math.min(dep,5);
+            const tl=dep>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,dep)+'</span>':'';
+            const tog=row.hasKids?'<button class="tog" onclick="togNV(\''+nd.ma_nvkd+'\',event)"><svg viewBox="0 0 9 9">'+(row.expanded?'<path d="M1.5 3L4.5 6.5L7.5 3"/>':'<path d="M3 1.5L6.5 4.5L3 7.5"/>')+'</svg></button>':'<span class="tog-sp"></span>';
+            let tds='';lastColKeys.forEach(function(c){const v=cellNV(nd,c);tds+='<td style="text-align:right" class="'+(c.mfirst?'cellsep':'')+'">'+cellHtml(v,c.mz,'sub')+'</td>'});
+            html+='<tr class="row-nv '+lv+'"><td><div class="cell-name">'+tl+tog+'<span class="nametxt" style="cursor:pointer" onclick="openChartNV(\''+nd.ma_nvkd.replace(/\x27/g,"\\\x27")+'\')">'+esc(nd.ten_nvkd||nd.ma_nvkd)+'</span></div></td><td><span class="code">'+esc(nd.ma_nvkd)+'</span></td>'+tds+'<td class="col-end-spacer"></td></tr>';
+        }else{
+            const mk=row.ma_kh,pNV=row.parentNV;
+            const tl=row.depth>0?'<span class="tree-lines">'+treeH(row.ancestors,row.isLast,row.depth)+'</span>':'';
+            let tds='';lastColKeys.forEach(function(c){const v=cellKH(pNV,mk,c);tds+='<td style="text-align:right" class="'+(c.mfirst?'cellsep':'')+'">'+cellHtml(v,c.mz,'')+'</td>'});
+            html+='<tr class="row-kh"><td><div class="cell-name">'+tl+'<span class="tog-sp"></span><span class="nametxt" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--g3);text-underline-offset:2px" onclick="openChartKH(\''+mk.replace(/\x27/g,"\\\x27")+'\',\''+pNV.ma_nvkd.replace(/\x27/g,"\\\x27")+'\')">'+esc(row.ten_kh)+'</span></div></td><td><span class="code" style="font-size:9px;color:var(--g4)">'+esc(mk)+'</span></td>'+tds+'<td class="col-end-spacer"></td></tr>';
+        }
+    });
+    document.getElementById('tbody').innerHTML=html;
+
+    /* Foot */
+    let footRoots;
+    if(userNvkdList.length){footRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id])}
+    else{footRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd])}
+    let tf='<td><span class="foot-lbl">Tổng cộng</span></td><td></td>';
+    lastColKeys.forEach(function(c){let sum=0,has=false;footRoots.forEach(r=>{const t=cellNV(r,c);if(t!=null){sum+=t;has=true}});tf+='<td style="text-align:right" class="'+(c.mfirst?'cellsep':'')+'"><span class="n grand">'+(has?fmtV(sum):'—')+'</span></td>'});
+    tf+='<td class="col-end-spacer"></td>';
+    document.getElementById('tfootRow').innerHTML=tf;
+}
+function togNV(id,e){if(e)e.stopPropagation();expState[id]=!expState[id];renderAll()}
+function toggleExp(){allExp=!allExp;hierarchy.forEach(h=>expState[h.ma_nvkd]=allExp);document.getElementById('btn-exp').textContent=allExp?'Thu':'Mở';renderAll()}
+
+/* ─── Chart: lấy chuỗi giá trị qua các cột kỳ ─── */
+function _seriesNV(nd){var s={};getSelMeasures().forEach(function(mz){s[mz.id]=periodCols.map(function(col){var cv=nd._vals[CK(col.id,mz.id)];return cv?cv.total:null})});return s}
+function _seriesKH(pNV,mk){var s={};getSelMeasures().forEach(function(mz){s[mz.id]=periodCols.map(function(col){var cv=pNV._vals[CK(col.id,mz.id)];return(cv&&cv.kh[mk])!=null?cv.kh[mk]:null})});return s}
+var _chartEntity=null;
+function _granName(g){return g==='thang'?'tháng':g==='quy'?'quý':'năm'}
+function _chartScope(){
+    if(!_chartEntity)return null;
+    if(_chartEntity.kind==='nv'){var nd=nvMap[_chartEntity.nvkd];if(!nd)return null;
+        return{title:esc(nd.ten_nvkd||nd.ma_nvkd),sub:'NVKD · '+nd.ma_nvkd+' · xu hướng theo '+_granName(periodGran),series:_seriesNV(nd)};}
+    var pNV=nvMap[_chartEntity.parent];if(!pNV)return null;
+    return{title:esc(getKHName(_chartEntity.mk)),sub:'Khách hàng · '+_chartEntity.mk+' · xu hướng theo '+_granName(periodGran),series:_seriesKH(pNV,_chartEntity.mk)};
+}
+function openChartNV(nvkd){if(!nvMap[nvkd])return;_chartEntity={kind:'nv',nvkd:nvkd};openChart(_chartScope())}
+function openChartKH(mk,parentNvkd){if(!nvMap[parentNvkd])return;_chartEntity={kind:'kh',mk:mk,parent:parentNvkd};openChart(_chartScope())}
+/* Đổi phân kỳ ngay trong modal: cập nhật bảng + vẽ lại chart cho cùng đối tượng */
+function chartSetGran(g){
+    if(g!==periodGran){periodGran=g;syncGranUI();saveReportState();renderAll();}
+    if(typeof syncChartGranUI==='function')syncChartGranUI();
+    var sc=_chartScope();if(sc&&_dccScope){_dccScope=sc;document.getElementById('dccSub').textContent=sc.sub;_dccRender();}
+}
+
+/* ─── Mobile sheets ─── */
+function openSheet(type){
+    let title='',body='';
+    if(type==='filter'){
+        title='Bộ lọc';
+        var nvLabel=selectedNV===null?'Tất cả NV':(selectedNV.size+' NV');
+        body='<div class="sheet-section"><div class="sheet-section-label">Nhân viên</div><div class="sheet-row"><div class="sheet-btn" onclick="closeSheet();togglePicker()">'+esc(nvLabel)+'</div></div></div>'
+            +'<div class="sheet-section"><div class="sheet-section-label">Khách hàng</div><div class="sheet-row"><div class="sheet-btn" onclick="closeSheet();toggleKHPicker()">'+(selectedKH?esc(selectedKH.ten_kh):'Tất cả KH')+'</div></div></div>'
+            +'<div class="sheet-section"><div class="sheet-section-label">Phân kỳ</div><div class="sheet-row" style="gap:6px">'
+            +['thang','quy','nam'].map(function(g){return '<div class="sheet-btn'+(periodGran===g?' green':'')+'" onclick="setGran(\''+g+'\')">'+(g==='thang'?'Tháng':g==='quy'?'Quý':'Năm')+'</div>'}).join('')
+            +'</div></div>'
+            +'<div class="sheet-section"><div class="sheet-section-label">Bộ phận</div><div class="sheet-row"><select class="bp-select" style="width:100%;height:40px;font-size:13px" onchange="onBPChange(this.value);document.getElementById(\'bp-select\').value=this.value" id="mob-bp-sel"></select></div></div>';
+    }else if(type==='kbc'){closeSheet();openKbcPicker();return;}
+    else if(type==='cols'){
+        title='Chọn chỉ số';
+        var items='';
+        MEASURE_REGISTRY.forEach(function(m){
+            var ck=selMeasureIds.includes(m.id)?'checked':'';
+            items+='<label style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--g1,#eee);font-size:14px"><input type="checkbox" '+ck+' onchange="toggleMeasure(\''+m.id+'\')" style="width:20px;height:20px;accent-color:'+m.color+'"><span class="mdot" style="background:'+m.color+'"></span><span>'+m.label+'</span></label>';
+        });
+        body='<div>'+items+'</div><div style="padding-top:12px;text-align:center"><button class="sheet-btn" onclick="resetMeasures();closeSheet()">Đặt lại mặc định</button></div>';
+    }else if(type==='actions'){
+        title='Thao tác';
+        body='<div style="display:flex;flex-direction:column;gap:8px"><div class="sheet-btn" onclick="toggleExp();closeSheet()">'+(allExp?'Thu gọn':'Mở rộng')+'</div><div class="sheet-btn" onclick="loadData();closeSheet()">Tải lại</div><div class="sheet-btn green" onclick="exportExcel();closeSheet()">Xuất Excel</div></div>';
+    }
+    _openSheet(title,body);
+    if(type==='filter'){const ms=document.getElementById('mob-bp-sel');if(ms){ms.innerHTML=document.getElementById('bp-select').innerHTML;ms.value=selectedBP}}
+}
+
+/* ─── Export Excel ─── */
+async function exportExcel(){
+    if(!lastRenderedRows.length||!periodCols.length){toast('Chưa có dữ liệu','err');return}
+    setS('busy','Xuất Excel…');showLoading('Đang xuất Excel…');
+    var measures=getSelMeasures();
+    var colHeaders=lastColKeys.map(function(c){return c.col.label+'\n'+c.mz.label});
+    function cellNV(nd,c){var cv=nd._vals[c.ck];return cv?cv.total:null}
+    function cellKH(pNV,mk,c){return(pNV._vals[c.ck]&&pNV._vals[c.ck].kh[mk])!=null?pNV._vals[c.ck].kh[mk]:null}
+    const payload=[];
+    lastRenderedRows.forEach(function(row){
+        if(row.type==='nv')payload.push({type:'nv',depth:row.depth,name:row.node.ten_nvkd||row.node.ma_nvkd,values:lastColKeys.map(c=>cellNV(row.node,c))});
+        else payload.push({type:'kh',depth:0,name:row.ten_kh,values:lastColKeys.map(c=>cellKH(row.parentNV,row.ma_kh,c))});
+    });
+    let footRoots;if(userNvkdList.length){footRoots=userNvkdList.filter(id=>nvMap[id]).map(id=>nvMap[id])}else{footRoots=hierarchy.filter(h=>!h.ma_ql||!nvMap[h.ma_ql]).map(h=>nvMap[h.ma_nvkd])}
+    payload.push({type:'total',depth:0,name:'TỔNG CỘNG',values:lastColKeys.map(c=>{let sum=0,has=false;footRoots.forEach(r=>{const t=cellNV(r,c);if(t!=null){sum+=t;has=true}});return has?sum:null})});
+    try{
+        await exportExcelBlob(API_BASE+'/api/export_excel',{rows:payload,col_headers:colHeaders,kbc_name:periodCols.length+' kỳ'},'BaoCaoDaChieu.xlsx');
+        hideLoading();setS('ok','OK');toast('Đã tải Excel');
+    }catch(e){hideLoading();setS('err','Lỗi');toast(e.message,'err')}
+}
+
+document.addEventListener('DOMContentLoaded',function(){activateHybridScroll();init()});
+</script>
+<div class="col-picker-overlay" id="col-picker-overlay" onclick="closeColPicker()" style="display:none"></div>
+<div class="col-picker" id="col-picker" style="display:none">
+<div class="col-picker-title">Chọn chỉ số hiển thị</div>
+<div class="col-picker-list" id="col-picker-list"></div>
+<div class="col-picker-actions" style="padding:8px 14px 4px;border-top:1px solid var(--g1,#eee);display:flex;justify-content:flex-end"><button onclick="resetMeasures()" style="font-size:11px;color:var(--blue,#1a46c4);background:none;border:1px solid var(--blue,#1a46c4);border-radius:4px;padding:3px 10px;cursor:pointer;font-weight:600">Mặc định</button></div>
+</div>
+</body>
+</html>
