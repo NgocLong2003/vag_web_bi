@@ -61,7 +61,7 @@ function openChart(scope){
     document.getElementById('dccTitle').textContent=scope.title||'';
     document.getElementById('dccSub').textContent=scope.sub||'';
     // Tabs = các measure đang chọn (chỉ measure có trong series)
-    var sel=getSelMeasures().filter(function(m){return scope.series&&scope.series[m.id]});
+    var sel=(typeof effMeasures==="function"?effMeasures():getSelMeasures()).filter(function(m){return scope.series&&scope.series[m.id]});
     if(!sel.length){closeChart();return}
     if(!_dccMeasure||!sel.some(function(m){return m.id===_dccMeasure}))_dccMeasure=sel[0].id;
     var tabs='';
@@ -76,7 +76,7 @@ function openChart(scope){
 }
 function _dccPick(mid){_dccMeasure=mid;
     document.querySelectorAll('#dccTabs .dcc-mtab').forEach(function(b){b.classList.remove('active')});
-    var sel=getSelMeasures().filter(function(m){return _dccScope.series&&_dccScope.series[m.id]});
+    var sel=(typeof effMeasures==="function"?effMeasures():getSelMeasures()).filter(function(m){return _dccScope.series&&_dccScope.series[m.id]});
     var idx=sel.findIndex(function(m){return m.id===mid});
     var btns=document.querySelectorAll('#dccTabs .dcc-mtab');if(btns[idx])btns[idx].classList.add('active');
     _dccRender();

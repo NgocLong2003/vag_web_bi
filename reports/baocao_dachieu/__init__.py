@@ -216,6 +216,42 @@ def api_data():
 
 
 # ─────────────────────────────────────────
+# API: Dữ liệu chi tiết dòng-hàng (chiều Sản phẩm / Khu vực)
+# Trả về rows aggregated theo từng tháng → frontend tự pivot mọi chiều.
+# ─────────────────────────────────────────
+@bp.route('/api/data_detail', methods=['POST'])
+def api_data_detail():
+    body = request.get_json(force=True)
+    periods = body.get('periods', [])
+    ma_bp = body.get('ma_bp', '')
+    ds_nvkd = body.get('ds_nvkd', '')
+    ds_kh = body.get('ds_kh', '')
+
+    if not periods:
+        return api_response(ok=False, error='Thiếu danh sách kỳ', status_code=400)
+
+    store = get_store()
+    sql = load_sql('DACHIEU_FACT_DUCK')
+    out = {}
+    for p in periods:
+        pid = str(p.get('id'))
+        bd_xb, kt_xb = p.get('bd_xb'), p.get('kt_xb')
+        rows = []
+        if bd_xb and kt_xb:
+            try:
+                rows = store.query(sql, [bd_xb, kt_xb, ma_bp or '', ds_nvkd or '', ds_kh or ''])
+                for d in rows:
+                    for k in ('so_luong', 'doanhso'):
+                        if d.get(k) is not None:
+                            d[k] = float(d[k])
+            except Exception as e:
+                logger.error(f"[BCDC data_detail] period {pid}: {e}")
+        out[pid] = rows
+
+    return api_response(ok=True, data=out, count=len(periods))
+
+
+# ─────────────────────────────────────────
 # API: Export Excel (clone mẫu baocao_khachhang — NV tree + KH + tổng)
 # ─────────────────────────────────────────
 @bp.route('/api/export_excel', methods=['POST'])
