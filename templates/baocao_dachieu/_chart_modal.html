@@ -1,15 +1,17 @@
-<!-- _chart_modal.html — Modal line chart xu hướng theo kỳ (Báo cáo Đa Chiều)
-     Dùng Chart.js (cùng CDN với analytics.html).
-     Trang gọi: openChart(scope) với scope = {title, sub, series}
-       series: { [measureId]: [valuePerPeriodCol...] }
-     Trang cần có sẵn: periodCols (mảng cột kỳ), getSelMeasures(), MEASURE_REGISTRY, fmtV
+<!-- _chart_modal.html — Modal line chart xu hướng (Báo cáo Đa Chiều)
+     openChart(entity): entity = {title, sub, kind:'mem'|'detail', members:Set | path:obj}
+     Modal có KBC picker RIÊNG (chọn kỳ bất kỳ, tự fetch nếu chưa có), mặc định = view chính.
+     Cần sẵn: _makeCols, _aggSum, _isDetMeasure, _valOfDet, _detailMatch, monthData, detailData,
+              kbcList, _kbcChecked (đọc làm mặc định), selMeasureIds, API_BASE,
+              effMeasures/getSelMeasures, MEASURE_REGISTRY, esc, fmtV, iso, periodGran, selectedBP, userBpList
+              (cây kỳ tự dựng từ kbcList — không phụ thuộc shared _kbc_picker)
 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 .dcc-overlay{position:fixed;inset:0;background:rgba(20,24,40,.45);z-index:9995;opacity:0;pointer-events:none;transition:opacity .15s}
 .dcc-overlay.open{opacity:1;pointer-events:auto}
 .dcc-modal{position:fixed;z-index:9996;top:50%;left:50%;transform:translate(-50%,-48%) scale(.98);opacity:0;pointer-events:none;
-  width:min(860px,94vw);max-height:88vh;background:var(--white,#fff);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.28);
+  width:min(880px,94vw);max-height:90vh;background:var(--white,#fff);border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.28);
   display:flex;flex-direction:column;overflow:hidden;transition:opacity .16s,transform .16s}
 .dcc-modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
 .dcc-head{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--g1,#eef0f4)}
@@ -17,141 +19,225 @@
 .dcc-sub{font-size:11.5px;color:var(--g4,#8a93a8);margin-top:2px}
 .dcc-close{margin-left:auto;width:30px;height:30px;border:none;background:var(--g0,#f5f6f9);border-radius:8px;cursor:pointer;font-size:15px;color:var(--g5,#5b6580);flex-shrink:0}
 .dcc-close:hover{background:var(--g1,#e8eaf0)}
-.dcc-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px 4px}
+.dcc-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px 8px}
 .dcc-mtab{height:28px;padding:0 12px;border-radius:14px;border:1px solid var(--g2,#dde0e8);background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g5,#5b6580);cursor:pointer;transition:.12s}
 .dcc-mtab:hover{border-color:var(--blue-md,#4a78df)}
 .dcc-mtab.active{background:var(--blue,#1a46c4);border-color:var(--blue,#1a46c4);color:#fff}
+.dcc-gran{display:inline-flex;border:1px solid var(--g2,#dde0e8);border-radius:8px;overflow:hidden}
 .dcc-gran button{height:28px;padding:0 12px;border:none;background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g5,#5b6580);cursor:pointer;border-left:1px solid var(--g1,#eef0f4)}
 .dcc-gran button:first-child{border-left:none}
 .dcc-gran button.active{background:var(--g6,#3b4252);color:#fff}
+.dcc-kbc-btn{height:28px;padding:0 12px;border:1px solid var(--g2,#dde0e8);border-radius:8px;background:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--g6,#333);cursor:pointer;display:flex;align-items:center;gap:5px}
+.dcc-kbc-btn:hover{border-color:var(--blue-md,#4a78df)}
+.dcc-kbc-panel{position:fixed;z-index:9997;width:280px;background:var(--white,#fff);border:1px solid var(--g2,#dde0e8);border-radius:10px;box-shadow:0 10px 36px rgba(0,0,0,.2);display:flex;flex-direction:column;overflow:hidden}
+.dcc-kbc-tree{max-height:300px;overflow-y:auto;padding:6px 0}
+.dcc-ki{display:flex;align-items:center;gap:5px;height:30px;padding:0 10px;cursor:default;font-size:12px;color:var(--g6,#333)}
+.dcc-ki:hover{background:var(--g0,#f5f6f9)}
+.dcc-ki input{width:14px;height:14px;accent-color:var(--blue,#1a46c4);cursor:pointer;flex-shrink:0}
+.dcc-ki-tog{width:14px;text-align:center;cursor:pointer;color:var(--g4,#999);flex-shrink:0;font-size:10px}
+.dcc-ki-sp{width:14px;flex-shrink:0}
+.dcc-ki-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dcc-ki-badge{font-size:9px;color:var(--g4,#888);background:var(--g0,#f1f1f4);border-radius:7px;padding:1px 6px;flex-shrink:0}
+.dcc-kbc-foot{display:flex;justify-content:flex-end;gap:6px;padding:7px 10px;border-top:1px solid var(--g1,#eef0f4)}
+.dcc-kbc-foot button{height:28px;padding:0 14px;border-radius:6px;border:1px solid var(--g2,#dde0e8);background:var(--white);font-size:12px;font-weight:600;cursor:pointer;color:var(--g5,#5b6580)}
+.dcc-kbc-foot button.apply{background:var(--blue,#1a46c4);color:#fff;border-color:var(--blue,#1a46c4)}
 .dcc-body{padding:8px 16px 16px;overflow:auto}
 .dcc-canvas-wrap{position:relative;height:min(48vh,420px);width:100%}
-.dcc-empty{padding:40px;text-align:center;color:var(--g4,#8a93a8);font-size:13px}
-@media(max-width:768px){.dcc-modal{width:96vw;max-height:90vh}.dcc-canvas-wrap{height:46vh}}
+@media(max-width:768px){.dcc-modal{width:96vw;max-height:92vh}.dcc-canvas-wrap{height:46vh}.dcc-kbc-panel{right:8px;width:min(280px,86vw)}}
 </style>
 
 <div class="dcc-overlay" id="dccOverlay" onclick="closeChart()"></div>
 <div class="dcc-modal" id="dccModal" role="dialog" aria-modal="true">
   <div class="dcc-head">
-    <div>
-      <div class="dcc-title" id="dccTitle">—</div>
-      <div class="dcc-sub" id="dccSub"></div>
-    </div>
+    <div><div class="dcc-title" id="dccTitle">—</div><div class="dcc-sub" id="dccSub"></div></div>
     <button class="dcc-close" onclick="closeChart()" aria-label="Đóng">✕</button>
   </div>
   <div class="dcc-toolbar">
     <div id="dccTabs" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-    <div class="dcc-gran" id="dccGran" style="margin-left:auto;display:inline-flex;border:1px solid var(--g2,#dde0e8);border-radius:8px;overflow:hidden">
-      <button data-g="thang" onclick="chartSetGran('thang')">Tháng</button>
-      <button data-g="quy" onclick="chartSetGran('quy')">Quý</button>
-      <button data-g="nam" onclick="chartSetGran('nam')">Năm</button>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <div class="dcc-gran" id="dccGran">
+        <button data-g="thang" onclick="chartSetGran('thang')">Tháng</button>
+        <button data-g="quy" onclick="chartSetGran('quy')">Quý</button>
+        <button data-g="nam" onclick="chartSetGran('nam')">Năm</button>
+      </div>
+      <button class="dcc-kbc-btn" onclick="_dccToggleKbc()"><span id="dccKbcLbl">Kỳ</span> ▾</button>
     </div>
   </div>
-  <div class="dcc-body">
-    <div class="dcc-canvas-wrap"><canvas id="dccCanvas"></canvas></div>
+  <div class="dcc-kbc-panel" id="dccKbcPanel" style="display:none">
+    <div class="dcc-kbc-tree" id="dccKbcTree"></div>
+    <div class="dcc-kbc-foot"><button onclick="_dccCancelKbc()">Hủy</button><button class="apply" onclick="_dccApplyKbc()">Áp dụng</button></div>
   </div>
+  <div class="dcc-body"><div class="dcc-canvas-wrap"><canvas id="dccCanvas"></canvas></div></div>
 </div>
 
 <script>
-var _dccChart=null, _dccScope=null, _dccMeasure=null;
+var _dccChart=null,_dccGran='thang',_dccKbcChecked=new Set(),_dccKbcExp={},_dccKbcSnap=null,_dccCols=[],_dccMeasure=null,_dccBusy=false;
 
-function openChart(scope){
-    // scope = {title, sub, series:{measureId:[vals...]}}
-    _dccScope=scope;
-    document.getElementById('dccTitle').textContent=scope.title||'';
-    document.getElementById('dccSub').textContent=scope.sub||'';
-    // Tabs = các measure đang chọn (chỉ measure có trong series)
-    var sel=(typeof effMeasures==="function"?effMeasures():getSelMeasures()).filter(function(m){return scope.series&&scope.series[m.id]});
-    if(!sel.length){closeChart();return}
-    if(!_dccMeasure||!sel.some(function(m){return m.id===_dccMeasure}))_dccMeasure=sel[0].id;
-    var tabs='';
-    sel.forEach(function(m){
-        tabs+='<button class="dcc-mtab'+(m.id===_dccMeasure?' active':'')+'" onclick="_dccPick(\''+m.id+'\')">'+esc(m.label)+'</button>';
-    });
-    document.getElementById('dccTabs').innerHTML=tabs;
-    syncChartGranUI();
+function _dccMeasureList(){return (typeof effMeasures==='function')?effMeasures():(typeof getSelMeasures==='function'?getSelMeasures():[])}
+function _dccMonths(){return kbcList.filter(function(k){return k.loai_kbc==='Tháng'&&_dccKbcChecked.has(k.id)}).sort(function(a,b){return(iso(a.ngay_bd_xuat_ban)||'').localeCompare(iso(b.ngay_bd_xuat_ban)||'')})}
+function _entityVal(col,mz){
+    if(!_chartEntity)return null;
+    if(_chartEntity.kind==='mem')return _aggSum(_chartEntity.members,col,mz);
+    if(!_isDetMeasure(mz.id))return null;
+    var s=null;
+    col.monthIds.forEach(function(mid){var arr=detailData[String(mid)]||[];for(var i=0;i<arr.length;i++){var r=arr[i];if(_detailMatch(_chartEntity.path,r)){var v=_valOfDet(r,mz.id);if(v!=null)s=(s||0)+v}}});
+    return s;
+}
+function _dccBuildCols(){_dccCols=_makeCols(_dccMonths(),_dccGran)}
+function _dccAvail(){return _dccMeasureList().filter(function(mz){return _dccCols.some(function(col){return _entityVal(col,mz)!=null})})}
+function _dccUpdateKbcLabel(){var n=_dccMonths().length;var el=document.getElementById('dccKbcLbl');if(el)el.textContent=n===1?(_dccMonths()[0].ten_kbc):(n+' kỳ')}
+
+function openChart(entity){
+    _chartEntity=entity;
+    _dccGran=(typeof periodGran!=='undefined')?periodGran:'thang';
+    _dccKbcChecked=new Set(_kbcChecked);
+    document.getElementById('dccKbcPanel').style.display='none';
+    _dccBuildCols();
+    document.getElementById('dccTitle').textContent=entity.title||'';
+    document.getElementById('dccSub').textContent=entity.sub||'';
+    var avail=_dccAvail();
+    if(!avail.length){if(typeof toast==='function')toast('Không có dữ liệu để vẽ','err');return}
+    if(!_dccMeasure||!avail.some(function(m){return m.id===_dccMeasure}))_dccMeasure=avail[0].id;
+    _renderDccTabs(avail);_renderDccGran();_dccUpdateKbcLabel();
     document.getElementById('dccOverlay').classList.add('open');
     document.getElementById('dccModal').classList.add('open');
     _dccRender();
 }
-function _dccPick(mid){_dccMeasure=mid;
-    document.querySelectorAll('#dccTabs .dcc-mtab').forEach(function(b){b.classList.remove('active')});
-    var sel=(typeof effMeasures==="function"?effMeasures():getSelMeasures()).filter(function(m){return _dccScope.series&&_dccScope.series[m.id]});
-    var idx=sel.findIndex(function(m){return m.id===mid});
-    var btns=document.querySelectorAll('#dccTabs .dcc-mtab');if(btns[idx])btns[idx].classList.add('active');
-    _dccRender();
+function _renderDccTabs(avail){var t='';avail.forEach(function(m){t+='<button class="dcc-mtab'+(m.id===_dccMeasure?' active':'')+'" onclick="_dccPick(\''+m.id+'\')">'+esc(m.label)+'</button>'});document.getElementById('dccTabs').innerHTML=t}
+function _renderDccGran(){document.querySelectorAll('#dccGran button').forEach(function(b){b.classList.toggle('active',b.dataset.g===_dccGran)})}
+function _dccPick(mid){_dccMeasure=mid;_renderDccTabs(_dccAvail());_dccRender()}
+function chartSetGran(g){_dccGran=g;_dccBuildCols();_renderDccGran();var av=_dccAvail();if(!av.some(function(m){return m.id===_dccMeasure})&&av.length)_dccMeasure=av[0].id;_renderDccTabs(av);_dccRender()}
+
+/* ── KBC picker riêng của modal (cây tự dựng từ kbcList, state riêng _dccKbcChecked) ── */
+function _dccToggleKbc(){var p=document.getElementById('dccKbcPanel');if(p.style.display==='none'){_dccOpenKbc()}else{_dccCancelKbc()}}
+var _dccByParent={},_dccKbcMap={};
+function _dccBuildKbcMaps(){
+    _dccByParent={};_dccKbcMap={};var allIds={};
+    kbcList.forEach(function(k){allIds[k.id]=true;_dccKbcMap[k.id]=k});
+    kbcList.forEach(function(k){var pid=(k.parent_id&&allIds[k.parent_id])?k.parent_id:'__R__';(_dccByParent[pid]||(_dccByParent[pid]=[])).push(k)});
+    Object.keys(_dccByParent).forEach(function(p){_dccByParent[p].sort(function(a,b){return(a.sort_order||0)-(b.sort_order||0)||String(a.ten_kbc).localeCompare(String(b.ten_kbc))})});
 }
+function _dccOpenKbc(){
+    _dccBuildKbcMaps();
+    _dccKbcSnap=new Set(_dccKbcChecked);
+    _dccKbcChecked.forEach(function(id){var k=_dccKbcMap[id];if(k){var pid=k.parent_id;while(pid&&_dccKbcMap[pid]){_dccKbcExp[pid]=true;pid=_dccKbcMap[pid].parent_id}}});
+    _dccRenderKbcTree();
+    var p=document.getElementById('dccKbcPanel');
+    var btn=document.querySelector('.dcc-kbc-btn');
+    if(btn){var r=btn.getBoundingClientRect();p.style.top=(r.bottom+4)+'px';p.style.left=Math.max(8,Math.min(r.right-280,window.innerWidth-288))+'px';}
+    p.style.display='';
+}
+function _dccCancelKbc(){_dccKbcChecked=new Set(_dccKbcSnap);document.getElementById('dccKbcPanel').style.display='none'}
+function _dccKbcDesc(id){var ids=[];(function w(pid){var k=_dccByParent[pid];if(!k)return;k.forEach(function(c){ids.push(c.id);w(c.id)})})(id);return ids}
+function _dccKbcAll(id){var k=_dccKbcMap[id];if(!k)return false;if(k.loai_kbc==='Tháng')return _dccKbcChecked.has(id);var ks=_dccByParent[id];if(!ks||!ks.length)return false;return ks.every(function(c){return _dccKbcAll(c.id)})}
+function _dccKbcSome(id){var k=_dccKbcMap[id];if(!k)return false;if(k.loai_kbc==='Tháng')return _dccKbcChecked.has(id);var ks=_dccByParent[id];if(!ks)return false;return ks.some(function(c){return _dccKbcSome(c.id)})}
+function _dccKbcToggle(id){
+    var k=_dccKbcMap[id];if(!k)return;
+    if(k.loai_kbc==='Tháng'){if(_dccKbcChecked.has(id))_dccKbcChecked.delete(id);else _dccKbcChecked.add(id)}
+    else{var all=_dccKbcAll(id);_dccKbcDesc(id).forEach(function(d){var dk=_dccKbcMap[d];if(dk&&dk.loai_kbc==='Tháng'){if(all)_dccKbcChecked.delete(d);else _dccKbcChecked.add(d)}});if(!all)_dccKbcExp[id]=true}
+    _dccRenderKbcTree();
+}
+function _dccKbcToggleExp(id){_dccKbcExp[id]=!_dccKbcExp[id];_dccRenderKbcTree()}
+function _dccRenderKbcTree(){
+    var el=document.getElementById('dccKbcTree');if(!el)return;
+    if(!Object.keys(_dccByParent).length)_dccBuildKbcMaps();
+    var html='';
+    (function walk(pid,depth){
+        var kids=_dccByParent[pid];if(!kids)return;
+        kids.forEach(function(k){
+            var isMonth=k.loai_kbc==='Tháng',hasKids=!!_dccByParent[k.id],isE=_dccKbcExp[k.id]===true;
+            var checked=isMonth?_dccKbcChecked.has(k.id):_dccKbcAll(k.id);
+            var ind=depth*15;
+            var tog=hasKids?'<span class="dcc-ki-tog" onclick="_dccKbcToggleExp('+k.id+')">'+(isE?'▾':'▸')+'</span>':'<span class="dcc-ki-sp"></span>';
+            html+='<div class="dcc-ki" style="padding-left:'+(8+ind)+'px">'+tog+'<input type="checkbox" '+(checked?'checked':'')+' onclick="_dccKbcToggle('+k.id+')"><span class="dcc-ki-name">'+esc(k.ten_kbc)+'</span><span class="dcc-ki-badge">'+esc(k.loai_kbc)+'</span></div>';
+            if(hasKids&&isE)walk(k.id,depth+1);
+        });
+    })('__R__',0);
+    el.innerHTML=html||'<div style="padding:14px;text-align:center;color:var(--g4);font-size:12px">Không có kỳ</div>';
+}
+async function _dccApplyKbc(){
+    document.getElementById('dccKbcPanel').style.display='none';
+    if(!_dccMonths().length){if(typeof toast==='function')toast('Chọn ít nhất 1 kỳ','err');_dccKbcChecked=new Set(_dccKbcSnap);return}
+    await _dccEnsureData();
+    _dccBuildCols();_dccUpdateKbcLabel();
+    var av=_dccAvail();if(!av.some(function(m){return m.id===_dccMeasure})&&av.length)_dccMeasure=av[0].id;
+    _renderDccTabs(av);_dccRender();
+}
+/* Tải dữ liệu cho các tháng modal chọn mà CHƯA có (narrow theo NVKD của đối tượng) */
+async function _dccEnsureData(){
+    var months=_dccMonths(),isDetail=_chartEntity&&_chartEntity.kind==='detail';
+    var needAgg=[],needDet=[];
+    months.forEach(function(m){
+        if(isDetail){if(!detailData[String(m.id)])needDet.push(m)}
+        else{if(!monthData[String(m.id)])needAgg.push(m)}
+    });
+    if(!needAgg.length&&!needDet.length)return;
+    var nvFilter='';
+    if(_chartEntity.kind==='mem'){var nvs=new Set();_chartEntity.members.forEach(function(k){nvs.add(k.split('|')[0])});nvFilter=[...nvs].join(',')}
+    else if(_chartEntity.path&&_chartEntity.path.nvkd){nvFilter=_chartEntity.path.nvkd}
+    var bp=(typeof selectedBP!=='undefined'&&selectedBP)?selectedBP:((typeof userBpList!=='undefined'&&userBpList.length)?userBpList.join(','):'');
+    var hdr={'Content-Type':'application/json'};
+    _dccBusy=true;if(typeof dcLoadStart==='function')dcLoadStart('Đang tải kỳ…');
+    try{
+        if(needAgg.length){
+            var pAgg=needAgg.map(function(m){return{id:m.id,bd_xb:iso(m.ngay_bd_xuat_ban),kt_xb:iso(m.ngay_kt_xuat_ban),bd_tt:iso(m.ngay_bd_thu_tien),kt_tt:iso(m.ngay_kt_thu_tien),bd_lk:iso(m.ngay_bd_lan_ki),kt_lk:iso(m.ngay_kt_lan_ki)}});
+            var ja=await fetch(API_BASE+'/api/data',{method:'POST',headers:hdr,body:JSON.stringify({periods:pAgg,measures:selMeasureIds,ma_bp:bp,ds_nvkd:nvFilter,ds_kh:''})}).then(function(r){return r.json()});
+            if(ja&&ja.success&&ja.data)Object.keys(ja.data).forEach(function(mid){monthData[mid]=ja.data[mid]});
+        }
+        if(needDet.length){
+            var pDet=needDet.map(function(m){return{id:m.id,bd_xb:iso(m.ngay_bd_xuat_ban),kt_xb:iso(m.ngay_kt_xuat_ban)}});
+            var jd=await fetch(API_BASE+'/api/data_detail',{method:'POST',headers:hdr,body:JSON.stringify({periods:pDet,ma_bp:bp,ds_nvkd:nvFilter,ds_kh:''})}).then(function(r){return r.json()});
+            if(jd&&jd.success&&jd.data)Object.keys(jd.data).forEach(function(mid){detailData[mid]=jd.data[mid]});
+        }
+    }catch(e){if(typeof toast==='function')toast('Lỗi tải kỳ','err')}
+    if(typeof dcLoadEnd==='function')dcLoadEnd();
+    _dccBusy=false;
+}
+
 function closeChart(){
     document.getElementById('dccOverlay').classList.remove('open');
     document.getElementById('dccModal').classList.remove('open');
+    document.getElementById('dccKbcPanel').style.display='none';
     if(_dccChart){_dccChart.destroy();_dccChart=null}
 }
-function syncChartGranUI(){
-    if(typeof periodGran==='undefined')return;
-    document.querySelectorAll('#dccGran button').forEach(function(b){b.classList.toggle('active',b.dataset.g===periodGran)});
-}
 
-/* Rút gọn số: tỷ / triệu / nghìn (dấu phẩy thập phân) */
 function _abbr(v){
     if(v==null)return'';
     var n=Math.round(v),a=Math.abs(n),s,u;
-    if(a>=1e9){s=n/1e9;u=' tỷ'}
-    else if(a>=1e6){s=n/1e6;u=' tr'}
-    else if(a>=1e3){return Math.round(n/1e3).toLocaleString('en-US')+'k'}
-    else return fmtV(n);
-    var str=s.toFixed(2).replace(/\.?0+$/,'').replace('.',',');
-    return str+u;
+    if(a>=1e9){s=n/1e9;u=' tỷ'}else if(a>=1e6){s=n/1e6;u=' tr'}else if(a>=1e3){return Math.round(n/1e3).toLocaleString('en-US')+'k'}else return fmtV(n);
+    return s.toFixed(2).replace(/\.?0+$/,'').replace('.',',')+u;
 }
-
-/* Plugin vẽ nhãn giá trị trên mỗi điểm */
-var _dccLabelPlugin={
-    id:'dccLabels',
-    afterDatasetsDraw:function(chart){
-        var ds=chart.data.datasets[0];if(!ds)return;
-        var meta=chart.getDatasetMeta(0),ctx=chart.ctx;
-        ctx.save();
-        ctx.font='700 10.5px "Nunito Sans",sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
-        ctx.fillStyle=ds.borderColor||'#333';
-        meta.data.forEach(function(pt,i){var v=ds.data[i];if(v==null)return;ctx.fillText(_abbr(v),pt.x,pt.y-7)});
-        ctx.restore();
-    }
-};
-
+var _dccLabelPlugin={id:'dccLabels',afterDatasetsDraw:function(chart){
+    var ds=chart.data.datasets[0];if(!ds)return;var meta=chart.getDatasetMeta(0),ctx=chart.ctx;
+    ctx.save();ctx.font='700 10.5px "Nunito Sans",sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillStyle=ds.borderColor||'#333';
+    meta.data.forEach(function(pt,i){var v=ds.data[i];if(v==null)return;ctx.fillText(_abbr(v),pt.x,pt.y-7)});
+    ctx.restore();
+}};
+function _dccAxisLabels(){
+    var cols=_dccCols;
+    if(_dccGran==='nam')return cols.map(function(c){return c.year});
+    var yearMid={},cur=null,groups=[];
+    cols.forEach(function(c,i){if(!cur||cur.year!==c.year){cur={year:c.year,start:i,end:i};groups.push(cur)}else cur.end=i});
+    groups.forEach(function(g){yearMid[Math.floor((g.start+g.end)/2)]=g.year});
+    return cols.map(function(c,i){var top=(_dccGran==='quy')?('Q'+c.quarter):String(c.mo);return[top,yearMid[i]||'']});
+}
 function _dccRender(){
-    if(!_dccScope)return;
-    var labels=periodCols.map(function(c){return c.axis||[c.label]});  // nhãn 3 cấp [Tháng,Quý,Năm]
-    var vals=(_dccScope.series[_dccMeasure]||[]).map(function(v){return v==null?null:Math.round(v)});
-    var reg=(typeof MEASURE_REGISTRY!=='undefined')?MEASURE_REGISTRY.find(function(m){return m.id===_dccMeasure}):null;
-    var color=(reg&&reg.color)||'#1a46c4';
+    if(!_chartEntity||!_dccCols.length)return;
+    var reg=MEASURE_REGISTRY.find(function(m){return m.id===_dccMeasure});if(!reg)return;
+    var vals=_dccCols.map(function(col){var v=_entityVal(col,reg);return v==null?null:Math.round(v)});
+    var labels=_dccAxisLabels(),color=reg.color||'#1a46c4';
     var ctx=document.getElementById('dccCanvas').getContext('2d');
     if(_dccChart){_dccChart.destroy();_dccChart=null}
     _dccChart=new Chart(ctx,{
         type:'line',
-        data:{labels:labels,datasets:[{
-            label:reg?reg.label:_dccMeasure,
-            data:vals,
-            borderColor:color,
-            backgroundColor:color+'1f',
-            borderWidth:2.5,tension:.25,fill:true,
-            pointRadius:4,pointHoverRadius:6,pointBackgroundColor:color,pointBorderColor:'#fff',pointBorderWidth:1.5,spanGaps:true
-        }]},
+        data:{labels:labels,datasets:[{label:reg.label,data:vals,borderColor:color,backgroundColor:color+'1f',borderWidth:2.5,tension:.25,fill:true,pointRadius:4,pointHoverRadius:6,pointBackgroundColor:color,pointBorderColor:'#fff',pointBorderWidth:1.5,spanGaps:true}]},
         options:{
-            responsive:true,maintainAspectRatio:false,
-            layout:{padding:{top:22,right:10}},
+            responsive:true,maintainAspectRatio:false,layout:{padding:{top:22,right:10}},
             interaction:{mode:'index',intersect:false},
-            plugins:{
-                legend:{display:false},
-                tooltip:{callbacks:{
-                    title:function(items){var a=items[0]?items[0].label:'';return String(a).replace(/,/g,' · ')},
-                    label:function(c){return (reg?reg.label:'')+': '+fmtV(c.parsed.y||0)}
-                }}
-            },
+            plugins:{legend:{display:false},tooltip:{callbacks:{title:function(items){var i=items[0]?items[0].dataIndex:0;return _dccCols[i]?_dccCols[i].label:''},label:function(c){return reg.label+': '+fmtV(c.parsed.y||0)}}}},
             scales:{
                 y:{ticks:{callback:function(v){return _abbr(v)},font:{size:11}},grid:{color:'rgba(120,130,160,.12)'}},
-                x:{
-                    grid:{display:true,color:'rgba(120,130,160,.14)',drawOnChartArea:true,drawTicks:false,lineWidth:1},
-                    ticks:{font:{size:10.5},autoSkip:false,maxRotation:0,minRotation:0}
-                }
+                x:{grid:{display:true,color:'rgba(120,130,160,.14)',drawOnChartArea:true,drawTicks:false,lineWidth:1},ticks:{font:{size:10.5},autoSkip:false,maxRotation:0,minRotation:0}}
             }
         },
         plugins:[_dccLabelPlugin]

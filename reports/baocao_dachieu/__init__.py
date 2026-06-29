@@ -90,59 +90,76 @@ def _agg(rows, val_key, kh_names):
     return out
 
 
-def _doanhthu_month(store, p, ma_bp, ds_nvkd, ds_kh, kh_bp, kh_names):
-    """Doanh thu (thanh toán) 1 tháng — replicate logic gộp tt1+tt2 của baocao_kh."""
-    bd_tt, kt_tt = p.get('bd_tt'), p.get('kt_tt')
-    bd_xb, kt_xb = p.get('bd_xb'), p.get('kt_xb')
-    bd_lk = p.get('bd_lk')
-    if not bd_tt or not kt_tt:
-        return {}
-    # ngày trước lấn kỳ = bd_lk - 1
-    ngay_truoc_lk = ''
-    if bd_lk:
-        try:
-            ngay_truoc_lk = (datetime.strptime(bd_lk, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
-        except ValueError:
-            ngay_truoc_lk = ''
+import re as _re
+import gzip as _gzip
+_DATE_RE = _re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
-    sql = load_sql('DOANHTHU_BCKH_DUCK')
-    # tt1: nhóm A theo cửa sổ thu tiền [bd_tt..ngay_truoc_lk], nhóm B theo cửa sổ xuất bán [bd_xb..kt_xb]
-    m1 = {}
-    if bd_tt and ngay_truoc_lk:
-        r1 = store.query(sql, [bd_tt, ngay_truoc_lk, bd_xb or None, kt_xb or None,
-                               ma_bp or '', ds_nvkd or '', ds_kh or ''])
-        m1 = _agg(r1, 'doanhthu', kh_names)
-    # tt2: chỉ nhóm A (ngay_a2 = NULL ⇒ nhóm B bị loại trong query) [bd_lk..kt_tt]
-    m2 = {}
-    if bd_lk and kt_tt:
-        r2 = store.query(sql, [bd_lk, kt_tt, None, None,
-                               ma_bp or '', ds_nvkd or '', ds_kh or ''])
-        m2 = _agg(r2, 'doanhthu', kh_names)
 
-    merged = {}
-    for nvkd, kh in m1.items():
-        merged[nvkd] = dict(kh)
-    for nvkd, kh in m2.items():
-        dst = merged.setdefault(nvkd, {})
-        for mk, v in kh.items():
-            bp_kh = kh_bp.get(mk, '')
-            if bp_kh and bp_kh not in BP_NHOM_A:
-                continue  # nhóm B chỉ tính tt1
-            dst[mk] = dst.get(mk, 0) + v
-    return merged
+def _dlit(v):
+    """DATE literal an toàn (validate ISO) hoặc NULL — chống injection khi inline."""
+    return "DATE '%s'" % v if (v and _DATE_RE.match(v)) else "NULL"
+
+
+def _pvals(periods, keys):
+    """Dựng các dòng VALUES: (pid, <date literals theo keys>)."""
+    rows = []
+    for p in periods:
+        cells = [str(int(p.get('id')))] + [_dlit(p.get(k)) for k in keys]
+        rows.append('(' + ','.join(cells) + ')')
+    return ',\n'.join(rows)
+
+
+def _fold(out, measure, rows, nv_key, kh_key, val_key, kh_names=None, name_key=None):
+    """Gộp rows (có cột pid) vào out[pid][measure][nvkd][kh] += val."""
+    for r in rows:
+        pid = str(r.get('pid'))
+        if pid not in out:
+            continue
+        mk = r.get(kh_key)
+        if mk is None:
+            continue
+        v = r.get(val_key)
+        if v is None:
+            continue
+        nv = r.get(nv_key) or '_UNK'
+        d = out[pid].setdefault(measure, {}).setdefault(nv, {})
+        d[mk] = d.get(mk, 0) + float(v)
+        if kh_names is not None and name_key and r.get(name_key):
+            kh_names[mk] = r[name_key]
+
+
+# Chuẩn hoá NVKD (NVQ02@VB → NVQ03) — {a} = alias bảng
+_NVNORM = "CASE WHEN {a}.ma_nvkd='NVQ02' AND {a}.ma_bp='VB' THEN 'NVQ03' ELSE {a}.ma_nvkd END"
+
+
+@bp.after_request
+def _bcdc_gzip(resp):
+    """Nén gzip cho JSON lớn (payload chi tiết có thể vài chục MB)."""
+    try:
+        ae = request.headers.get('Accept-Encoding', '')
+        ct = resp.content_type or ''
+        if 'gzip' in ae and ct.startswith('application/json') and 'Content-Encoding' not in resp.headers:
+            data = resp.get_data()
+            if len(data) > 2048:
+                resp.set_data(_gzip.compress(data, 5))
+                resp.headers['Content-Encoding'] = 'gzip'
+                resp.headers['Vary'] = 'Accept-Encoding'
+    except Exception as e:
+        logger.warning(f"[BCDC gzip] {e}")
+    return resp
 
 
 # ─────────────────────────────────────────
-# API: dữ liệu pivot — tính từng tháng cho từng measure
+# API: dữ liệu pivot — 1 LẦN QUÉT/measure rồi bucket theo kỳ (nhanh hơn ~10×)
 # ─────────────────────────────────────────
 @bp.route('/api/data', methods=['POST'])
 def api_data():
     body = request.get_json(force=True)
-    periods = body.get('periods', [])           # list tháng-KBC với các trường ngày
-    measures = body.get('measures', [])         # ['doanhso','soluong','doanhthu','tralai','thuong','congno']
-    ma_bp = body.get('ma_bp', '')
-    ds_nvkd = body.get('ds_nvkd', '')
-    ds_kh = body.get('ds_kh', '')
+    periods = body.get('periods', [])
+    measures = body.get('measures', [])
+    ma_bp = body.get('ma_bp', '') or ''
+    ds_nvkd = body.get('ds_nvkd', '') or ''
+    ds_kh = body.get('ds_kh', '') or ''
 
     if not periods:
         return api_response(ok=False, error='Thiếu danh sách kỳ', status_code=400)
@@ -150,103 +167,156 @@ def api_data():
     measures = set(measures) if measures else {'doanhso', 'soluong'}
     store = get_store()
     kh_names = {}
+    flt = [ma_bp, ds_nvkd, ds_kh]
+    out = {str(p.get('id')): {} for p in periods}
 
-    # Map ma_kh → ma_bp (để lọc nhóm B cho doanh thu) — tái dùng KHACHHANG_DUCK
-    kh_bp = {}
     try:
-        for r in store.query(load_sql('KHACHHANG_DUCK')):
-            if r.get('ma_kh'):
-                kh_bp[r['ma_kh']] = r.get('ma_bp') or ''
-    except Exception as e:
-        logger.warning(f"[BCDC data] kh_bp load: {e}")
+        # ── Doanh số / Số lượng — 1 lần quét BKHDBANHANG, bucket [bd_xb,kt_xb] ──
+        if 'doanhso' in measures or 'soluong' in measures:
+            pv = _pvals(periods, ['bd_xb', 'kt_xb']); nvn = _NVNORM.format(a='b')
+            sql = f'''
+WITH periods(pid,a,b) AS (VALUES {pv})
+SELECT p.pid AS pid, {nvn} AS ma_nvkd, b.ma_kh,
+       SUM(b.so_luong) AS sl, SUM(b.tien_nt2-b.tien_ck_nt) AS ds
+FROM BKHDBANHANG b JOIN periods p ON b.ngay_ct>=p.a AND b.ngay_ct<=p.b
+WHERE ($1='' OR b.ma_bp IN (SELECT TRIM(unnest(string_split($1,',')))))
+  AND ($2='' OR {nvn} IN (SELECT TRIM(unnest(string_split($2,',')))))
+  AND ($3='' OR b.ma_kh IN (SELECT TRIM(unnest(string_split($3,',')))))
+GROUP BY p.pid, 2, b.ma_kh'''
+            rows = store.query(sql, flt)
+            if 'doanhso' in measures:
+                _fold(out, 'doanhso', rows, 'ma_nvkd', 'ma_kh', 'ds')
+            if 'soluong' in measures:
+                _fold(out, 'soluong', rows, 'ma_nvkd', 'ma_kh', 'sl')
 
-    out = {}
-    for p in periods:
-        pid = str(p.get('id'))
-        bd_xb, kt_xb = p.get('bd_xb'), p.get('kt_xb')
-        bd_tt, kt_tt = p.get('bd_tt'), p.get('kt_tt')
-        bd_lk, kt_lk = p.get('bd_lk'), p.get('kt_lk')
-        pres = {}
+        # ── Trả lại — TRALAI, [bd_xb,kt_xb] ──
+        if 'tralai' in measures:
+            pv = _pvals(periods, ['bd_xb', 'kt_xb']); nvn = _NVNORM.format(a='t')
+            sql = f'''
+WITH periods(pid,a,b) AS (VALUES {pv})
+SELECT p.pid AS pid, {nvn} AS ma_nvkd, t.ma_kh, SUM(t.tien_nt2-t.tien_ck_nt) AS tl
+FROM TRALAI t JOIN periods p ON t.ngay_ct>=p.a AND t.ngay_ct<=p.b
+WHERE ($1='' OR t.ma_bp IN (SELECT TRIM(unnest(string_split($1,',')))))
+  AND ($2='' OR {nvn} IN (SELECT TRIM(unnest(string_split($2,',')))))
+  AND ($3='' OR t.ma_kh IN (SELECT TRIM(unnest(string_split($3,',')))))
+GROUP BY p.pid, 2, t.ma_kh'''
+            _fold(out, 'tralai', store.query(sql, flt), 'ma_nvkd', 'ma_kh', 'tl')
 
-        try:
-            # ── Doanh số / Số lượng (1 query DOANHSO_SQL_DUCK) ──
-            if ('doanhso' in measures or 'soluong' in measures) and bd_xb and kt_xb:
-                rows = store.query(load_sql('DOANHSO_SQL_DUCK'),
-                                   [bd_xb, kt_xb, ma_bp or '', ds_nvkd or '', ds_kh or ''])
-                if 'doanhso' in measures:
-                    pres['doanhso'] = _agg(rows, 'tong_doanhso', kh_names)
-                if 'soluong' in measures:
-                    pres['soluong'] = _agg(rows, 'tong_so_luong', kh_names)
+        # ── Thưởng — THUONG, [bd_tt,kt_tt] ──
+        if 'thuong' in measures:
+            pv = _pvals(periods, ['bd_tt', 'kt_tt'])
+            sql = f'''
+WITH periods(pid,a,b) AS (VALUES {pv})
+SELECT p.pid AS pid, t.ma_nvkd, t.ma_kh_ct AS ma_kh, SUM(t.thuong) AS th
+FROM THUONG t JOIN periods p ON t.ngay_ct>=p.a AND t.ngay_ct<=p.b
+WHERE ($1='' OR t.ma_bp IN (SELECT TRIM(unnest(string_split($1,',')))))
+  AND ($2='' OR t.ma_nvkd IN (SELECT TRIM(unnest(string_split($2,',')))))
+  AND ($3='' OR t.ma_kh_ct IN (SELECT TRIM(unnest(string_split($3,',')))))
+GROUP BY p.pid, t.ma_nvkd, t.ma_kh_ct'''
+            _fold(out, 'thuong', store.query(sql, flt), 'ma_nvkd', 'ma_kh', 'th')
 
-            # ── Trả lại ──
-            if 'tralai' in measures and bd_xb and kt_xb:
-                rows = store.query(load_sql('TRALAI_SQL_DUCK'),
-                                   [bd_xb, kt_xb, ma_bp or '', ds_nvkd or '', ds_kh or ''])
-                pres['tralai'] = _agg(rows, 'tong_tralai', kh_names)
+        # ── Doanh thu — PTHUBAOCO. Nhóm A: [bd_tt,kt_tt] · Nhóm B: [bd_xb,kt_xb]
+        #    (tt1∪tt2 nhóm A = [bd_tt,kt_tt] vì truoc_lk = bd_lk-1) — khớp logic gộp cũ
+        if 'doanhthu' in measures:
+            pv = _pvals(periods, ['bd_tt', 'kt_tt', 'bd_xb', 'kt_xb'])
+            sql = f'''
+WITH periods(pid,bd_tt,kt_tt,bd_xb,kt_xb) AS (VALUES {pv})
+SELECT p.pid AS pid, t.ma_nvkd, t.ma_kh_ct AS ma_kh, SUM(t.ps_co) AS dt
+FROM PTHUBAOCO t JOIN periods p ON (
+   (t.ma_bp IN ('VA','VB','SF') AND t.ngay_ct>=p.bd_tt AND t.ngay_ct<=p.kt_tt)
+   OR (t.ma_bp NOT IN ('VA','VB','SF') AND t.ngay_ct>=p.bd_xb AND t.ngay_ct<=p.kt_xb))
+WHERE t.tk_co='131'
+  AND ((t.ngay_ct>=DATE '2026-01-01' AND t.tk_no IN ('1111','11211','11212','11213','11214','11221','1112','11215'))
+       OR (t.ngay_ct<DATE '2026-01-01' AND t.ma_ct='CA1'))
+  AND ($1='' OR t.ma_bp IN (SELECT TRIM(unnest(string_split($1,',')))))
+  AND ($2='' OR t.ma_nvkd IN (SELECT TRIM(unnest(string_split($2,',')))))
+  AND ($3='' OR t.ma_kh_ct IN (SELECT TRIM(unnest(string_split($3,',')))))
+GROUP BY p.pid, t.ma_nvkd, t.ma_kh_ct'''
+            _fold(out, 'doanhthu', store.query(sql, flt), 'ma_nvkd', 'ma_kh', 'dt')
 
-            # ── Thưởng (cửa sổ thu tiền) ──
-            if 'thuong' in measures and bd_tt and kt_tt:
-                rows = store.query(load_sql('THUONG_SQL_DUCK'),
-                                   [bd_tt, kt_tt, ma_bp or '', ds_nvkd or '', ds_kh or ''])
-                pres['thuong'] = _agg(rows, 'tong_thuong', kh_names)
-
-            # ── Doanh thu (thanh toán gộp) ──
-            if 'doanhthu' in measures:
-                pres['doanhthu'] = _doanhthu_month(store, p, ma_bp, ds_nvkd, ds_kh, kh_bp, kh_names)
-
-            # ── Công nợ cuối kỳ (stock — chốt tại ngay_kt_thu_tien) ──
-            if 'congno' in measures and kt_tt:
+        # ── Công nợ cuối kỳ (stock, cumulative) — vẫn tính từng tháng ──
+        if 'congno' in measures:
+            cnq = load_sql('DUNOCUOIKY_DUCK')
+            for p in periods:
+                kt_tt, bd_lk, kt_lk = p.get('kt_tt'), p.get('bd_lk'), p.get('kt_lk')
+                if not kt_tt:
+                    continue
                 try:
                     start_y = datetime.strptime(kt_tt, '%Y-%m-%d').year
-                    has_lk = 1 if (bd_lk and kt_lk) else 0
-                    rows = store.query(load_sql('DUNOCUOIKY_DUCK'),
-                                       [kt_tt, start_y, bd_lk or None, kt_lk or None,
-                                        has_lk, ma_bp or '', ds_nvkd or '', ds_kh or ''])
-                    pres['congno'] = _agg(rows, 'du_no_cuoi_ky', kh_names)
                 except ValueError:
-                    pass
-        except Exception as e:
-            logger.error(f"[BCDC data] period {pid}: {e}")
-
-        out[pid] = pres
+                    continue
+                has_lk = 1 if (bd_lk and kt_lk) else 0
+                rows = store.query(cnq, [kt_tt, start_y, bd_lk or None, kt_lk or None,
+                                         has_lk, ma_bp, ds_nvkd, ds_kh])
+                _fold(out, 'congno', [dict(r, pid=p.get('id')) for r in rows],
+                      'ma_nvkd', 'ma_kh', 'du_no_cuoi_ky', kh_names, 'ten_kh')
+    except Exception as e:
+        logger.error(f"[BCDC data] {e}")
+        return api_response(ok=False, error=str(e))
 
     return api_response(ok=True, data=out, count=len(periods),
-                        kh_names=kh_names,
-                        meta={'measures': sorted(measures)})
+                        kh_names=kh_names, meta={'measures': sorted(measures)})
 
 
 # ─────────────────────────────────────────
-# API: Dữ liệu chi tiết dòng-hàng (chiều Sản phẩm / Khu vực)
-# Trả về rows aggregated theo từng tháng → frontend tự pivot mọi chiều.
+# API: Dữ liệu chi tiết dòng-hàng — 1 LẦN QUÉT (bucket theo kỳ)
 # ─────────────────────────────────────────
 @bp.route('/api/data_detail', methods=['POST'])
 def api_data_detail():
     body = request.get_json(force=True)
     periods = body.get('periods', [])
-    ma_bp = body.get('ma_bp', '')
-    ds_nvkd = body.get('ds_nvkd', '')
-    ds_kh = body.get('ds_kh', '')
+    ma_bp = body.get('ma_bp', '') or ''
+    ds_nvkd = body.get('ds_nvkd', '') or ''
+    ds_kh = body.get('ds_kh', '') or ''
 
     if not periods:
         return api_response(ok=False, error='Thiếu danh sách kỳ', status_code=400)
 
     store = get_store()
-    sql = load_sql('DACHIEU_FACT_DUCK')
-    out = {}
-    for p in periods:
-        pid = str(p.get('id'))
-        bd_xb, kt_xb = p.get('bd_xb'), p.get('kt_xb')
-        rows = []
-        if bd_xb and kt_xb:
-            try:
-                rows = store.query(sql, [bd_xb, kt_xb, ma_bp or '', ds_nvkd or '', ds_kh or ''])
-                for d in rows:
-                    for k in ('so_luong', 'doanhso'):
-                        if d.get(k) is not None:
-                            d[k] = float(d[k])
-            except Exception as e:
-                logger.error(f"[BCDC data_detail] period {pid}: {e}")
-        out[pid] = rows
+    pv = _pvals(periods, ['bd_xb', 'kt_xb'])
+    sql = f'''
+WITH periods(pid,a,b) AS (VALUES {pv}),
+combined AS (
+    SELECT p.pid AS pid,
+        CASE WHEN b.ma_nvkd='NVQ02' AND b.ma_bp='VB' THEN 'NVQ03' ELSE b.ma_nvkd END AS ma_nvkd,
+        b.ma_kh, b.ma_vt, b.ten_vt, b.ma_bp,
+        b.so_luong AS so_luong, b.tien_nt2-b.tien_ck_nt AS doanhso, 0 AS tralai
+    FROM BKHDBANHANG b JOIN periods p ON b.ngay_ct>=p.a AND b.ngay_ct<=p.b
+    UNION ALL
+    SELECT p.pid AS pid,
+        CASE WHEN t.ma_nvkd='NVQ02' AND t.ma_bp='VB' THEN 'NVQ03' ELSE t.ma_nvkd END AS ma_nvkd,
+        t.ma_kh, t.ma_vt, t.ten_vt, t.ma_bp,
+        0 AS so_luong, 0 AS doanhso, t.tien_nt2-t.tien_ck_nt AS tralai
+    FROM TRALAI t JOIN periods p ON t.ngay_ct>=p.a AND t.ngay_ct<=p.b
+)
+SELECT c.pid AS pid, c.ma_nvkd, c.ma_kh,
+    COALESCE(NULLIF(kh.ten_kh,''), c.ma_kh) AS ten_kh,
+    COALESCE(NULLIF(kh.ten_plkh1,''), '(Không khu vực)') AS ten_plkh1,
+    c.ma_vt, COALESCE(NULLIF(c.ten_vt,''), c.ma_vt) AS ten_vt,
+    COALESCE(NULLIF(d.ten_thuoc,''), '(Không dòng SP)') AS ten_thuoc,
+    SUM(c.so_luong) AS so_luong, SUM(c.doanhso) AS doanhso, SUM(c.tralai) AS tralai
+FROM combined c
+LEFT JOIN DMKHACHHANG kh ON kh.ma_kh=c.ma_kh
+LEFT JOIN DMSANPHAM d ON d.ma_vt=c.ma_vt
+WHERE ($1='' OR c.ma_bp IN (SELECT TRIM(unnest(string_split($1,',')))))
+  AND ($2='' OR c.ma_nvkd IN (SELECT TRIM(unnest(string_split($2,',')))))
+  AND ($3='' OR c.ma_kh IN (SELECT TRIM(unnest(string_split($3,',')))))
+GROUP BY c.pid, c.ma_nvkd, c.ma_kh, COALESCE(NULLIF(kh.ten_kh,''),c.ma_kh),
+    COALESCE(NULLIF(kh.ten_plkh1,''),'(Không khu vực)'), c.ma_vt,
+    COALESCE(NULLIF(c.ten_vt,''),c.ma_vt), COALESCE(NULLIF(d.ten_thuoc,''),'(Không dòng SP)')'''
+
+    out = {str(p.get('id')): [] for p in periods}
+    try:
+        for r in store.query(sql, [ma_bp, ds_nvkd, ds_kh]):
+            pid = str(r.pop('pid'))
+            for k in ('so_luong', 'doanhso', 'tralai'):
+                if r.get(k) is not None:
+                    r[k] = float(r[k])
+            if pid in out:
+                out[pid].append(r)
+    except Exception as e:
+        logger.error(f"[BCDC data_detail] {e}")
+        return api_response(ok=False, error=str(e))
 
     return api_response(ok=True, data=out, count=len(periods))
 
