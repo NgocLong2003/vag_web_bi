@@ -63,11 +63,15 @@
       <button class="dcc-kbc-btn" onclick="_dccToggleKbc()"><span id="dccKbcLbl">Kỳ</span> ▾</button>
     </div>
   </div>
-  <div class="dcc-kbc-panel" id="dccKbcPanel" style="display:none">
-    <div class="dcc-kbc-tree" id="dccKbcTree"></div>
-    <div class="dcc-kbc-foot"><button onclick="_dccCancelKbc()">Hủy</button><button class="apply" onclick="_dccApplyKbc()">Áp dụng</button></div>
-  </div>
   <div class="dcc-body"><div class="dcc-canvas-wrap"><canvas id="dccCanvas"></canvas></div></div>
+</div>
+
+<!-- PHẢI nằm NGOÀI .dcc-modal: modal có transform (⇒ trở thành khối chứa của mọi
+     position:fixed bên trong, làm toạ độ viewport bị lệch) và overflow:hidden
+     (⇒ cắt mất panel). Ra ngoài thì z-index 9997 cũng nổi trên modal 9996. -->
+<div class="dcc-kbc-panel" id="dccKbcPanel" style="display:none">
+  <div class="dcc-kbc-tree" id="dccKbcTree"></div>
+  <div class="dcc-kbc-foot"><button onclick="_dccCancelKbc()">Hủy</button><button class="apply" onclick="_dccApplyKbc()">Áp dụng</button></div>
 </div>
 
 <script>
@@ -124,8 +128,13 @@ function _dccOpenKbc(){
     _dccRenderKbcTree();
     var p=document.getElementById('dccKbcPanel');
     var btn=document.querySelector('.dcc-kbc-btn');
-    if(btn){var r=btn.getBoundingClientRect();p.style.top=(r.bottom+4)+'px';p.style.left=Math.max(8,Math.min(r.right-280,window.innerWidth-288))+'px';}
-    p.style.display='';
+    p.style.display='';                     // hiện trước rồi mới đo được kích thước thật
+    if(btn){
+        var r=btn.getBoundingClientRect(),w=p.offsetWidth||280,h=p.offsetHeight||0;
+        p.style.right='auto';               // ghi đè right:8px của media query mobile
+        p.style.left=Math.max(8,Math.min(r.right-w,window.innerWidth-w-8))+'px';
+        p.style.top=Math.max(8,Math.min(r.bottom+4,window.innerHeight-h-8))+'px';
+    }
 }
 function _dccCancelKbc(){_dccKbcChecked=new Set(_dccKbcSnap);document.getElementById('dccKbcPanel').style.display='none'}
 function _dccKbcDesc(id){var ids=[];(function w(pid){var k=_dccByParent[pid];if(!k)return;k.forEach(function(c){ids.push(c.id);w(c.id)})})(id);return ids}

@@ -1,0 +1,221 @@
+<!-- _sort_cols.html — Sắp xếp theo cột giá trị cho BÁO CÁO ĐA CHIỀU
+
+     BẢNG LÀ CÂY, KHÔNG PHẢI DANH SÁCH PHẲNG. Nên sắp xếp luôn áp dụng
+     GIỮA CÁC ANH EM CÙNG CẤP, không xáo trộn quan hệ cha–con: NVKD con vẫn
+     nằm trong NVKD cha, sản phẩm vẫn nằm trong dòng sản phẩm của nó.
+
+     Tương tác (thoả 2 yêu cầu: thêm cấp / chỉ theo cột này):
+       - Bấm tiêu đề      → sắp xếp CHỈ theo cột đó (bỏ các cột khác);
+                            bấm tiếp đảo chiều, bấm lần nữa tắt hẳn.
+       - Shift + bấm      → THÊM 1 CẤP vào sắp xếp hiện có (desktop).
+       - Bấm ⇅/▼, chuột phải, hoặc chạm tiêu đề (mobile) → menu đủ lựa chọn.
+       - Chip dưới toolbar → xem thứ tự cấp, gỡ từng cấp.
+
+     Trang phải định nghĩa trước: lastColKeys, CK, renderAll, saveReportState,
+     esc, isMobile, và gọi sortPrune() sau khi dựng lastColKeys mỗi lần render.
+-->
+<style>
+.th-measure.sortable{cursor:pointer;user-select:none}
+.th-measure .sm-ind{display:inline-block;margin-left:3px;font-size:9px;line-height:1;color:var(--g3,#c3c9d6);cursor:pointer}
+.th-measure .sm-ind b{font-size:8px;font-weight:800;margin-left:1px;vertical-align:2px}
+.th-measure .sm-ind.sm-off{opacity:0;transition:opacity .12s}
+.th-measure:hover .sm-ind.sm-off{opacity:.55}
+@media(hover:none){.th-measure .sm-ind.sm-off{opacity:.35}}
+.th-measure.sorted{background:var(--blue-lt,#eef2ff)}
+.th-measure.sorted .sm-ind{color:var(--blue,#1a46c4)}
+/* chip sắp xếp — nằm chung hàng với chip bộ lọc, phân biệt bằng viền xanh */
+.srt-chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 4px 0 7px;background:var(--white,#fff);border:1px solid var(--blue,#1a46c4);border-radius:12px;font-size:11.5px;font-weight:600;color:var(--g6,#333);max-width:280px}
+.srt-chip .srt-lv{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--blue,#1a46c4);color:#fff;font-size:9px;font-weight:800;flex-shrink:0}
+.srt-chip span.srt-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* menu */
+.srt-overlay{position:fixed;inset:0;z-index:9984;background:transparent;display:none}
+.srt-overlay.on{display:block}
+.srt-menu{position:fixed;z-index:9985;background:var(--white,#fff);border:1px solid var(--g2,#dde0e8);border-radius:9px;box-shadow:0 8px 32px rgba(0,0,0,.18);width:250px;display:none;overflow:hidden}
+.srt-menu.on{display:block}
+.srt-head{padding:8px 12px 6px;border-bottom:1px solid var(--g1,#eef0f4);font-size:11.5px;font-weight:700;color:var(--g7,#1c2233);line-height:1.35}
+.srt-head em{display:block;font-style:normal;font-size:10px;font-weight:600;color:var(--g4,#8a93a8);margin-top:1px}
+.srt-grp{padding:7px 10px}
+.srt-grp+.srt-grp{border-top:1px solid var(--g1,#eef0f4)}
+.srt-grp-lbl{font-size:10px;font-weight:700;color:var(--g4,#8a93a8);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.srt-btns{display:flex;gap:6px}
+.srt-btn{flex:1;height:32px;border:1px solid var(--g2,#dde0e8);border-radius:6px;background:var(--g0,#f5f6f9);font-family:var(--sans);font-size:11.5px;font-weight:700;color:var(--g6,#333);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+.srt-btn:hover{border-color:var(--blue,#1a46c4);background:var(--white,#fff);color:var(--blue,#1a46c4)}
+.srt-btn.on{background:var(--blue,#1a46c4);border-color:var(--blue,#1a46c4);color:#fff}
+.srt-act{width:100%;height:30px;border:none;border-radius:6px;background:none;font-family:var(--sans);font-size:11.5px;font-weight:600;color:var(--g5,#5b6580);cursor:pointer;text-align:left;padding:0 6px}
+.srt-act:hover{background:var(--g0,#f5f6f9);color:var(--red,#dc2626)}
+.srt-tip{padding:6px 12px 8px;font-size:10px;color:var(--g4,#8a93a8);border-top:1px solid var(--g1,#eef0f4);line-height:1.4}
+@media(max-width:768px){
+  .srt-menu{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0}
+  .srt-btn{height:42px;font-size:13px}
+  .srt-act{height:40px;font-size:13px}
+  .srt-tip{display:none}
+}
+</style>
+
+<div class="srt-overlay" id="srt-overlay" onclick="closeSortMenu()"></div>
+<div class="srt-menu" id="srt-menu"></div>
+
+<script>
+/* ══════════ TRẠNG THÁI ══════════ */
+/* [{ck,dir}] — dir: -1 giảm dần, 1 tăng dần. Thứ tự mảng = thứ tự cấp. */
+let sortSpec=[];
+
+function sortIndexOf(ck){for(var i=0;i<sortSpec.length;i++)if(sortSpec[i].ck===ck)return i;return -1}
+function sortOn(){return sortSpec.length>0}
+function _ckInfo(ck){for(var i=0;i<lastColKeys.length;i++)if(lastColKeys[i].ck===ck)return lastColKeys[i];return null}
+
+/* Cột có thể biến mất khi đổi kỳ / phân kỳ / tắt cột TỔNG → bỏ cấp đã chết.
+   Gọi ngay sau khi dựng lastColKeys, TRƯỚC khi sắp xếp. */
+function sortPrune(){
+    if(!sortSpec.length)return;
+    var live=new Set(lastColKeys.map(function(c){return c.ck}));
+    var next=sortSpec.filter(function(s){return live.has(s.ck)});
+    if(next.length!==sortSpec.length){sortSpec=next;if(typeof fltSync==='function')fltSync()}
+}
+
+/* ══════════ SO SÁNH ══════════ */
+/* getVal(item,ck) → số hoặc null. Ô rỗng luôn xuống cuối, bất kể chiều sắp xếp,
+   để hàng trống không chiếm đầu bảng khi sắp xếp tăng dần. */
+function sortCmp(getVal){
+    if(!sortSpec.length)return null;
+    return function(a,b){
+        for(var i=0;i<sortSpec.length;i++){
+            var s=sortSpec[i],va=getVal(a,s.ck),vb=getVal(b,s.ck);
+            if(va==null&&vb==null)continue;
+            if(va==null)return 1;
+            if(vb==null)return -1;
+            if(va!==vb)return va<vb?-s.dir:s.dir;
+        }
+        return 0;
+    };
+}
+/* Giá trị của node (Mode A: NVKD · builder: mọi node) */
+function sortNodeVal(nd,ck){var cv=nd._vals[ck];return(cv&&cv.total!=null)?cv.total:null}
+/* Sắp xếp anh em: có cấp sắp xếp thì theo giá trị, không thì giữ thứ tự gốc của báo cáo */
+function sortSiblings(arr,fallback){
+    var c=sortCmp(sortNodeVal);
+    if(c)return arr.slice().sort(c);
+    return fallback?arr.slice().sort(fallback):arr;
+}
+/* Mode A: hàng KH lấy giá trị trong map kh của NVKD cha */
+function sortKHKeys(keys,pNV){
+    var c=sortCmp(function(mk,ck){
+        var cv=pNV._vals[ck];var v=(cv&&cv.kh)?cv.kh[mk]:null;return v==null?null:v;
+    });
+    return c?keys.slice().sort(c):keys;
+}
+
+/* ══════════ THAO TÁC ══════════ */
+function _sortCommit(){
+    saveReportState();
+    var tw=document.querySelector('.table-wrap');if(tw)tw.scrollTop=0;  // đổi thứ tự → về đầu bảng
+    if(typeof fltSync==='function')fltSync();
+    renderAll();
+}
+/* Sắp xếp CHỈ theo cột này — bỏ mọi cột khác */
+function sortSetOnly(ck,dir){sortSpec=[{ck:ck,dir:dir}];closeSortMenu();_sortCommit()}
+/* Thêm 1 cấp (hoặc đổi chiều nếu cột đã có trong danh sách) */
+function sortAddLevel(ck,dir){
+    var i=sortIndexOf(ck);
+    if(i>=0)sortSpec[i].dir=dir;else sortSpec.push({ck:ck,dir:dir});
+    closeSortMenu();_sortCommit();
+}
+function sortRemove(ck){
+    var i=sortIndexOf(ck);if(i<0)return;
+    sortSpec.splice(i,1);closeSortMenu();_sortCommit();
+}
+function sortClearAll(){if(!sortSpec.length){closeSortMenu();return}sortSpec=[];closeSortMenu();_sortCommit()}
+
+/* Bấm tiêu đề: mobile → menu (dễ chạm hơn); desktop → chỉ cột này, xoay vòng ▼ → ▲ → tắt */
+function onSortHeadClick(e,ck){
+    if(e&&e.target&&e.target.closest&&e.target.closest('.col-resize'))return;   // đang kéo giãn cột
+    if(typeof isMobile==='function'&&isMobile())return openSortMenu(e,ck);
+    if(e&&e.shiftKey){
+        var j=sortIndexOf(ck);
+        return sortAddLevel(ck,j>=0?-sortSpec[j].dir:-1);
+    }
+    var i=sortIndexOf(ck);
+    if(i<0||sortSpec.length>1)return sortSetOnly(ck,-1);   // cột mới, hoặc gộp nhiều cấp về 1 cột
+    if(sortSpec[i].dir===-1)return sortSetOnly(ck,1);
+    return sortClearAll();
+}
+
+/* ══════════ TIÊU ĐỀ CỘT ══════════ */
+/* Dùng chung cho renderModeA và renderBuilder — trước đây 2 chỗ tự dựng th giống hệt nhau */
+function thMeasureHtml(col,mz,mi){
+    var ck=CK(col.id,mz.id),i=sortIndexOf(ck),q=ck.replace(/'/g,"\\'");
+    var cls='th-measure sortable'+(mi===0?' mfirst':'')+(col.isTotal?' th-total':'')+(i>=0?' sorted':'');
+    var ind=(i>=0)
+        ? '<span class="sm-ind">'+(sortSpec[i].dir<0?'▼':'▲')+(sortSpec.length>1?'<b>'+(i+1)+'</b>':'')+'</span>'
+        : '<span class="sm-ind sm-off">⇅</span>';
+    /* ten_kbc lấy từ DB nên có thể chứa dấu " — escape cả nháy cho attribute */
+    var tip=esc(col.label+' · '+mz.label).replace(/"/g,'&quot;')+' — bấm để sắp xếp, Shift+bấm để thêm cấp';
+    return '<th class="'+cls+'" style="min-width:104px;color:'+mz.color+'" title="'+tip+'"'
+        +' onclick="onSortHeadClick(event,\''+q+'\')"'
+        +' oncontextmenu="return openSortMenu(event,\''+q+'\')">'
+        +esc(mz.label)
+        +'<span onclick="event.stopPropagation();openSortMenu(event,\''+q+'\')">'+ind+'</span>'
+        +'<div class="col-resize" onmousedown="startResize(event,this)"></div></th>';
+}
+
+/* ══════════ CHIP ══════════ */
+/* _filter_panel.html gọi hàm này để ghép chip sắp xếp vào chung hàng chip bộ lọc */
+function sortChipsHtml(){
+    if(!sortSpec.length)return '';
+    var h='';
+    sortSpec.forEach(function(s,i){
+        var info=_ckInfo(s.ck);if(!info)return;
+        h+='<span class="srt-chip" title="Cấp '+(i+1)+' — bấm × để bỏ cấp này">'
+          +'<span class="srt-lv">'+(i+1)+'</span>'
+          +'<span class="srt-txt">'+(s.dir<0?'▼':'▲')+' '+esc(info.col.label)+' · '+esc(info.mz.label)+'</span>'
+          +'<button class="flt-chip-x" onclick="sortRemove(\''+s.ck.replace(/'/g,"\\'")+'\')" title="Bỏ cấp này">×</button></span>';
+    });
+    return h;
+}
+
+/* ══════════ MENU ══════════ */
+var _srtOpen=false;
+function openSortMenu(e,ck){
+    if(e){e.preventDefault();e.stopPropagation()}
+    var info=_ckInfo(ck);if(!info)return false;
+    var i=sortIndexOf(ck),m=document.getElementById('srt-menu'),q=ck.replace(/'/g,"\\'");
+    var h='<div class="srt-head">'+esc(info.mz.label)+'<em>'+esc(info.col.label)+'</em></div>';
+    h+='<div class="srt-grp"><div class="srt-grp-lbl">Chỉ sắp xếp theo cột này</div><div class="srt-btns">'
+      +'<button class="srt-btn'+(i===0&&sortSpec.length===1&&sortSpec[0].dir===-1?' on':'')+'" onclick="sortSetOnly(\''+q+'\',-1)">▼ Giảm dần</button>'
+      +'<button class="srt-btn'+(i===0&&sortSpec.length===1&&sortSpec[0].dir===1?' on':'')+'" onclick="sortSetOnly(\''+q+'\',1)">▲ Tăng dần</button>'
+      +'</div></div>';
+    if(sortSpec.length&&i<0){
+        h+='<div class="srt-grp"><div class="srt-grp-lbl">Thêm làm cấp '+(sortSpec.length+1)+'</div><div class="srt-btns">'
+          +'<button class="srt-btn" onclick="sortAddLevel(\''+q+'\',-1)">▼ Giảm dần</button>'
+          +'<button class="srt-btn" onclick="sortAddLevel(\''+q+'\',1)">▲ Tăng dần</button>'
+          +'</div></div>';
+    }
+    if(i>=0||sortSpec.length){
+        h+='<div class="srt-grp">';
+        if(i>=0)h+='<button class="srt-act" onclick="sortRemove(\''+q+'\')">Bỏ cột này khỏi sắp xếp (đang là cấp '+(i+1)+')</button>';
+        if(sortSpec.length)h+='<button class="srt-act" onclick="sortClearAll()">Xoá toàn bộ sắp xếp</button>';
+        h+='</div>';
+    }
+    h+='<div class="srt-tip">Mẹo: <b>Shift + bấm</b> tiêu đề để thêm nhanh một cấp.</div>';
+    m.innerHTML=h;
+
+    if(typeof isMobile==='function'&&isMobile()){
+        m.style.position='fixed';m.style.top='auto';m.style.left='0';m.style.right='0';m.style.bottom='0';
+    }else{
+        var th=(e&&e.target&&e.target.closest)?e.target.closest('th'):null;
+        var r=th?th.getBoundingClientRect():{left:(e?e.clientX:100),bottom:(e?e.clientY:100)};
+        m.style.position='fixed';m.style.bottom='auto';m.style.right='auto';
+        m.style.top=(r.bottom+4)+'px';
+        m.style.left=Math.max(4,Math.min(r.left,window.innerWidth-258))+'px';
+    }
+    m.classList.add('on');document.getElementById('srt-overlay').classList.add('on');
+    _srtOpen=true;
+    return false;
+}
+function closeSortMenu(){
+    if(!_srtOpen)return;
+    _srtOpen=false;
+    document.getElementById('srt-menu').classList.remove('on');
+    document.getElementById('srt-overlay').classList.remove('on');
+}
+</script>
