@@ -1,0 +1,457 @@
+<!-- _filter_panel.html — Hub bộ lọc cho BÁO CÁO ĐA CHIỀU
+
+     Một điểm vào duy nhất ("Lọc (n)") gom mọi chiều lọc, thay cho việc rải nút
+     trên toolbar. Trên desktop panel thả xuống dưới nút; trên mobile trượt lên
+     từ đáy — dùng chung một khối markup.
+
+     KHÔNG SỬA _nv_picker.html / _kh_search.html (7 báo cáo khác đang dùng chung).
+     Thay vào đó hub CHỨA LẠI nguyên trigger #picker-wrap / #kh-wrap / #bp-select
+     với đúng id cũ, nên toàn bộ logic + badge của 2 picker đó chạy y như trước.
+
+     Hai chiều mới:
+       - Khu vực  → thuộc tính KHÁCH HÀNG (DMKHACHHANG.ten_plkh1)
+                    ⇒ lọc được MỌI chỉ số, ở CẢ 2 chế độ hàng.
+       - Dòng SP / Sản phẩm → thuộc tính DÒNG CHỨNG TỪ (ma_vt)
+                    ⇒ chỉ có ở nguồn chi tiết ⇒ chỉ áp dụng cho "Hàng tùy biến",
+                      và Doanh thu / Thưởng / Dư nợ hiện "—" (không tách theo SP được).
+
+     Trang phải định nghĩa trước: khMap, detailData, isModeA, renderAll,
+     saveReportState, esc, isMobile, isLandscapePhone.
+     Tái dùng CSS item/panel của _kh_search (.khi*, .kh-picker-*) để 2 picker mới
+     giống hệt picker KH — cùng một widget thì không nhân bản CSS.
+-->
+<style>
+/* ── Nút Lọc + thanh chip ── */
+.flt-badge{display:inline-flex;align-items:center;justify-content:center;height:17px;min-width:17px;padding:0 5px;margin-left:5px;background:var(--blue,#1a46c4);color:#fff;border-radius:9px;font-size:10px;font-weight:700}
+.flt-badge.all{background:var(--g3,#c3c9d6)}
+.flt-chips{display:none;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--g1,#eef0f4);background:var(--g0,#f5f6f9)}
+.flt-chips.on{display:flex}
+.flt-chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 4px 0 9px;background:var(--white,#fff);border:1px solid var(--g2,#dde0e8);border-radius:12px;font-size:11.5px;font-weight:600;color:var(--g6,#333);max-width:280px}
+.flt-chip b{font-weight:700;color:var(--blue,#1a46c4)}
+.flt-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flt-chip.muted{opacity:.55}
+.flt-chip.muted b{color:var(--g5,#5b6580)}
+.flt-chip-x{flex-shrink:0;width:16px;height:16px;border:none;border-radius:50%;background:var(--g1,#eef0f4);color:var(--g5,#5b6580);font-size:12px;line-height:1;cursor:pointer;padding:0}
+.flt-chip-x:hover{background:var(--red-lt,#fee2e2);color:var(--red,#dc2626)}
+.flt-chip-clear{height:24px;padding:0 10px;border:none;border-radius:12px;background:transparent;font-size:11.5px;font-weight:700;color:var(--g5,#5b6580);cursor:pointer;text-decoration:underline}
+
+/* ── Hub ── */
+.flt-overlay{position:fixed;inset:0;z-index:9979;background:transparent;display:none}
+.flt-overlay.on{display:block}
+.flt-panel{position:fixed;z-index:9980;background:var(--white,#fff);border:1px solid var(--g2,#dde0e8);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.16);width:330px;display:none;flex-direction:column;overflow:hidden}
+.flt-panel.open{display:flex}
+.flt-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--g1,#eef0f4);font-size:11px;font-weight:700;color:var(--g4,#8a93a8);text-transform:uppercase;letter-spacing:.5px}
+.flt-head button{border:none;background:none;font-size:11px;font-weight:700;color:var(--red,#dc2626);cursor:pointer;text-transform:none;letter-spacing:0}
+.flt-rows{padding:6px 0;overflow-y:auto;max-height:60vh}
+.flt-row{display:flex;align-items:center;gap:10px;padding:6px 12px;min-height:40px}
+.flt-row+.flt-row{border-top:1px solid var(--g1,#eef0f4)}
+.flt-row-lbl{flex:0 0 88px;font-size:12px;font-weight:600;color:var(--g6,#333)}
+.flt-row-ctl{flex:1;min-width:0;display:flex;justify-content:flex-end}
+/* 5 control (2 trigger dùng chung + 2 trigger mới + select BP) rộng bằng nhau */
+.flt-row-ctl>*{width:100%}
+.flt-row-ctl .picker-trigger,.flt-row-ctl .kh-picker-trigger{width:100%}
+.flt-row.off{opacity:.45;pointer-events:none}
+.flt-row-hint{padding:2px 12px 8px 110px;font-size:10.5px;color:var(--g4,#8a93a8);line-height:1.45}
+/* trigger chung cho 2 picker mới — cùng dáng với .kh-picker-trigger */
+.flt-tg{height:32px;width:100%;padding:0 10px;background:var(--g0,#f5f6f9);border:1px solid var(--g2,#dde0e8);border-radius:6px;font-family:var(--sans);font-size:12.5px;color:var(--g7,#1c2233);cursor:pointer;display:flex;align-items:center;gap:6px;text-align:left}
+.flt-tg:hover,.flt-tg.open{border-color:var(--blue,#1a46c4);background:var(--white,#fff)}
+.flt-tg-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flt-note{padding:8px 12px;border-top:1px solid var(--g1,#eef0f4);font-size:10.5px;line-height:1.5;color:var(--amb,#b45309);background:var(--amb-lt,#fffbeb);display:none}
+.flt-note.on{display:block}
+/* hàng cha (dòng SP) trong picker sản phẩm */
+.khi.khi-parent{background:var(--g0,#f5f6f9);font-weight:700}
+.khi.khi-parent .khi-name{font-weight:700;color:var(--g7,#1c2233)}
+.khi.khi-child{padding-left:30px}
+.khi-cb.mixed{background:var(--emr,#0a7c50);border-color:var(--emr,#0a7c50)}
+.khi-cb.mixed::after{content:'';position:absolute;width:8px;height:2px;background:#fff;border:none;transform:none}
+.khi-exp{flex-shrink:0;width:16px;height:16px;margin-right:2px;border:none;background:none;cursor:pointer;color:var(--g4,#8a93a8);font-size:10px;line-height:1;padding:0}
+.khi-cnt{margin-left:6px;font-size:10px;color:var(--g4,#8a93a8);flex-shrink:0}
+@media(max-width:768px){
+  .flt-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:82vh}
+  .flt-rows{max-height:none}
+  .flt-row{min-height:48px}
+  .flt-row-lbl{flex-basis:80px}
+  .flt-chips{padding:6px 8px}
+}
+@media(orientation:landscape) and (max-height:500px) and (hover:none){
+  .flt-panel{width:340px!important;left:0!important;right:auto!important;top:0!important;bottom:0!important;border-radius:0 10px 10px 0;max-height:100vh!important}
+}
+</style>
+
+<!-- ═══ HUB ═══ -->
+<div class="flt-overlay" id="flt-overlay" onclick="closeFilterHub()"></div>
+<div class="flt-panel" id="flt-panel">
+  <div class="flt-head"><span>Bộ lọc</span><button onclick="fltClearAll()">Xoá tất cả</button></div>
+  <div class="flt-rows">
+    <div class="flt-row"><span class="flt-row-lbl">Nhân viên</span><div class="flt-row-ctl">
+      <div class="picker-wrap" id="picker-wrap"><button class="picker-trigger" id="picker-trigger" onclick="togglePicker()"><svg class="ico-search" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="picker-label">NV</span><span class="picker-badge all" id="picker-badge">—</span></button></div>
+    </div></div>
+    <div class="flt-row"><span class="flt-row-lbl">Khách hàng</span><div class="flt-row-ctl">
+      <div class="kh-search-wrap" id="kh-wrap"><button class="kh-picker-trigger" id="kh-picker-trigger" onclick="toggleKHPicker()"><svg class="ico-kh" viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg><span id="kh-picker-label">KH</span><span class="kh-picker-badge all" id="kh-picker-badge">Tất cả</span></button></div>
+    </div></div>
+    <div class="flt-row"><span class="flt-row-lbl">Khu vực</span><div class="flt-row-ctl">
+      <button class="flt-tg" id="kv-trigger" onclick="toggleKVPicker()"><svg viewBox="0 0 16 16" stroke-width="1.8" style="width:13px;height:13px;stroke:var(--g4);fill:none;flex-shrink:0"><path d="M8 1.5c2.2 0 4 1.8 4 4 0 3-4 9-4 9s-4-6-4-9c0-2.2 1.8-4 4-4z"/><circle cx="8" cy="5.5" r="1.4"/></svg><span class="flt-tg-txt" id="kv-label">Tất cả khu vực</span></button>
+    </div></div>
+    <div class="flt-row" id="flt-row-sp"><span class="flt-row-lbl">Dòng SP / SP</span><div class="flt-row-ctl">
+      <button class="flt-tg" id="sp-trigger" onclick="toggleSPPicker()"><svg viewBox="0 0 16 16" stroke-width="1.8" style="width:13px;height:13px;stroke:var(--g4);fill:none;flex-shrink:0"><path d="M2 5l6-3 6 3v6l-6 3-6-3z"/><path d="M2 5l6 3 6-3M8 8v6"/></svg><span class="flt-tg-txt" id="sp-label">Tất cả sản phẩm</span></button>
+    </div></div>
+    <div class="flt-row-hint" id="sp-hint"></div>
+    <div class="flt-row"><span class="flt-row-lbl">Bộ phận</span><div class="flt-row-ctl">
+      <select class="bp-select" id="bp-select" style="width:100%;height:32px;font-size:12.5px" onchange="onBPChange(this.value)"><option value="">Tất cả</option></select>
+    </div></div>
+  </div>
+  <div class="flt-note" id="flt-note"></div>
+</div>
+
+<!-- ═══ Picker KHU VỰC ═══ -->
+<div class="kh-picker-panel" id="kv-panel">
+  <div class="kh-picker-head">
+    <div class="kh-picker-search-row">
+      <svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+      <input type="text" id="kv-q" placeholder="Tìm khu vực..." oninput="renderKVList()"/>
+    </div>
+    <div class="kh-picker-actions">
+      <button class="kh-picker-act-btn" onclick="kvSelectAll()">Chọn tất cả</button>
+      <button class="kh-picker-act-btn" onclick="kvClearAll()">Bỏ chọn</button>
+    </div>
+  </div>
+  <div class="kh-picker-list" id="kv-list"></div>
+  <div class="kh-picker-foot">
+    <span class="kh-picker-foot-info" id="kv-info">0 khu vực</span>
+    <div class="kh-picker-foot-btns">
+      <button class="kh-picker-close-btn" onclick="closeKVPicker()">Đóng</button>
+      <button class="kh-picker-apply" onclick="applyKVPicker()">Áp dụng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Picker DÒNG SP → SẢN PHẨM (cây 2 cấp) ═══ -->
+<div class="kh-picker-panel" id="sp-panel">
+  <div class="kh-picker-head">
+    <div class="kh-picker-search-row">
+      <svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+      <input type="text" id="sp-q" placeholder="Tìm dòng SP hoặc sản phẩm..." oninput="renderSPList()"/>
+    </div>
+    <div class="kh-picker-actions">
+      <button class="kh-picker-act-btn" onclick="spSelectAll()">Chọn tất cả</button>
+      <button class="kh-picker-act-btn" onclick="spClearAll()">Bỏ chọn</button>
+    </div>
+  </div>
+  <div class="kh-picker-list" id="sp-list"></div>
+  <div class="kh-picker-foot">
+    <span class="kh-picker-foot-info" id="sp-info">0 SP</span>
+    <div class="kh-picker-foot-btns">
+      <button class="kh-picker-close-btn" onclick="closeSPPicker()">Đóng</button>
+      <button class="kh-picker-apply" onclick="applySPPicker()">Áp dụng</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════ TRẠNG THÁI LỌC ══════════════ */
+var fltKV=new Set();      // ten_plkh1 đã chọn — rỗng = tất cả
+var fltDong=new Set();    // ten_thuoc chọn nguyên cụm
+var fltVt=new Set();      // ma_vt chọn lẻ (trong dòng chọn một phần)
+var _fltKVKH=null;        // cache Set(ma_kh) hợp lệ; null = không lọc khu vực
+
+const KV_NONE='(Không khu vực)';   // khớp COALESCE của /api/data_detail
+
+/* ── Khu vực: quy về tập khách hàng ── */
+function kvOfKH(mk){var i=khMap[mk];return(i&&i.ten_plkh1)?i.ten_plkh1:KV_NONE}
+function fltRebuildKV(){
+    if(!fltKV.size){_fltKVKH=null;return}
+    var s=new Set();
+    Object.keys(khMap).forEach(function(mk){if(fltKV.has(kvOfKH(mk)))s.add(mk)});
+    _fltKVKH=s;
+}
+/* Mode A lọc theo mã KH (nguồn aggregate không có cột khu vực) */
+function fltKHOk(mk){return _fltKVKH===null||_fltKVKH.has(mk)}
+/* Builder lọc thẳng trên dòng chi tiết — đã có sẵn ten_plkh1 do server COALESCE */
+function fltRowKVOk(r){return!fltKV.size||fltKV.has(r.ten_plkh1||KV_NONE)}
+
+/* ── Sản phẩm: chỉ có ở nguồn chi tiết ⇒ chỉ áp dụng cho "Hàng tùy biến" ── */
+function fltSPOn(){return fltDong.size>0||fltVt.size>0}
+function fltSPActive(){return fltSPOn()&&!isModeA()}
+function fltRowSPOk(r){return!fltSPOn()||fltDong.has(r.ten_thuoc)||fltVt.has(r.ma_vt)}
+/* Gộp 2 điều kiện — dùng trong các vòng gom detailData */
+function fltRowOk(r){return fltRowKVOk(r)&&fltRowSPOk(r)}
+
+function fltCount(){
+    var n=0;
+    if(typeof selectedNV!=='undefined'&&selectedNV!==null)n++;
+    if(typeof selectedKH!=='undefined'&&selectedKH!==null)n++;
+    if(typeof selectedBP==='string'&&selectedBP)n++;
+    if(fltKV.size)n++;
+    if(fltSPOn())n++;
+    return n;
+}
+
+/* ══════════════ DANH SÁCH NGUỒN CHO 2 PICKER MỚI ══════════════ */
+/* Khu vực: lấy từ danh mục KH (có ngay từ lúc tải trang, đúng cho cả 2 chế độ) */
+function kvAllList(){
+    var m=new Map();
+    Object.keys(khMap).forEach(function(mk){
+        var info=khMap[mk];
+        if(typeof selectedBP==='string'&&selectedBP&&info.ma_bp!==selectedBP)return;
+        if(typeof userBpList!=='undefined'&&userBpList.length&&!userBpList.includes(info.ma_bp))return;
+        var kv=kvOfKH(mk);m.set(kv,(m.get(kv)||0)+1);
+    });
+    return [...m.entries()].map(function(e){return{kv:e[0],n:e[1]}})
+        .sort(function(a,b){return a.kv.localeCompare(b.kv)});
+}
+/* Sản phẩm: dựng từ dữ liệu chi tiết ĐANG TẢI → chỉ liệt kê SP có phát sinh
+   trong kỳ đang chọn (đúng thứ người dùng cần lọc, không phải toàn bộ danh mục).
+   Cache theo tham chiếu detailData (loadDataBuilder gán object mới mỗi lần tải)
+   vì mỗi lần tick trong picker đều cần cây này. */
+var _spTree=null,_spTreeSrc=null,_spMap=null;
+function spAllTree(){
+    if(_spTreeSrc===detailData&&_spTree)return _spTree;
+    var m=new Map();
+    Object.keys(detailData||{}).forEach(function(mid){
+        (detailData[mid]||[]).forEach(function(r){
+            var d=r.ten_thuoc||'(Không dòng SP)';
+            var g=m.get(d);if(!g){g={dong:d,kids:new Map()};m.set(d,g)}
+            if(!g.kids.has(r.ma_vt))g.kids.set(r.ma_vt,{ma_vt:r.ma_vt,ten_vt:r.ten_vt||r.ma_vt});
+        });
+    });
+    _spTree=[...m.values()].map(function(g){
+        return{dong:g.dong,kids:[...g.kids.values()].sort(function(a,b){return a.ten_vt.localeCompare(b.ten_vt)})};
+    }).sort(function(a,b){return a.dong.localeCompare(b.dong)});
+    _spMap=new Map();_spTree.forEach(function(g){_spMap.set(g.dong,g)});
+    _spTreeSrc=detailData;
+    return _spTree;
+}
+
+/* ══════════════ HUB ══════════════ */
+var _fltHubOpen=false;
+function _fltPlace(p,trigger,w){
+    if(typeof isLandscapePhone==='function'&&isLandscapePhone()){
+        p.style.position='fixed';p.style.top='0';p.style.left='0';p.style.right='auto';p.style.bottom='0';
+    }else if(typeof isMobile==='function'&&isMobile()){
+        p.style.position='fixed';p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';
+    }else{
+        var r=trigger.getBoundingClientRect();
+        p.style.position='fixed';p.style.bottom='auto';p.style.right='auto';
+        p.style.top=(r.bottom+6)+'px';
+        p.style.left=Math.max(4,Math.min(r.left,window.innerWidth-w-8))+'px';
+    }
+}
+function toggleFilterHub(){_fltHubOpen?closeFilterHub():openFilterHub()}
+function openFilterHub(){
+    _fltHubOpen=true;
+    var p=document.getElementById('flt-panel');
+    _fltPlace(p,document.getElementById('flt-trigger'),330);
+    p.classList.add('open');document.getElementById('flt-overlay').classList.add('on');
+    renderFilterHub();
+}
+function closeFilterHub(){
+    _fltHubOpen=false;
+    document.getElementById('flt-panel').classList.remove('open');
+    document.getElementById('flt-overlay').classList.remove('on');
+}
+function renderFilterHub(){
+    /* Nhãn 2 picker mới */
+    var kvL=document.getElementById('kv-label');
+    if(kvL)kvL.textContent=!fltKV.size?'Tất cả khu vực':(fltKV.size===1?[...fltKV][0]:fltKV.size+' khu vực');
+    var spL=document.getElementById('sp-label');
+    if(spL)spL.textContent=!fltSPOn()?'Tất cả sản phẩm':fltSPLabel();
+
+    /* Hàng SP: chỉ dùng được ở "Hàng tùy biến" và sau khi có dữ liệu chi tiết */
+    var row=document.getElementById('flt-row-sp'),hint=document.getElementById('sp-hint'),msg='';
+    var usable=!isModeA();
+    if(!usable)msg='Lọc theo sản phẩm chỉ áp dụng cho chiều hàng "Hàng tùy biến" — Doanh thu / Thưởng / Dư nợ không tách được theo sản phẩm.';
+    else if(!spAllTree().length)msg='Chưa có dữ liệu chi tiết — hãy chọn kỳ và tải dữ liệu trước.';
+    row.classList.toggle('off',!usable||!spAllTree().length);
+    hint.textContent=msg;hint.style.display=msg?'':'none';
+
+    /* Cảnh báo chỉ số không tách được theo SP */
+    var note=document.getElementById('flt-note'),nm='';
+    if(fltSPActive()){
+        var blocked=getSelMeasures().filter(function(m){return!_isDetMeasure(m.id)});
+        if(blocked.length)nm='Đang lọc theo sản phẩm: '+blocked.map(function(m){return m.label}).join(', ')+' sẽ hiện “—” vì không tách được theo sản phẩm.';
+        if(!getSelMeasures().some(function(m){return _isDetMeasure(m.id)}))
+            nm='Không chỉ số nào đã chọn tách được theo sản phẩm. Hãy bật Doanh số / Số lượng / Trả lại để thấy số liệu.';
+    }else if(fltSPOn()&&isModeA()){
+        nm='Bộ lọc sản phẩm đang tạm ngưng ở chế độ "Dòng tiền NVKD → KH". Chuyển sang "Hàng tùy biến" để áp dụng.';
+    }
+    note.textContent=nm;note.classList.toggle('on',!!nm);
+}
+function fltSPLabel(){
+    var parts=[];
+    if(fltDong.size)parts.push(fltDong.size===1?[...fltDong][0]:fltDong.size+' dòng SP');
+    if(fltVt.size)parts.push(fltVt.size+' SP');
+    return parts.join(' · ');
+}
+
+/* ══════════════ THANH CHIP ══════════════ */
+function renderFilterChips(){
+    var el=document.getElementById('flt-chips');if(!el)return;
+    var h='';
+    function chip(lbl,txt,clear,muted,title){
+        h+='<span class="flt-chip'+(muted?' muted':'')+'"'+(title?' title="'+esc(title)+'"':'')+'><b>'+lbl+':</b><span>'+esc(txt)+'</span>'
+          +'<button class="flt-chip-x" onclick="'+clear+'" title="Bỏ lọc">×</button></span>';
+    }
+    if(typeof selectedNV!=='undefined'&&selectedNV!==null)chip('NV',selectedNV.size+' nhân viên','fltClearNV()');
+    if(typeof selectedKH!=='undefined'&&selectedKH!==null)chip('KH',selectedKH.ten_kh,'fltClearKH()');
+    if(typeof selectedBP==='string'&&selectedBP)chip('BP',selectedBP,'fltClearBP()');
+    if(fltKV.size)chip('Khu vực',fltKV.size===1?[...fltKV][0]:[...fltKV].slice(0,2).join(', ')+(fltKV.size>2?' +'+(fltKV.size-2):''),'fltClearKV()');
+    if(fltSPOn())chip('Sản phẩm',fltSPLabel(),'fltClearSP()',isModeA(),
+        isModeA()?'Không áp dụng ở chế độ Dòng tiền NVKD → KH':'');
+    if(h)h+='<button class="flt-chip-clear" onclick="fltClearAll()">Xoá tất cả</button>';
+    /* Chip sắp xếp dùng chung hàng này — cùng là "thứ đang định hình bảng" */
+    var sh=(typeof sortChipsHtml==='function')?sortChipsHtml():'';
+    el.innerHTML=h+sh;el.classList.toggle('on',!!(h||sh));
+
+    var b=document.getElementById('flt-badge');
+    if(b){var n=fltCount();b.textContent=n?n:'—';b.className='flt-badge'+(n?'':' all')}
+}
+/* Gọi sau mỗi lần bất kỳ bộ lọc nào đổi */
+function fltSync(){renderFilterChips();if(_fltHubOpen)renderFilterHub()}
+
+function fltClearNV(){if(typeof pickerClearAll==='function'){pendingNV=new Set();selectedNV=null;updatePickerBadge();fltSync();loadData()}}
+function fltClearKH(){clearKH();fltSync()}
+function fltClearBP(){var s=document.getElementById('bp-select');if(s)s.value='';onBPChange('')}
+function fltClearKV(){if(!fltKV.size)return;fltKV=new Set();fltRebuildKV();fltSync();saveReportState();renderAll()}
+function fltClearSP(){if(!fltSPOn())return;fltDong=new Set();fltVt=new Set();fltSync();saveReportState();renderAll()}
+function fltClearAll(){
+    /* Xoá trực tiếp state rồi loadData MỘT lần — không gọi clearKH() vì nó
+       kích hoạt onKHCleared() → loadData() thêm lần nữa */
+    var reload=false;
+    if(typeof selectedNV!=='undefined'&&selectedNV!==null){pendingNV=new Set();selectedNV=null;updatePickerBadge();reload=true}
+    if(typeof selectedKH!=='undefined'&&selectedKH!==null){selectedKH=null;_khPending=new Set();updateKHPickerBadge();reload=true}
+    var s=document.getElementById('bp-select');
+    if(typeof selectedBP==='string'&&selectedBP){selectedBP='';if(s)s.value='';if(typeof renderPickerTree==='function')renderPickerTree();reload=true}
+    fltKV=new Set();fltRebuildKV();fltDong=new Set();fltVt=new Set();
+    fltSync();saveReportState();
+    if(reload)loadData();else renderAll();
+}
+
+/* ══════════════ PICKER KHU VỰC ══════════════ */
+var _kvOpen=false,_kvPend=new Set();
+function toggleKVPicker(){_kvOpen?closeKVPicker():openKVPicker()}
+function openKVPicker(){
+    _kvOpen=true;_kvPend=new Set(fltKV);
+    var p=document.getElementById('kv-panel');
+    _fltPlace(p,document.getElementById('kv-trigger'),360);
+    if(!isMobile()&&!(typeof isLandscapePhone==='function'&&isLandscapePhone()))p.style.width='360px';
+    p.classList.add('open');document.getElementById('kv-trigger').classList.add('open');
+    document.getElementById('kv-q').value='';renderKVList();
+}
+function closeKVPicker(){_kvOpen=false;document.getElementById('kv-panel').classList.remove('open');document.getElementById('kv-trigger').classList.remove('open')}
+function renderKVList(){
+    var q=(document.getElementById('kv-q').value||'').toLowerCase().trim();
+    var all=kvAllList(),list=q?all.filter(function(x){return x.kv.toLowerCase().indexOf(q)>=0}):all;
+    var h='';
+    list.forEach(function(x){
+        var ck=_kvPend.has(x.kv);
+        h+='<div class="khi'+(ck?' checked':'')+'" onclick="kvToggle('+JSON.stringify(x.kv).replace(/"/g,'&quot;')+')">'
+          +'<span class="khi-cb"></span><span class="khi-name">'+esc(x.kv)+'</span>'
+          +'<span class="khi-cnt">'+x.n+' KH</span></div>';
+    });
+    document.getElementById('kv-list').innerHTML=h||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">Không tìm thấy</div>';
+    document.getElementById('kv-info').textContent=_kvPend.size+' / '+all.length+' khu vực';
+}
+function kvToggle(kv){if(_kvPend.has(kv))_kvPend.delete(kv);else _kvPend.add(kv);renderKVList()}
+function kvSelectAll(){kvAllList().forEach(function(x){_kvPend.add(x.kv)});renderKVList()}
+function kvClearAll(){_kvPend=new Set();renderKVList()}
+function applyKVPicker(){
+    /* chọn hết = không lọc — cùng quy ước với picker KH */
+    var next=(_kvPend.size===kvAllList().length)?new Set():new Set(_kvPend);
+    var changed=next.size!==fltKV.size||[...next].some(function(k){return!fltKV.has(k)});
+    fltKV=next;fltRebuildKV();closeKVPicker();fltSync();
+    if(changed){saveReportState();renderAll()}
+}
+
+/* ══════════════ PICKER SẢN PHẨM (dòng SP → SP) ══════════════ */
+var _spOpen=false,_spPendDong=new Set(),_spPendVt=new Set(),_spExp={};
+function toggleSPPicker(){_spOpen?closeSPPicker():openSPPicker()}
+function openSPPicker(){
+    _spOpen=true;_spPendDong=new Set(fltDong);_spPendVt=new Set(fltVt);
+    var p=document.getElementById('sp-panel');
+    _fltPlace(p,document.getElementById('sp-trigger'),380);
+    if(!isMobile()&&!(typeof isLandscapePhone==='function'&&isLandscapePhone()))p.style.width='380px';
+    p.classList.add('open');document.getElementById('sp-trigger').classList.add('open');
+    document.getElementById('sp-q').value='';renderSPList();
+}
+function closeSPPicker(){_spOpen=false;document.getElementById('sp-panel').classList.remove('open');document.getElementById('sp-trigger').classList.remove('open')}
+/* Trạng thái cha: 'checked' (cả cụm) | 'mixed' (một phần) | 'none' */
+function _spState(g){
+    if(_spPendDong.has(g.dong))return'checked';
+    var n=g.kids.filter(function(k){return _spPendVt.has(k.ma_vt)}).length;
+    if(n===0)return'none';
+    return n===g.kids.length?'checked':'mixed';
+}
+function renderSPList(){
+    var q=(document.getElementById('sp-q').value||'').toLowerCase().trim();
+    var tree=spAllTree(),h='',shown=0,totVt=0;
+    tree.forEach(function(g){
+        totVt+=g.kids.length;
+        var hitDong=!q||g.dong.toLowerCase().indexOf(q)>=0;
+        var kids=hitDong?g.kids:g.kids.filter(function(k){
+            return k.ten_vt.toLowerCase().indexOf(q)>=0||(k.ma_vt||'').toLowerCase().indexOf(q)>=0;
+        });
+        if(!hitDong&&!kids.length)return;
+        shown++;
+        var st=_spState(g),exp=q?true:(_spExp[g.dong]===true);
+        var arg=JSON.stringify(g.dong).replace(/"/g,'&quot;');
+        h+='<div class="khi khi-parent'+(st==='checked'?' checked':'')+'" onclick="spToggleDong('+arg+')">'
+          +'<button class="khi-exp" onclick="spToggleExp('+arg+',event)">'+(exp?'▾':'▸')+'</button>'
+          +'<span class="khi-cb'+(st==='mixed'?' mixed':'')+'"></span>'
+          +'<span class="khi-name">'+esc(g.dong)+'</span>'
+          +'<span class="khi-cnt">'+g.kids.length+'</span></div>';
+        if(exp)kids.forEach(function(k){
+            var ck=_spPendDong.has(g.dong)||_spPendVt.has(k.ma_vt);
+            h+='<div class="khi khi-child'+(ck?' checked':'')+'" onclick="spToggleVt('+arg+','+JSON.stringify(k.ma_vt).replace(/"/g,'&quot;')+')">'
+              +'<span class="khi-cb"></span><span class="khi-name">'+esc(k.ten_vt)+'</span>'
+              +'<span class="khi-code">'+esc(k.ma_vt||'')+'</span></div>';
+        });
+    });
+    document.getElementById('sp-list').innerHTML=h||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">'+(tree.length?'Không tìm thấy':'Chưa có dữ liệu chi tiết')+'</div>';
+    var nSel=0;tree.forEach(function(g){nSel+=_spPendDong.has(g.dong)?g.kids.length:g.kids.filter(function(k){return _spPendVt.has(k.ma_vt)}).length});
+    document.getElementById('sp-info').textContent=nSel+' / '+totVt+' SP'+(shown<tree.length?' · lọc '+shown+'/'+tree.length+' dòng':'');
+}
+function spToggleExp(dong,e){e.stopPropagation();_spExp[dong]=!(_spExp[dong]===true);renderSPList()}
+function _spGroup(dong){spAllTree();return _spMap.get(dong)}
+function spToggleDong(dong){
+    var g=_spGroup(dong);if(!g)return;
+    if(_spState(g)==='checked'){_spPendDong.delete(dong);g.kids.forEach(function(k){_spPendVt.delete(k.ma_vt)})}
+    else{_spPendDong.add(dong);g.kids.forEach(function(k){_spPendVt.delete(k.ma_vt)})}
+    renderSPList();
+}
+function spToggleVt(dong,vt){
+    var g=_spGroup(dong);if(!g)return;
+    /* đang chọn cả cụm mà bỏ 1 con → hạ xuống chọn lẻ từng con còn lại */
+    if(_spPendDong.has(dong)){
+        _spPendDong.delete(dong);
+        g.kids.forEach(function(k){if(k.ma_vt!==vt)_spPendVt.add(k.ma_vt)});
+    }else if(_spPendVt.has(vt))_spPendVt.delete(vt);
+    else{
+        _spPendVt.add(vt);
+        /* đủ cả cụm → gom lại thành chọn nguyên dòng cho gọn */
+        if(g.kids.every(function(k){return _spPendVt.has(k.ma_vt)})){
+            g.kids.forEach(function(k){_spPendVt.delete(k.ma_vt)});_spPendDong.add(dong);
+        }
+    }
+    renderSPList();
+}
+function spSelectAll(){_spPendVt=new Set();_spPendDong=new Set();spAllTree().forEach(function(g){_spPendDong.add(g.dong)});renderSPList()}
+function spClearAll(){_spPendDong=new Set();_spPendVt=new Set();renderSPList()}
+function applySPPicker(){
+    var tree=spAllTree();
+    /* chọn hết = không lọc */
+    var all=tree.length>0&&tree.every(function(g){return _spPendDong.has(g.dong)});
+    var nd=all?new Set():new Set(_spPendDong),nv=all?new Set():new Set(_spPendVt);
+    var changed=nd.size!==fltDong.size||nv.size!==fltVt.size
+        ||[...nd].some(function(x){return!fltDong.has(x)})||[...nv].some(function(x){return!fltVt.has(x)});
+    fltDong=nd;fltVt=nv;closeSPPicker();fltSync();
+    if(changed){saveReportState();renderAll()}
+}
+
+/* Đóng khi bấm ra ngoài — chỉ cho 2 picker mới (2 picker dùng chung tự lo phần của nó) */
+document.addEventListener('mousedown',function(e){
+    if(_kvOpen){var t=document.getElementById('kv-trigger'),p=document.getElementById('kv-panel');
+        if(t&&!t.contains(e.target)&&p&&!p.contains(e.target))closeKVPicker()}
+    if(_spOpen){var t2=document.getElementById('sp-trigger'),p2=document.getElementById('sp-panel');
+        if(t2&&!t2.contains(e.target)&&p2&&!p2.contains(e.target))closeSPPicker()}
+});
+</script>

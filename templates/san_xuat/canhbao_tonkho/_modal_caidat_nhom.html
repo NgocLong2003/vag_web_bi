@@ -1,0 +1,324 @@
+<!-- _modal_caidat_nhom.html — Modal quản lý phân nhóm vật tư
+     Lưu vào dim_loai_nguyen_lieu (app.database)
+-->
+<style>
+.nh-overlay{position:fixed;inset:0;background:rgba(30,42,58,.45);backdrop-filter:blur(2px);z-index:900;display:none;align-items:center;justify-content:center;padding:20px;animation:nh-fadeIn .15s ease}
+.nh-overlay.open{display:flex}
+@keyframes nh-fadeIn{from{opacity:0}to{opacity:1}}
+
+.nh-modal{background:var(--white);border-radius:14px;box-shadow:0 12px 48px rgba(0,0,0,.22);width:100%;max-width:720px;max-height:85vh;display:flex;flex-direction:column;animation:nh-slideUp .2s ease}
+@keyframes nh-slideUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+
+.nh-header{padding:18px 24px 14px;border-bottom:1px solid var(--g1);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.nh-header-ico{width:32px;height:32px;border-radius:8px;background:var(--blue-lt);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nh-header-ico svg{width:16px;height:16px;stroke:var(--blue);fill:none}
+.nh-header-info{flex:1;min-width:0}
+.nh-title{font-size:15px;font-weight:800;color:var(--g7)}
+.nh-subtitle{font-size:11px;color:var(--g4);margin-top:1px}
+.nh-close{width:32px;height:32px;border:none;background:var(--g0);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--g4);font-size:16px;flex-shrink:0;transition:.1s}
+.nh-close:hover{background:var(--red-lt);color:var(--red)}
+
+.nh-body{flex:1;overflow-y:auto;min-height:0;padding:0}
+.nh-body::-webkit-scrollbar{width:6px}
+.nh-body::-webkit-scrollbar-thumb{background:var(--g2);border-radius:3px}
+
+table.nh-tbl{border-collapse:separate;border-spacing:0;width:100%}
+table.nh-tbl thead th{position:sticky;top:0;z-index:5;background:var(--g0);border-bottom:2px solid var(--g2);padding:10px 12px;font-size:10px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.04em;text-align:left;white-space:nowrap}
+table.nh-tbl thead th:last-child{width:36px;text-align:center}
+table.nh-tbl thead th.nh-th-drag{width:28px;padding:10px 4px}
+
+table.nh-tbl tbody tr{border-bottom:1px solid var(--g1);transition:background .06s}
+table.nh-tbl tbody tr:hover{background:var(--g0)}
+table.nh-tbl tbody tr.nh-dup td.nh-td-dau{background:#fef2f2}
+table.nh-tbl tbody tr.nh-dup td.nh-td-dau input{color:var(--red);font-weight:700}
+
+table.nh-tbl tbody td{padding:4px 6px;vertical-align:middle}
+table.nh-tbl tbody td input{width:100%;height:30px;padding:0 8px;border:1.5px solid transparent;border-radius:5px;font-family:var(--sans);font-size:12px;color:var(--g7);background:transparent;outline:none;transition:border-color .12s}
+table.nh-tbl tbody td input:focus{border-color:var(--blue);background:var(--white);box-shadow:0 0 0 2px rgba(26,70,196,.08)}
+table.nh-tbl tbody td input:hover:not(:focus){background:var(--g0)}
+table.nh-tbl tbody td input::placeholder{color:var(--g3)}
+
+table.nh-tbl tbody td.nh-td-dau{width:80px}
+table.nh-tbl tbody td.nh-td-dau input{font-weight:700;font-size:12px;text-transform:uppercase;text-align:center;max-width:72px}
+table.nh-tbl tbody td.nh-td-nhom input{font-weight:600}
+
+/* Drag handle */
+table.nh-tbl tbody td.nh-td-drag{width:28px;padding:4px 2px;text-align:center;cursor:grab}
+table.nh-tbl tbody td.nh-td-drag:active{cursor:grabbing}
+.nh-drag-ico{color:var(--g3);font-size:14px;line-height:1;user-select:none}
+table.nh-tbl tbody tr:hover .nh-drag-ico{color:var(--g5)}
+table.nh-tbl tbody tr.nh-dragging{opacity:.3;background:var(--blue-lt)}
+table.nh-tbl tbody tr.nh-drag-over-top{box-shadow:inset 0 2px 0 0 var(--blue)}
+table.nh-tbl tbody tr.nh-drag-over-bot{box-shadow:inset 0 -2px 0 0 var(--blue)}
+
+.nh-del{width:28px;height:28px;border:none;background:transparent;color:var(--g3);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;transition:.1s;margin:0 auto}
+.nh-del:hover{background:var(--red-lt);color:var(--red)}
+
+.nh-add-bar{padding:8px 12px;border-top:1px solid var(--g1);background:var(--g0)}
+.nh-add-btn{height:30px;padding:0 14px;border:1.5px dashed var(--g2);background:var(--white);border-radius:6px;font-family:var(--sans);font-size:11px;font-weight:700;color:var(--g4);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:.12s}
+.nh-add-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt)}
+
+.nh-footer{padding:12px 24px;border-top:1px solid var(--g1);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.nh-footer-info{flex:1;font-size:11px;color:var(--g4);font-weight:600}
+.nh-footer-info b{color:var(--g6)}
+.nh-footer-info .nh-err{color:var(--red);font-weight:700}
+.nh-btn{height:32px;padding:0 18px;border-radius:7px;border:1.5px solid var(--g2);background:var(--white);font-family:var(--sans);font-size:12px;font-weight:700;color:var(--g5);cursor:pointer;transition:.1s}
+.nh-btn:hover{background:var(--g0)}
+.nh-btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.nh-btn.primary:hover{opacity:.9}
+.nh-btn:disabled{opacity:.5;cursor:not-allowed}
+.nh-btn .spin-mini{width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+
+.nh-state{padding:48px 20px;text-align:center;color:var(--g4)}
+.nh-state .state-spin{width:24px;height:24px;border:3px solid var(--g1);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+.nh-state-msg{font-weight:600;font-size:13px;color:var(--g5)}
+
+@media(max-width:640px){
+  .nh-modal{max-width:100%;max-height:90vh;border-radius:12px 12px 0 0;align-self:flex-end}
+  .nh-header{padding:14px 16px 10px}
+  .nh-footer{padding:10px 16px}
+}
+</style>
+
+<div class="nh-overlay" id="nhOverlay" onclick="if(event.target===this)nhClose()">
+  <div class="nh-modal">
+    <div class="nh-header">
+      <div class="nh-header-ico"><svg viewBox="0 0 16 16" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/><circle cx="5" cy="4" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="7" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+      <div class="nh-header-info">
+        <div class="nh-title">Phân nhóm vật tư</div>
+        <div class="nh-subtitle">Quản lý nhóm / loại theo 4 ký tự đầu mã VT — kéo ⠿ để sắp xếp</div>
+      </div>
+      <button class="nh-close" onclick="nhClose()" title="Đóng (ESC)">✕</button>
+    </div>
+    <div class="nh-body" id="nhBody">
+      <div class="nh-state" id="nhState"><div class="state-spin"></div><div class="nh-state-msg">Đang tải...</div></div>
+    </div>
+    <div class="nh-add-bar" id="nhAddBar" style="display:none">
+      <button class="nh-add-btn" type="button" onclick="nhAddRow()">
+        <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" fill="none" stroke-width="2"><line x1="6" y1="2" x2="6" y2="10"/><line x1="2" y1="6" x2="10" y2="6"/></svg>
+        Thêm dòng
+      </button>
+    </div>
+    <div class="nh-footer" id="nhFooter" style="display:none">
+      <div class="nh-footer-info" id="nhFooterInfo"></div>
+      <button class="nh-btn" type="button" onclick="nhClose()">Hủy</button>
+      <button class="nh-btn primary" type="button" id="nhSaveBtn" onclick="nhSave()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var _nhRows=[];
+var _nhSaving=false;
+
+function _nhEsc(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function _nhEscAttr(s){return _nhEsc(s).replace(/"/g,'&quot;')}
+
+window.nhOpen=function(){
+  document.getElementById('nhOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  _nhLoad();
+};
+
+window.nhClose=function(){
+  document.getElementById('nhOverlay').classList.remove('open');
+  document.body.style.overflow='';
+};
+
+function _nhLoad(){
+  document.getElementById('nhBody').innerHTML='<div class="nh-state"><div class="state-spin"></div><div class="nh-state-msg">Đang tải...</div></div>';
+  document.getElementById('nhAddBar').style.display='none';
+  document.getElementById('nhFooter').style.display='none';
+
+  reportFetch('/reports/canh-bao-ton-kho/api/dim-nhom')
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(!d.ok)throw new Error(d.error||'Lỗi');
+      _nhRows=(d.rows||[]).map(function(r){return{nhom:r.nhom||'',loai:r.loai||'',dau_ma:(r.dau_ma||'').trim()}});
+      _nhRender();
+      document.getElementById('nhAddBar').style.display='';
+      document.getElementById('nhFooter').style.display='flex';
+    })
+    .catch(function(e){
+      document.getElementById('nhBody').innerHTML='<div class="nh-state"><div class="nh-state-msg" style="color:var(--red)">'+_nhEsc(e.message)+'</div></div>';
+    });
+}
+
+function _nhRender(){
+  if(!_nhRows.length){
+    document.getElementById('nhBody').innerHTML='<div class="nh-state"><div class="nh-state-msg">Chưa có dữ liệu. Nhấn "Thêm dòng" để bắt đầu.</div></div>';
+    _nhUpdateFooter();
+    return;
+  }
+
+  var dauCount={};
+  _nhRows.forEach(function(r){var k=r.dau_ma.toUpperCase();dauCount[k]=(dauCount[k]||0)+1});
+
+  var html='<table class="nh-tbl"><thead><tr>'
+    +'<th class="nh-th-drag"></th><th>Nhóm</th><th>Loại</th><th>Đầu mã</th><th></th>'
+    +'</tr></thead><tbody>';
+
+  for(var i=0;i<_nhRows.length;i++){
+    var r=_nhRows[i];
+    var isDup=(r.dau_ma.length===4&&dauCount[r.dau_ma.toUpperCase()]>1);
+
+    var cls=isDup?'nh-dup':'';
+
+    html+='<tr class="'+cls.trim()+'" draggable="true" data-ri="'+i+'">'
+      +'<td class="nh-td-drag"><span class="nh-drag-ico">⠿</span></td>'
+      +'<td class="nh-td-nhom"><input value="'+_nhEscAttr(r.nhom)+'" placeholder="Nhóm" data-i="'+i+'" data-f="nhom" oninput="_nhEdit(this)"/></td>'
+      +'<td class="nh-td-loai"><input value="'+_nhEscAttr(r.loai)+'" placeholder="Loại" data-i="'+i+'" data-f="loai" oninput="_nhEdit(this)"/></td>'
+      +'<td class="nh-td-dau"><input value="'+_nhEscAttr(r.dau_ma)+'" placeholder="VD: AA11" maxlength="4" data-i="'+i+'" data-f="dau_ma" oninput="_nhEditDau(this)"/></td>'
+      +'<td><button class="nh-del" onclick="_nhDel('+i+')" title="Xóa">✕</button></td>'
+      +'</tr>';
+  }
+  html+='</tbody></table>';
+  document.getElementById('nhBody').innerHTML=html;
+  _nhUpdateFooter();
+}
+
+window._nhEdit=function(el){
+  var i=+el.getAttribute('data-i');
+  var f=el.getAttribute('data-f');
+  if(_nhRows[i])_nhRows[i][f]=el.value;
+};
+
+window._nhEditDau=function(el){
+  el.value=el.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var i=+el.getAttribute('data-i');
+  if(_nhRows[i])_nhRows[i].dau_ma=el.value;
+  _nhCheckDups();
+};
+
+function _nhCheckDups(){
+  var dauCount={};
+  _nhRows.forEach(function(r){var k=r.dau_ma.toUpperCase();if(k.length===4)dauCount[k]=(dauCount[k]||0)+1});
+  document.querySelectorAll('.nh-tbl tbody tr').forEach(function(tr,i){
+    if(!_nhRows[i])return;
+    var k=_nhRows[i].dau_ma.toUpperCase();
+    tr.classList.toggle('nh-dup',k.length===4&&dauCount[k]>1);
+  });
+  _nhUpdateFooter();
+}
+
+window._nhDel=function(i){
+  _nhRows.splice(i,1);
+  _nhRender();
+  var inputs=document.querySelectorAll('.nh-tbl tbody tr td:nth-child(2) input');
+  if(inputs[i])inputs[i].focus();
+  else if(inputs[i-1])inputs[i-1].focus();
+};
+
+window.nhAddRow=function(){
+  var lastNhom=_nhRows.length?_nhRows[_nhRows.length-1].nhom:'';
+  _nhRows.push({nhom:lastNhom,loai:'',dau_ma:''});
+  _nhRender();
+  var inputs=document.querySelectorAll('.nh-tbl tbody tr:last-child td:nth-child(3) input');
+  if(inputs[0]){
+    inputs[0].focus();
+    document.getElementById('nhBody').scrollTop=document.getElementById('nhBody').scrollHeight;
+  }
+};
+
+function _nhUpdateFooter(){
+  var info=document.getElementById('nhFooterInfo');
+  var dauCount={};var valid=0;
+  _nhRows.forEach(function(r){var k=r.dau_ma.toUpperCase();if(k.length===4){dauCount[k]=(dauCount[k]||0)+1;valid++}});
+  var dups=0;
+  Object.keys(dauCount).forEach(function(k){if(dauCount[k]>1)dups+=dauCount[k]});
+  var html='<b>'+_nhRows.length+'</b> dòng';
+  if(dups)html+=' · <span class="nh-err">'+dups+' đầu mã trùng</span>';
+  else if(valid<_nhRows.length)html+=' · <span class="nh-err">'+(_nhRows.length-valid)+' thiếu đầu mã</span>';
+  info.innerHTML=html;
+}
+
+window.nhSave=function(){
+  if(_nhSaving)return;
+  var dauCount={};var invalid=false;
+  _nhRows.forEach(function(r){var k=r.dau_ma.toUpperCase();if(!r.nhom.trim()||!r.loai.trim()||k.length!==4)invalid=true;dauCount[k]=(dauCount[k]||0)+1});
+  var hasDups=false;
+  Object.keys(dauCount).forEach(function(k){if(dauCount[k]>1)hasDups=true});
+  if(invalid){toast('Có dòng thiếu thông tin (nhóm, loại, hoặc đầu mã 4 ký tự)','err');return}
+  if(hasDups){toast('Có đầu mã bị trùng, hãy sửa trước khi lưu','err');return}
+
+  _nhSaving=true;
+  var btn=document.getElementById('nhSaveBtn');btn.disabled=true;btn.innerHTML='<span class="spin-mini"></span>';
+
+  reportFetch('/reports/canh-bao-ton-kho/api/dim-nhom/save',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows:_nhRows})
+  })
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(!d.ok)throw new Error(d.error||'Lỗi lưu');
+    toast('Đã lưu '+d.count+' dòng','ok');
+    nhClose();
+    if(typeof loadDimNhom==='function')loadDimNhom();
+  })
+  .catch(function(e){toast('Lỗi: '+e.message,'err')})
+  .finally(function(){_nhSaving=false;btn.disabled=false;btn.textContent='Lưu'});
+};
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&document.getElementById('nhOverlay').classList.contains('open'))nhClose();
+});
+
+/* ═══ Drag to reorder ═══ */
+var _dragIdx=null;
+var _dragFromHandle=false;
+
+document.addEventListener('mousedown',function(e){
+  _dragFromHandle=!!e.target.closest('.nh-td-drag');
+});
+
+document.addEventListener('dragstart',function(e){
+  var tr=e.target.closest&&e.target.closest('.nh-tbl tbody tr');
+  if(!tr)return;
+  if(!_dragFromHandle){e.preventDefault();return}
+  _dragIdx=+tr.getAttribute('data-ri');
+  tr.classList.add('nh-dragging');
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',_dragIdx);
+});
+
+document.addEventListener('dragend',function(){
+  _dragIdx=null;
+  document.querySelectorAll('.nh-tbl tbody tr').forEach(function(r){
+    r.classList.remove('nh-dragging','nh-drag-over-top','nh-drag-over-bot');
+  });
+});
+
+document.addEventListener('dragover',function(e){
+  var tr=e.target.closest&&e.target.closest('.nh-tbl tbody tr');
+  if(!tr||_dragIdx===null)return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.nh-tbl tbody tr').forEach(function(r){
+    r.classList.remove('nh-drag-over-top','nh-drag-over-bot');
+  });
+  var rect=tr.getBoundingClientRect();
+  if(e.clientY<rect.top+rect.height/2)tr.classList.add('nh-drag-over-top');
+  else tr.classList.add('nh-drag-over-bot');
+});
+
+document.addEventListener('drop',function(e){
+  var tr=e.target.closest&&e.target.closest('.nh-tbl tbody tr');
+  if(!tr||_dragIdx===null)return;
+  e.preventDefault();
+  var targetIdx=+tr.getAttribute('data-ri');
+  if(isNaN(targetIdx)||targetIdx===_dragIdx){_dragIdx=null;return}
+  var rect=tr.getBoundingClientRect();
+  var insertBefore=e.clientY<(rect.top+rect.height/2);
+  var dragged=_nhRows.splice(_dragIdx,1)[0];
+  var newIdx=targetIdx;
+  if(_dragIdx<targetIdx)newIdx--;
+  if(!insertBefore)newIdx++;
+  _nhRows.splice(newIdx,0,dragged);
+  _dragIdx=null;
+  _nhRender();
+});
+
+})();
+</script>

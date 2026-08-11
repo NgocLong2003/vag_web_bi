@@ -1,0 +1,182 @@
+<!-- ══ MODAL: Phân bổ vùng / KH theo sản phẩm — Báo cáo Sản Phẩm ══
+     Click SP row → hiện modal group by Vùng (ten_plkh3) → KH
+     Data: lọc từ rawData theo ma_vt, không cần API mới
+-->
+<style>
+.vung-overlay{position:fixed;inset:0;background:rgba(15,22,35,.5);z-index:9970;opacity:0;pointer-events:none;transition:opacity .2s}
+.vung-overlay.open{opacity:1;pointer-events:all}
+.vung-modal{position:fixed;z-index:9975;background:var(--white);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:scale(.96) translateY(12px);transition:all .25s cubic-bezier(.32,.72,0,1);pointer-events:none;top:5vh;left:5vw;right:5vw;bottom:5vh}
+.vung-modal.open{opacity:1;transform:none;pointer-events:all}
+.vung-m-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--g2);flex-shrink:0}
+.vung-m-title{font-size:15px;font-weight:800;color:var(--g7)}
+.vung-m-sub{font-size:11px;color:var(--g4);font-weight:500;margin-top:2px}
+.vung-m-close{width:32px;height:32px;border-radius:8px;border:none;background:var(--g1);color:var(--g5);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}.vung-m-close:hover{background:var(--red-lt);color:var(--red)}
+.vung-m-body{flex:1;overflow:auto;padding:0}
+.vung-m-empty{padding:40px 20px;text-align:center;color:var(--g4);font-size:12px}
+.vung-m-total{display:flex;justify-content:space-between;align-items:center;padding:10px 18px;border-top:2px solid var(--g2);background:var(--g0);flex-shrink:0}
+.vung-m-total-label{font-size:11px;font-weight:700;color:var(--g5);text-transform:uppercase}
+.vung-m-total-val{font-family:var(--mono);font-size:14px;font-weight:800;color:var(--g7)}
+
+/* Table */
+.vung-m-tbl{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0}
+.vung-m-tbl th{position:sticky;top:0;background:var(--g0);padding:8px 10px;font-size:10px;font-weight:700;color:var(--g5);text-transform:uppercase;text-align:left;border-bottom:1px solid var(--g2);white-space:nowrap;z-index:2}
+.vung-m-tbl th.r{text-align:right}
+.vung-m-tbl td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--g1);white-space:nowrap}
+.vung-m-tbl td.r{text-align:right;font-family:var(--mono);font-size:11px}
+.vung-m-tbl tr:hover{background:var(--g0)}
+
+/* Vùng row */
+.vung-m-tbl tr.row-vung{background:#eef2ff;font-weight:700}
+.vung-m-tbl tr.row-vung td{font-size:12px;color:var(--blue);border-bottom:2px solid var(--g2);padding:9px 10px}
+/* KH row */
+.vung-m-tbl tr.row-kh{background:var(--white)}
+/* Ngày row */
+.vung-m-tbl tr.row-ngay{background:#fafbfd}
+.vung-m-tbl tr.row-ngay td{font-size:11px;color:var(--g5)}
+
+/* Toggle */
+.vung-m-tog{width:18px;height:18px;margin-right:3px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;border:none;background:none;cursor:pointer;color:var(--g4);vertical-align:middle;flex-shrink:0}
+.vung-m-tog:hover{background:var(--g2)}
+.vung-m-tog svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-linecap:round}
+
+@media(max-width:768px){
+  .vung-modal{top:0;left:0;right:0;bottom:0;border-radius:0}
+  .vung-m-tbl td{padding:6px 8px;font-size:11px}
+  .vung-m-tbl th{padding:6px 8px;font-size:9px}
+}
+</style>
+
+<div class="vung-overlay" id="vungOverlay" onclick="closeVungModal()"></div>
+<div class="vung-modal" id="vungModal">
+    <div class="vung-m-head">
+        <div>
+            <div class="vung-m-title" id="vungMTitle">PHÂN BỔ VÙNG</div>
+            <div class="vung-m-sub" id="vungMSub"></div>
+        </div>
+        <button class="vung-m-close" onclick="closeVungModal()">✕</button>
+    </div>
+    <div class="vung-m-body" id="vungMBody"></div>
+    <div class="vung-m-total">
+        <span class="vung-m-total-label" id="vungMTotalLabel">Tổng</span>
+        <span class="vung-m-total-val" id="vungMTotalVal">—</span>
+    </div>
+</div>
+
+<script>
+var _vungExp={};
+var _vungMaVt='';
+var _vungTenVt='';
+var _vungDsSort=0;
+
+function closeVungModal(){
+    document.getElementById('vungOverlay').classList.remove('open');
+    document.getElementById('vungModal').classList.remove('open');
+}
+
+/* ─── Open modal ─── */
+function toggleVungDsSort(){_vungDsSort=_vungDsSort===0?1:_vungDsSort===1?-1:0;renderVungModal()}
+function openVungModal(maVt,tenVt){
+    _vungMaVt=maVt;_vungTenVt=tenVt;_vungExp={};_vungDsSort=0;
+    document.getElementById('vungMTitle').textContent='PHÂN BỔ VÙNG — '+tenVt;
+    document.getElementById('vungMSub').textContent=maVt+(currentKBC?' · '+currentKBC.ten_kbc:'');
+    document.getElementById('vungOverlay').classList.add('open');
+    document.getElementById('vungModal').classList.add('open');
+    renderVungModal();
+}
+
+/* ─── Toggle expand ─── */
+function togVungM(key,e){
+    if(e){e.stopPropagation();e.preventDefault()}
+    _vungExp[key]=_vungExp[key]===false?true:!_vungExp[key];
+    renderVungModal();
+}
+
+/* ─── Render ─── */
+function renderVungModal(){
+    var body=document.getElementById('vungMBody');
+
+    // Lọc rawData theo ma_vt
+    var rows=rawData.filter(function(r){return r.ma_vt===_vungMaVt});
+    if(rows.length)console.log('[VungModal] sample row keys:', Object.keys(rows[0]), 'ten_plkh3:', rows[0].ten_plkh3, 'ma_kh:', rows[0].ma_kh);
+    if(!rows.length){
+        body.innerHTML='<div class="vung-m-empty">Không có dữ liệu</div>';
+        document.getElementById('vungMTotalVal').textContent='0';
+        document.getElementById('vungMTotalLabel').textContent='Tổng';
+        return;
+    }
+
+    // Group by vùng (ten_plkh3 từ rawData hoặc khMap)
+    var byVung={};
+    rows.forEach(function(r){
+        var vung=(khMap[r.ma_kh]&&khMap[r.ma_kh].ten_plkh1)||'(Chưa phân vùng)';
+        if(!byVung[vung])byVung[vung]={rows:[]};
+        byVung[vung].rows.push(r);
+    });
+
+    var togE='<svg viewBox="0 0 9 9"><path d="M1.5 3L4.5 6.5L7.5 3"/></svg>';
+    var togC='<svg viewBox="0 0 9 9"><path d="M3 1.5L6.5 4.5L3 7.5"/></svg>';
+    var arrow=_vungDsSort===1?'▼':_vungDsSort===-1?'▲':'⇅';
+    var abg=_vungDsSort?'background:var(--blue);color:#fff':'background:var(--g1);color:var(--g4)';
+    var html='<table class="vung-m-tbl"><thead><tr><th>Vùng / Khách hàng</th><th class="r">SL</th><th class="r">Thành tiền</th><th class="r">Doanh số <button onclick="toggleVungDsSort()" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;border:none;cursor:pointer;font-size:10px;vertical-align:middle;margin-left:3px;'+abg+'">'+arrow+'</button></th></tr></thead><tbody>';
+    var grandSL=0,grandDS=0,grandTT=0,totalKH=0;
+
+    Object.keys(byVung).sort(function(a,b){
+        if(_vungDsSort){var va=0,vb=0;byVung[a].rows.forEach(function(r){va+=(r.doanhso||0)});byVung[b].rows.forEach(function(r){vb+=(r.doanhso||0)});return _vungDsSort===1?(vb-va):(va-vb)}
+        return a.localeCompare(b);
+    }).forEach(function(vung){
+        var vRows=byVung[vung].rows;
+        var vKey='v_'+vung.replace(/'/g,'');
+        var vExp=_vungExp[vKey]!==false;
+
+        // Tổng vùng
+        var vSL=0,vTT=0,vDS=0;
+        vRows.forEach(function(r){vSL+=(r.so_luong||0);vTT+=(r.tien_nt2||0);vDS+=(r.doanhso||0)});
+        grandSL+=vSL;grandTT+=vTT;grandDS+=vDS;
+
+        // Group by KH within vùng
+        var byKH={};
+        vRows.forEach(function(r){
+            var mk=r.ma_kh||'_UNK';
+            if(!byKH[mk])byKH[mk]={ten_kh:r.ten_kh||khNames[mk]||mk,sl:0,tt:0,ds:0,rows:[]};
+            byKH[mk].sl+=(r.so_luong||0);
+            byKH[mk].tt+=(r.tien_nt2||0);
+            byKH[mk].ds+=(r.doanhso||0);
+            byKH[mk].rows.push(r);
+        });
+        var khCount=Object.keys(byKH).length;
+        totalKH+=khCount;
+
+        // Vùng row
+        html+='<tr class="row-vung"><td><button class="vung-m-tog" onclick="togVungM(\''+vKey.replace(/'/g,"\\'")+'\',event)">'+(vExp?togE:togC)+'</button>'+esc(vung)+' <span style="font-size:9px;font-weight:500;color:var(--g4)">('+khCount+' KH)</span></td><td class="r" style="font-weight:700">'+fmtV(vSL)+'</td><td class="r" style="font-weight:700">'+fmtV(vTT)+'</td><td class="r" style="font-weight:700">'+fmtV(vDS)+'</td></tr>';
+
+        if(!vExp)return;
+
+        // KH rows — sort by doanh số giảm dần
+        var khSorted=Object.keys(byKH).sort(function(a,b){if(_vungDsSort===-1)return byKH[a].ds-byKH[b].ds;return byKH[b].ds-byKH[a].ds});
+        khSorted.forEach(function(mk){
+            var kd=byKH[mk];
+            var khKey='kh_'+vKey+'_'+mk.replace(/'/g,'');
+            var khExp=_vungExp[khKey]===true; // mặc định collapse
+            var khTog='<button class="vung-m-tog" onclick="togVungM(\''+khKey.replace(/'/g,"\\'")+'\',event)">'+(khExp?togE:togC)+'</button>';
+            html+='<tr class="row-kh"><td style="padding-left:28px">'+khTog+esc(kd.ten_kh)+' <span style="font-size:9px;color:var(--g4)">('+kd.rows.length+' dòng)</span></td><td class="r">'+fmtV(kd.sl)+'</td><td class="r">'+fmtV(kd.tt)+'</td><td class="r">'+fmtV(kd.ds)+'</td></tr>';
+            if(khExp){
+                // Chi tiết theo ngày — sort ASC
+                var dateRows=kd.rows.slice().sort(function(a,b){return String(a.ngay_ct||'').localeCompare(String(b.ngay_ct||''))});
+                dateRows.forEach(function(r){
+                    var dt=iso(r.ngay_ct)||'';
+                    html+='<tr class="row-ngay"><td class="date" style="padding-left:52px">'+fmtD(dt)+'</td><td class="r">'+fmtV(r.so_luong||0)+'</td><td class="r">'+fmtV(r.tien_nt2||0)+'</td><td class="r">'+fmtV(r.doanhso||0)+'</td></tr>';
+                });
+            }
+        });
+    });
+
+    html+='</tbody></table>';
+    body.innerHTML=html;
+    document.getElementById('vungMTotalLabel').textContent='Tổng doanh số ('+totalKH+' KH, '+Object.keys(byVung).length+' vùng)';
+    document.getElementById('vungMTotalVal').textContent=fmtV(grandDS);
+}
+
+document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&document.getElementById('vungModal').classList.contains('open'))closeVungModal();
+});
+</script>

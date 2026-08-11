@@ -207,7 +207,7 @@ if __name__ == '__main__':
     print('  Parquet watcher: every 30s')
     print('=' * 55)
     try:
-        serve(app, host='0.0.0.0', port=5000, threads=8)
+        serve(app, host='0.0.0.0', port=5000, threads=32)
     finally:
         watcher.stop()
         store.close()

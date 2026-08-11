@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s \"Y:\\\\code\\\\vag_web_bi\")",
+      "Bash(echo \"---EXIT:$?---\")"
+    ]
+  }
+}

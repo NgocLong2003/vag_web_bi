@@ -140,8 +140,8 @@ def api_vattu():
         return api_response(ok=False, error=str(e))
 
 
-DG_KEEP = ('ngay_dat', 'ten_kh', 'ten_nha_sx', 'dang_giao')
-DG_NUM = ('dang_giao')
+DG_KEEP = ('ngay_dat', 'ten_kh', 'ten_nha_sx', 'sl_dat', 'sl_da_nhap', 'dang_giao')
+DG_NUM = ('sl_dat', 'sl_da_nhap', 'dang_giao')
 
 
 @bp.route('/api/danggiao')
@@ -220,6 +220,146 @@ def api_danggiao():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# DIM LOẠI NGUYÊN LIỆU — quản lý nhóm/loại VT
+# ═══════════════════════════════════════════════════════════════════════════
+
+DEFAULT_DIM_ROWS = [
+    ('Nguyên liệu', 'Kháng sinh', 'AA11'),
+    ('Nguyên liệu', 'Hoạt chất', 'AA12'),
+    ('Nguyên liệu', 'Vitamin & Khoáng', 'AA13'),
+    ('Nguyên liệu', 'Enzyme, men', 'AA14'),
+    ('Nguyên liệu', 'Các chất khác (NL)', 'AA15'),
+    ('Nguyên liệu', 'Tá dược thông thường', 'AA21'),
+    ('Nguyên liệu', 'Hương liệu + Màu', 'AA22'),
+    ('Nguyên liệu', 'Tá dược lỏng', 'AA23'),
+    ('Nguyên liệu', 'Các chất khác (TD)', 'AA24'),
+    ('Lọ, nắp, nút, seal', 'Lọ thủy tinh', 'AA32'),
+    ('Lọ, nắp, nút, seal', 'Nắp+Nút', 'AA35'),
+    ('Lọ, nắp, nút, seal', 'Seal+Chai nhựa+Thùng sơn', 'AA31'),
+    ('Lọ, nắp, nút, seal', 'Seal', 'AA36'),
+    ('Bao bì cấp 1', 'Túi nhôm', 'AA33'),
+    ('Bao bì cấp 1', 'Màng nhôm, nylon', 'AA34'),
+    ('Bao bì cấp 1', 'Túi nhôm đại lý', 'AA43'),
+    ('Bao bì cấp 1', 'Nhãn+Hộp thuốc tiêm Viavet', 'AD11'),
+    ('Bao bì cấp 1', 'Nhãn+Hộp thuốc uống Viavet', 'AD12'),
+    ('Bao bì cấp 1', 'Nhãn+Hộp thuốc bột Viavet', 'AD13'),
+    ('Bao bì cấp 1', 'Nhãn+Hộp thuốc sát trùng', 'AD14'),
+    ('Bao bì cấp 1', 'Nhãn+Hộp viên nén', 'AD15'),
+    ('Bao bì cấp 1', 'Nhãn túi thuốc bột Viavet', 'AD21'),
+    ('Bao bì cấp 1', 'Nhãn thuốc uống Viavet', 'AD22'),
+    ('Bao bì cấp 1', 'Hũ nhựa+Hộp Trung gian', 'AD31'),
+    ('Bao bì cấp 1', 'Túi Nylon+Bao tải trắng', 'AD32'),
+    ('Bao bì cấp 1', 'Thùng Carton+Vách+Lót', 'AD33'),
+    ('Bao bì cấp 1', 'Băng dính, tem, màng co', 'AD34'),
+    ('Bao bì cấp 1', 'Phiếu đóng gói, cốc, lót, Pallet', 'AD35'),
+    ('Bao bì cấp 1', 'Nhãn thuốc bột Viavet', 'AD41'),
+    ('Bao bì cấp 1', 'Nhãn+Hộp thuốc uống Viavet', 'AD42'),
+    ('Bao bì cấp 1', 'Nhãn+Hộp thuốc tiêm Viavet ĐL', 'AD43'),
+]
+
+
+def _get_app_conn():
+    """Connection to app.database cho dim tables."""
+    from config import DATASOURCES
+    c = DATASOURCES.get('app.database')
+    if not c:
+        raise RuntimeError("DATASOURCES['app.database'] chưa cấu hình")
+    return pyodbc.connect(
+        f"DRIVER={{{c['driver']}}};SERVER={c['server']},{c['port']};"
+        f"DATABASE={c['database']};UID={c['username']};PWD={c['password']};"
+        "TrustServerCertificate=yes;",
+        autocommit=False
+    )
+
+
+def _ensure_dim_table(conn):
+    """Tạo bảng nếu chưa có, seed data mặc định nếu rỗng."""
+    cur = conn.cursor()
+    cur.execute("""
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'dim_loai_nguyen_lieu')
+        CREATE TABLE dim_loai_nguyen_lieu (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            nhom NVARCHAR(100) NOT NULL,
+            loai NVARCHAR(200) NOT NULL,
+            dau_ma CHAR(4) NOT NULL UNIQUE
+        )
+    """)
+    conn.commit()
+
+    count = cur.execute("SELECT COUNT(*) FROM dim_loai_nguyen_lieu").fetchone()[0]
+    if count == 0:
+        for nhom, loai, dau_ma in DEFAULT_DIM_ROWS:
+            cur.execute(
+                "INSERT INTO dim_loai_nguyen_lieu (nhom, loai, dau_ma) VALUES (?, ?, ?)",
+                [nhom, loai, dau_ma]
+            )
+        conn.commit()
+        logger.info(f"[cbtk] dim_loai_nguyen_lieu seeded with {len(DEFAULT_DIM_ROWS)} rows")
+
+
+@bp.route('/api/dim-nhom')
+def api_dim_nhom():
+    """Lấy toàn bộ mapping nhóm/loại."""
+    conn = None
+    try:
+        conn = _get_app_conn()
+        _ensure_dim_table(conn)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT nhom, loai, RTRIM(dau_ma) AS dau_ma
+            FROM dim_loai_nguyen_lieu
+            ORDER BY nhom, dau_ma
+        """)
+        rows = [{'nhom': r[0], 'loai': r[1], 'dau_ma': r[2]} for r in cur.fetchall()]
+        return api_response(ok=True, rows=rows)
+    except Exception as e:
+        logger.error(f'[cbtk] dim-nhom error: {e}')
+        return api_response(ok=False, error=str(e))
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@bp.route('/api/dim-nhom/save', methods=['POST'])
+def api_dim_nhom_save():
+    """Full sync: xóa hết → insert lại từ client."""
+    conn = None
+    try:
+        payload = request.get_json(silent=True) or {}
+        rows = payload.get('rows', [])
+
+        conn = _get_app_conn()
+        _ensure_dim_table(conn)
+        cur = conn.cursor()
+
+        cur.execute("DELETE FROM dim_loai_nguyen_lieu")
+
+        inserted = 0
+        for r in rows:
+            nhom = (r.get('nhom') or '').strip()
+            loai = (r.get('loai') or '').strip()
+            dau_ma = (r.get('dau_ma') or '').strip().upper()[:4]
+            if nhom and loai and len(dau_ma) == 4:
+                cur.execute(
+                    "INSERT INTO dim_loai_nguyen_lieu (nhom, loai, dau_ma) VALUES (?, ?, ?)",
+                    [nhom, loai, dau_ma]
+                )
+                inserted += 1
+
+        conn.commit()
+        logger.info(f"[cbtk] dim_loai_nguyen_lieu saved: {inserted} rows")
+        return api_response(ok=True, count=inserted)
+    except Exception as e:
+        logger.exception('[cbtk] dim-nhom save error')
+        return api_response(ok=False, error=str(e))
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # EXPORT EXCEL — nhận rows JSON từ client (đã được filter/sort đúng như UI)
 # ═══════════════════════════════════════════════════════════════════════════
 @bp.route('/api/export-excel', methods=['POST'])
@@ -287,14 +427,14 @@ def api_export_excel():
         border_all = Border(left=thin, right=thin, top=thin, bottom=thin)
 
         # ── Header block (merged title + meta) ─────────────────────────
-        ws.merge_cells('A1:G1')
+        ws.merge_cells('A1:J1')
         c = ws['A1']
         c.value = 'BÁO CÁO CẢNH BÁO TỒN KHO'
         c.font = Font(name=FONT_NAME, size=16, bold=True, color=C_TITLE_FG)
         c.alignment = Alignment(horizontal='center', vertical='center')
         ws.row_dimensions[1].height = 28
 
-        ws.merge_cells('A2:G2')
+        ws.merge_cells('A2:J2')
         c = ws['A2']
         sub = f'Ngày tồn: {ngay}   •   ĐH từ: {ngay_dh1}   •   Mức cảnh báo: {sev_label}'
         if search:
@@ -304,7 +444,7 @@ def api_export_excel():
         c.alignment = Alignment(horizontal='center', vertical='center')
         ws.row_dimensions[2].height = 18
 
-        ws.merge_cells('A3:G3')
+        ws.merge_cells('A3:J3')
         c = ws['A3']
         c.value = f'Xuất lúc: {dt.now().strftime("%d/%m/%Y %H:%M:%S")}   •   Tổng: {len(rows):,} dòng'
         c.font = Font(name=FONT_NAME, size=9, color=C_META_LABEL)
@@ -318,8 +458,10 @@ def api_export_excel():
         HEADER_ROW = 5
         headers = [
             ('STT', 'stt', 6),
-            ('Mã VT', 'ma_vt', 16),
-            ('Tên vật tư', 'ten_vt', 48),
+            ('Nhóm', '_nhom', 18),
+            ('Loại', '_loai', 28),
+            ('Mã VT', 'ma_vt', 14),
+            ('Tên vật tư', 'ten_vt', 44),
             ('Tạm nhập', 'tam_nhap', 14),
             ('Tồn thực', 'ton_kho_thuc', 14),
             ('SL an toàn', 'sl_antoan', 14),
@@ -327,14 +469,13 @@ def api_export_excel():
             ('Đang giao', 'dang_giao', 14),
         ]
 
-        # Thêm cột STT — điều chỉnh width array (A..H)
         for idx, (label, _, width) in enumerate(headers, start=1):
             col_letter = get_column_letter(idx)
             cell = ws.cell(row=HEADER_ROW, column=idx, value=label)
             cell.font = Font(name=FONT_NAME, size=11, bold=True, color=C_HEADER_FG)
             cell.fill = PatternFill('solid', fgColor=C_HEADER_BG)
             cell.alignment = Alignment(
-                horizontal='center' if idx in (1,) else ('left' if idx in (2, 3) else 'right'),
+                horizontal='center' if idx in (1,) else ('left' if idx in (2, 3, 4, 5) else 'right'),
                 vertical='center',
                 wrap_text=True,
             )
@@ -345,10 +486,8 @@ def api_export_excel():
 
         # ── Data rows ──────────────────────────────────────────────────
         num_fmt = '#,##0.####;[Red]-#,##0.####;"-"'
-        int_fmt = '#,##0;[Red]-#,##0;"-"'
 
         def classify(r):
-            """Trả về 'danger' | 'warn' | 'ok' | None và is_neg"""
             chenh = r.get('chenh_lech') or 0
             sl_at = r.get('sl_antoan') or 0
             ton = r.get('ton_kho_thuc') or 0
@@ -367,7 +506,6 @@ def api_export_excel():
             row_excel = HEADER_ROW + i
             sev, is_neg = classify(r)
 
-            # Row fill: tồn âm ưu tiên, rồi zebra
             row_fill = None
             if is_neg:
                 row_fill = PatternFill('solid', fgColor=C_NEG_BG)
@@ -376,6 +514,8 @@ def api_export_excel():
 
             values = [
                 i,
+                r.get('_nhom', ''),
+                r.get('_loai', ''),
                 r.get('ma_vt', ''),
                 r.get('ten_vt', ''),
                 r.get('tam_nhap', 0) or 0,
@@ -394,17 +534,16 @@ def api_export_excel():
 
                 if col_idx == 1:  # STT
                     cell.alignment = Alignment(horizontal='center', vertical='center')
-                elif col_idx == 2:  # Mã VT
+                elif col_idx in (2, 3, 4, 5):  # Nhóm, Loại, Mã VT, Tên VT
                     cell.alignment = Alignment(horizontal='left', vertical='center', indent=1)
-                    cell.font = Font(name=FONT_NAME, size=10, color='FF5A6478')
-                elif col_idx == 3:  # Tên VT
-                    cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=False, indent=1)
+                    if col_idx == 4:
+                        cell.font = Font(name=FONT_NAME, size=10, color='FF5A6478')
                 else:  # số
                     cell.alignment = Alignment(horizontal='right', vertical='center', indent=1)
                     cell.number_format = num_fmt
 
             # Highlight cột Chênh lệch theo severity
-            chenh_cell = ws.cell(row=row_excel, column=7)
+            chenh_cell = ws.cell(row=row_excel, column=9)
             if sev == 'danger':
                 chenh_cell.font = Font(name=FONT_NAME, size=10, bold=True, color=C_DANGER)
                 chenh_cell.fill = PatternFill('solid', fgColor=C_DANGER_BG)
@@ -416,11 +555,10 @@ def api_export_excel():
                 chenh_cell.fill = PatternFill('solid', fgColor=C_WARN_BG)
 
             # Tồn kho thực âm — in đỏ
-            ton_cell = ws.cell(row=row_excel, column=5)
+            ton_cell = ws.cell(row=row_excel, column=7)
             if (r.get('ton_kho_thuc') or 0) < 0:
                 ton_cell.font = Font(name=FONT_NAME, size=10, bold=True, color=C_DANGER)
 
-            # Row height
             ws.row_dimensions[row_excel].height = 18
 
         # ── Freeze panes + filter ──────────────────────────────────────
@@ -428,7 +566,7 @@ def api_export_excel():
 
         last_row = HEADER_ROW + len(rows)
         if len(rows) > 0:
-            ws.auto_filter.ref = f'A{HEADER_ROW}:H{last_row}'
+            ws.auto_filter.ref = f'A{HEADER_ROW}:J{last_row}'
 
         # ── Page setup ─────────────────────────────────────────────────
         ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
@@ -447,7 +585,6 @@ def api_export_excel():
         wb.save(buf)
         buf.seek(0)
 
-        # Filename
         fname_date = (ngay or dt.now().strftime('%Y-%m-%d')).replace('-', '')
         fname = f'CanhBaoTonKho_{fname_date}_{dt.now().strftime("%H%M%S")}.xlsx'
 

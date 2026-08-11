@@ -5,8 +5,8 @@ Mỗi lần sync:
   - SELECT * từ VIEW nguồn
   - Tính hash các cột quan trọng → so sánh với bản current (valid_to IS NULL)
   - Mới     → INSERT (valid_from = ldate/ngay_sua hoặc today)
-  - Thay đổi → close bản cũ + INSERT bản mới
-  - Bị xóa  → close bản cũ
+  - Thay đổi → close bản cũ (valid_to = valid_from bản mới) + INSERT bản mới
+  - Bị xóa  → close bản cũ (valid_to = today)
   - Không đổi → bỏ qua
 
 Usage:
@@ -61,13 +61,9 @@ DIM_CONFIGS = [
         'source_sql': "SELECT * FROM DMNHANVIENKD_VIEW WHERE ma_nvkd IS NOT NULL AND ma_nvkd != ''",
         'history_table': 'dim_nhanvien_history',
         'key_col': 'ma_nvkd',
-        # Cột dùng để tính hash (detect thay đổi) — chỉ cần các cột nghiệp vụ quan trọng
         'hash_cols': ['ten_nvkd', 'ma_ql', 'ma_ql1', 'ksd', 'stt_nhom', 'cap'],
-        # Cột chứa ngày sửa cuối → dùng làm valid_from
         'date_col': 'ldate',
-        # Fallback: ngày tạo nếu chưa sửa
         'fallback_date_col': 'cdate',
-        # Tất cả cột insert (khớp với bảng history, KHÔNG bao gồm SCD fields)
         'insert_cols': ['ma_cty', 'ma_nvkd', 'ten_nvkd', 'ksd', 'cdate', 'cuser',
                         'ldate', 'luser', 'ma_ql', 'stt_nhom', 'cap', 'ma_ql1'],
     },
@@ -110,10 +106,12 @@ def _sync_one_dim(conn, cfg):
             continue
         hash_vals = [rd.get(c) for c in cfg['hash_cols']]
         rd['_hash'] = _hash_row(hash_vals)
-        # valid_from = ngày sửa cuối → ngày tạo → 1990-01-01
         date_col = cfg['date_col']
         fallback_col = cfg['fallback_date_col']
         vf = _to_date(rd.get(date_col)) or _to_date(rd.get(fallback_col)) or date(1990, 1, 1)
+        # Nếu ngày sửa = hôm nay → ghi datetime.now() để có giờ phút giây
+        if vf == today:
+            vf = datetime.now()
         rd['_valid_from'] = vf
         src_map[key] = rd
 
@@ -137,13 +135,22 @@ def _sync_one_dim(conn, cfg):
         logger.info(f"  [{cfg['name']}] Không thay đổi ({len(src_map)} records)")
         return
 
-    # 4. Close deleted + changed
-    close_keys = del_keys | changed_keys
-    if close_keys:
-        for k in close_keys:
+    # 4a. Close deleted → valid_to = now (không có bản mới để lấy ngày)
+    if del_keys:
+        now = datetime.now()
+        for k in del_keys:
             cur.execute(
                 f'UPDATE {table} SET valid_to = ? WHERE {key_col} = ? AND valid_to IS NULL',
-                (today, k)
+                (now, k)
+            )
+
+    # 4b. Close changed → valid_to = valid_from của bản mới (ngay_sua / ldate)
+    if changed_keys:
+        for k in changed_keys:
+            new_valid_from = src_map[k]['_valid_from']
+            cur.execute(
+                f'UPDATE {table} SET valid_to = ? WHERE {key_col} = ? AND valid_to IS NULL',
+                (new_valid_from, k)
             )
 
     # 5. Insert new + changed
@@ -177,7 +184,6 @@ def sync_dim_history(sqlserver_config):
                 _sync_one_dim(conn, cfg)
             except Exception as e:
                 logger.error(f"  [{cfg['name']}] Lỗi: {e}")
-                # Rollback lỗi từng dim, không ảnh hưởng dim khác
                 try:
                     conn.rollback()
                 except:

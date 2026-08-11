@@ -45,10 +45,7 @@ VIEW_REGISTRY = [
      'sql': """SELECT DISTINCT ma_kh, ten_kh, ma_bp, ma_nvkd,
                       ma_plkh1, ten_plkh1, ma_plkh2, ten_plkh2, ma_plkh3, ten_plkh3
                FROM DMKHACHHANG_VIEW
-               WHERE ma_bp IS NOT NULL AND ma_bp != 'TN' AND ma_kh != 'TTT'
-               UNION ALL
-               SELECT 'TPBVSK','TPBVSK','TN','TPBVSK',
-                      NULL,NULL,NULL,NULL,NULL,NULL"""},
+               WHERE ma_bp IS NOT NULL AND ma_bp != 'TN' AND ma_kh != 'TTT'"""},
 
     {'name': 'DMSANPHAM', 'layer': 'dim',
      'sql': 'SELECT * FROM DMSANPHAM_VIEW', 'optional': True},
@@ -63,9 +60,32 @@ VIEW_REGISTRY = [
                FROM BKHDBANHANG_VIEW WHERE ma_bp != 'TN'"""},
 
     {'name': 'PTHUBAOCO', 'layer': 'fact',
-     'sql': """SELECT ngay_ct, ma_ct, ma_kh_ct, ten_kh, dien_giai,
-                      ma_bp, ma_nvkd, tk_co, tk_no, ps_co
-               FROM PTHUBAOCO_VIEW WHERE tk_co = '131'"""},
+     'sql': """SELECT
+    v.ngay_ct, v.ma_ct, v.ma_kh_ct, v.ten_kh, v.dien_giai,
+    v.ma_bp,
+    COALESCE(
+        kh.ma_nvkd,
+        kh_fb.ma_nvkd,
+        NULLIF(v.ma_nvkd, '')
+    ) AS ma_nvkd,
+    v.tk_co, v.tk_no, v.ps_co
+FROM PTHUBAOCO_VIEW v
+OUTER APPLY (
+    SELECT TOP 1 h.ma_nvkd
+    FROM VietAnhBI.dbo.dim_khachhang_history h
+    WHERE h.ma_kh      = v.ma_kh_ct
+      AND h.valid_from <= CAST(v.ngay_ct AS DATE)
+      AND (h.valid_to IS NULL OR h.valid_to >= CAST(v.ngay_ct AS DATE))
+    ORDER BY h.valid_from DESC
+) kh
+OUTER APPLY (
+    SELECT TOP 1 h.ma_nvkd
+    FROM VietAnhBI.dbo.dim_khachhang_history h
+    WHERE h.ma_kh      = v.ma_kh_ct
+      AND h.valid_from  > CAST(v.ngay_ct AS DATE)
+    ORDER BY h.valid_from ASC
+) kh_fb
+WHERE v.tk_co = '131'"""},
 
     {'name': 'BANGKECHUNGTU', 'layer': 'fact',
      'sql': """SELECT ma_kh, tk, ma_ct, ngay_ct, ps_no, ps_co

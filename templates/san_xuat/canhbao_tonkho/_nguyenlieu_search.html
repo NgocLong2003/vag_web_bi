@@ -1,0 +1,420 @@
+<!-- _nguyenlieu_search.html — Bộ lọc 3 trong 1: Nhóm → Loại → Vật tư
+     
+     Cross-filter 1 chiều: cha lọc con (Nhóm → Loại → VT).
+     Auto-prune: bỏ chọn cha → xóa con không còn hợp lệ.
+     
+     HTML cần có sẵn trong filter-bar:
+       <div class="f3-wrap" id="f3Wrap">
+         <div class="f3-trigger" id="f3Trigger" onclick="f3Toggle()">
+           <svg class="f3-ico" .../>
+           <span class="f3-trigger-text" id="f3Label">Lọc vật tư...</span>
+           <span class="f3-badge" id="f3Badge"></span>
+           <button class="f3-clear" id="f3Clear" onclick="event.stopPropagation();f3ClearAll()">✕</button>
+         </div>
+       </div>
+     
+     API:
+       f3SetData(rawData)      — mỗi row cần: ma_vt, ten_vt, _nhom, _loai
+       f3ClearAll()            — xóa tất cả
+       selectedNhom            — Set
+       selectedLoai            — Set
+       selectedVTs             — Set
+     
+     Callback trang cần define:
+       onFilterApplied()
+-->
+
+<style>
+/* ═══ Trigger ═══ */
+.f3-wrap{position:relative;flex:1;max-width:520px;min-width:240px}
+.f3-trigger{width:100%;height:34px;padding:0 12px 0 34px;border:1.5px solid var(--g2);border-radius:7px;font-family:var(--sans);font-size:13px;color:var(--g6);background:var(--white);outline:none;cursor:pointer;display:flex;align-items:center;gap:8px;transition:.15s;position:relative}
+.f3-trigger:hover,.f3-trigger.open{border-color:var(--blue)}
+.f3-trigger svg.f3-ico{position:absolute;left:10px;width:14px;height:14px;stroke:var(--g4);fill:none}
+.f3-trigger.open svg.f3-ico{stroke:var(--blue)}
+.f3-trigger-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.f3-badge{height:18px;min-width:18px;padding:0 5px;background:var(--blue);color:#fff;border-radius:9px;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;flex-shrink:0}
+.f3-badge.show{display:flex}
+.f3-clear{width:18px;height:18px;border:none;background:var(--g1);color:var(--g4);font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
+.f3-clear.show{display:flex}
+.f3-clear:hover{background:var(--red-lt);color:var(--red)}
+
+/* ═══ Panel ═══ */
+.f3-panel{position:absolute;top:100%;left:0;margin-top:6px;background:var(--white);border:1px solid var(--g2);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:100;display:none;flex-direction:column;overflow:hidden;width:880px}
+.f3-panel.open{display:flex}
+
+.f3-cols{display:flex;flex:1;min-height:0}
+
+.f3-col{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--g1);min-width:0}
+.f3-col:last-child{border-right:none;flex:2}
+.f3-col-head{padding:10px 10px 8px;border-bottom:1px solid var(--g1);flex-shrink:0}
+.f3-col-title{font-size:10px;font-weight:800;color:var(--g4);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.f3-col-count{font-weight:700;color:var(--blue);font-size:10px;text-transform:none;letter-spacing:0}
+.f3-col-clear{margin-left:auto;height:18px;padding:0 6px;border:1px solid transparent;border-radius:4px;background:transparent;font-family:var(--sans);font-size:9px;font-weight:700;color:var(--g4);cursor:pointer;display:none;align-items:center;gap:2px}
+.f3-col-clear.show{display:flex}
+.f3-col-clear:hover{background:var(--red-lt);color:var(--red);border-color:var(--red-lt)}
+.f3-col-search{position:relative}
+.f3-col-search svg{position:absolute;left:7px;top:50%;transform:translateY(-50%);width:11px;height:11px;stroke:var(--g4);fill:none}
+.f3-col-search input{width:100%;height:28px;padding:0 8px 0 24px;border:1px solid var(--g2);border-radius:5px;font-family:var(--sans);font-size:11px;outline:none;background:var(--g0)}
+.f3-col-search input:focus{border-color:var(--blue);background:var(--white)}
+
+.f3-col-list{flex:1;overflow-y:auto;min-height:0;max-height:300px;padding:2px 0}
+.f3-col-list::-webkit-scrollbar{width:4px}
+.f3-col-list::-webkit-scrollbar-thumb{background:var(--g2);border-radius:2px}
+
+.f3i{display:flex;align-items:center;height:30px;padding:0 10px;cursor:pointer;gap:7px;user-select:none;content-visibility:auto;contain-intrinsic-size:0 30px}
+.f3i:hover{background:var(--g0)}
+.f3i.f3-hl{background:var(--blue-lt)}
+.f3i-cb{width:13px;height:13px;flex-shrink:0;border:1.5px solid var(--g3);border-radius:3px;background:var(--white);position:relative;display:flex;align-items:center;justify-content:center;transition:.08s}
+.f3i.checked .f3i-cb{background:var(--blue);border-color:var(--blue)}
+.f3i.checked .f3i-cb::after{content:'';position:absolute;width:7px;height:4px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.f3i-label{flex:1;font-size:11.5px;font-weight:500;color:var(--g6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f3i-label mark{background:#fef08a;padding:0 1px;border-radius:2px;font-style:normal;color:var(--g7)}
+.f3i-sub{font-size:10px;color:var(--g4);flex-shrink:0;font-weight:600}
+/* Cột VT: cho phép xuống dòng, không cắt chữ */
+.f3-col:last-child .f3i{height:auto;min-height:30px;padding-top:5px;padding-bottom:5px}
+.f3-col:last-child .f3i-label{white-space:normal;word-break:break-word;line-height:1.4}
+.f3-empty{padding:16px;text-align:center;color:var(--g3);font-size:11px}
+
+.f3-foot{padding:8px 12px;border-top:1px solid var(--g1);display:flex;align-items:center;gap:8px;flex-shrink:0;background:var(--white)}
+.f3-foot-info{flex:1;font-size:10px;color:var(--g4);font-weight:600}
+.f3-foot-info b{color:var(--g6)}
+.f3-foot-btn{height:26px;padding:0 12px;border-radius:5px;border:1px solid var(--g2);background:var(--white);font-family:var(--sans);font-size:11px;font-weight:700;color:var(--g5);cursor:pointer}
+.f3-foot-btn:hover{background:var(--g0)}
+.f3-foot-btn.apply{background:var(--blue);color:#fff;border-color:var(--blue)}
+.f3-foot-btn.apply:hover{opacity:.9}
+
+@media(max-width:768px){
+  .f3-panel{width:100%;left:0;right:0;position:fixed;top:auto;bottom:0;margin-top:0;border-radius:16px 16px 0 0;max-height:80vh}
+  .f3-cols{flex-direction:column}
+  .f3-col{border-right:none;border-bottom:1px solid var(--g1)}
+  .f3-col:last-child{border-bottom:none}
+  .f3-col-list{max-height:140px}
+}
+</style>
+
+<!-- Panel HTML -->
+<div class="f3-panel" id="f3Panel">
+  <div class="f3-cols">
+    <div class="f3-col" data-col="nhom">
+      <div class="f3-col-head">
+        <div class="f3-col-title">Nhóm <span class="f3-col-count" id="f3CountNhom"></span><button class="f3-col-clear" id="f3ClearNhom" type="button" onclick="_f3ClearCol('nhom')">✕ Bỏ chọn</button></div>
+        <div class="f3-col-search">
+          <svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+          <input type="text" id="f3QNhom" placeholder="Tìm nhóm..." oninput="_f3Render()">
+        </div>
+      </div>
+      <div class="f3-col-list" id="f3ListNhom"></div>
+    </div>
+    <div class="f3-col" data-col="loai">
+      <div class="f3-col-head">
+        <div class="f3-col-title">Loại <span class="f3-col-count" id="f3CountLoai"></span><button class="f3-col-clear" id="f3ClearLoai" type="button" onclick="_f3ClearCol('loai')">✕ Bỏ chọn</button></div>
+        <div class="f3-col-search">
+          <svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+          <input type="text" id="f3QLoai" placeholder="Tìm loại..." oninput="_f3Render()">
+        </div>
+      </div>
+      <div class="f3-col-list" id="f3ListLoai"></div>
+    </div>
+    <div class="f3-col" data-col="vt">
+      <div class="f3-col-head">
+        <div class="f3-col-title">Vật tư <span class="f3-col-count" id="f3CountVt"></span><button class="f3-col-clear" id="f3ClearVt" type="button" onclick="_f3ClearCol('vt')">✕ Bỏ chọn</button></div>
+        <div class="f3-col-search">
+          <svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+          <input type="text" id="f3QVt" placeholder="Tìm mã hoặc tên..." oninput="_f3Render()">
+        </div>
+      </div>
+      <div class="f3-col-list" id="f3ListVt"></div>
+    </div>
+  </div>
+  <div class="f3-foot">
+    <div class="f3-foot-info" id="f3FootInfo"></div>
+    <button class="f3-foot-btn" type="button" onclick="_f3Reset()">Bỏ chọn</button>
+    <button class="f3-foot-btn apply" type="button" onclick="_f3Apply()">Áp dụng</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ═══ State ═══ */
+var _f3Data=[];  // rawData reference
+window.selectedNhom=new Set();
+window.selectedLoai=new Set();
+window.selectedVTs=new Set();
+var _pN=new Set(),_pL=new Set(),_pV=new Set(); // pending
+var _f3Open=false;
+
+function _esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function _hl(t,q){
+  if(!q)return _esc(t);
+  var i=t.toLowerCase().indexOf(q);
+  if(i<0)return _esc(t);
+  return _esc(t.substring(0,i))+'<mark>'+_esc(t.substring(i,i+q.length))+'</mark>'+_esc(t.substring(i+q.length));
+}
+
+/* ═══ Public API ═══ */
+window.f3SetData=function(rawData){
+  _f3Data=rawData||[];
+  // Prune selections that no longer exist
+  var validN={},validL={},validV={};
+  _f3Data.forEach(function(r){validN[r._nhom]=1;validL[r._loai]=1;validV[r.ma_vt]=1});
+  selectedNhom.forEach(function(v){if(!validN[v])selectedNhom.delete(v)});
+  selectedLoai.forEach(function(v){if(!validL[v])selectedLoai.delete(v)});
+  selectedVTs.forEach(function(v){if(!validV[v])selectedVTs.delete(v)});
+  _f3UpdateBadge();
+};
+
+window.f3ClearAll=function(){
+  selectedNhom.clear();selectedLoai.clear();selectedVTs.clear();
+  _pN.clear();_pL.clear();_pV.clear();
+  _f3UpdateBadge();
+  if(typeof onFilterApplied==='function')onFilterApplied();
+};
+
+/* ═══ Cross-filter: cha → con ═══ */
+function _availNhom(){
+  var v={};_f3Data.forEach(function(r){v[r._nhom]=1});
+  return Object.keys(v).sort(function(a,b){return a.localeCompare(b,'vi')});
+}
+function _availLoai(){
+  var v={};
+  _f3Data.forEach(function(r){if(_pN.size&&!_pN.has(r._nhom))return;v[r._loai]=1});
+  return Object.keys(v).sort(function(a,b){return a.localeCompare(b,'vi')});
+}
+function _availVt(){
+  var out=[],seen={};
+  _f3Data.forEach(function(r){
+    if(_pN.size&&!_pN.has(r._nhom))return;
+    if(_pL.size&&!_pL.has(r._loai))return;
+    if(!seen[r.ma_vt]){seen[r.ma_vt]=1;out.push(r)}
+  });
+  return out;
+}
+
+/* ═══ Render ═══ */
+function _f3Render(){
+  _f3HlIdx=-1;
+  var qN=(document.getElementById('f3QNhom').value||'').toLowerCase().trim();
+  var qL=(document.getElementById('f3QLoai').value||'').toLowerCase().trim();
+  var qV=(document.getElementById('f3QVt').value||'').toLowerCase().trim();
+
+  // Auto-prune con khi cha thay đổi
+  var vL=new Set(_availLoai());
+  _pL.forEach(function(l){if(!vL.has(l))_pL.delete(l)});
+  var vV={};_availVt().forEach(function(r){vV[r.ma_vt]=1});
+  _pV.forEach(function(m){if(!vV[m])_pV.delete(m)});
+
+  // Nhóm
+  var nhoms=_availNhom();
+  var nhHtml='';
+  nhoms.forEach(function(n){
+    if(qN&&n.toLowerCase().indexOf(qN)<0)return;
+    nhHtml+='<div class="f3i'+(_pN.has(n)?' checked':'')+'" data-col="nhom" data-val="'+_esc(n)+'">'
+      +'<span class="f3i-cb"></span><span class="f3i-label">'+_hl(n,qN)+'</span></div>';
+  });
+  document.getElementById('f3ListNhom').innerHTML=nhHtml||'<div class="f3-empty">Không tìm thấy</div>';
+  document.getElementById('f3CountNhom').textContent=_pN.size?_pN.size+' chọn':'';
+  document.getElementById('f3ClearNhom').classList.toggle('show',_pN.size>0);
+
+  // Loại
+  var loais=_availLoai();
+  var loHtml='';
+  loais.forEach(function(l){
+    if(qL&&l.toLowerCase().indexOf(qL)<0)return;
+    loHtml+='<div class="f3i'+(_pL.has(l)?' checked':'')+'" data-col="loai" data-val="'+_esc(l)+'">'
+      +'<span class="f3i-cb"></span><span class="f3i-label">'+_hl(l,qL)+'</span></div>';
+  });
+  document.getElementById('f3ListLoai').innerHTML=loHtml||'<div class="f3-empty">Không tìm thấy</div>';
+  document.getElementById('f3CountLoai').textContent=_pL.size?_pL.size+' chọn':'';
+  document.getElementById('f3ClearLoai').classList.toggle('show',_pL.size>0);
+
+  // Vật tư
+  var vts=_availVt();
+  var vtHtml='';
+  vts.forEach(function(v){
+    if(qV&&v.ma_vt.toLowerCase().indexOf(qV)<0&&v.ten_vt.toLowerCase().indexOf(qV)<0)return;
+    vtHtml+='<div class="f3i'+(_pV.has(v.ma_vt)?' checked':'')+'" data-col="vt" data-val="'+_esc(v.ma_vt)+'">'
+      +'<span class="f3i-cb"></span><span class="f3i-label">'+_hl(v.ten_vt,qV)+'</span>'
+      +'<span class="f3i-sub">'+_hl(v.ma_vt,qV)+'</span></div>';
+  });
+  document.getElementById('f3ListVt').innerHTML=vtHtml||'<div class="f3-empty">Không tìm thấy</div>';
+  document.getElementById('f3CountVt').textContent=_pV.size?_pV.size+' chọn':'';
+  document.getElementById('f3ClearVt').classList.toggle('show',_pV.size>0);
+
+  // Footer
+  var total=_pN.size+_pL.size+_pV.size;
+  document.getElementById('f3FootInfo').innerHTML=total?'<b>'+total+'</b> bộ lọc đang chọn':'Không chọn = hiện tất cả';
+}
+window._f3Render=_f3Render;
+
+/* ═══ Toggle items ═══ */
+document.addEventListener('click',function(e){
+  var item=e.target.closest('.f3i');
+  if(!item)return;
+  var col=item.getAttribute('data-col');
+  var val=item.getAttribute('data-val');
+  var set=(col==='nhom')?_pN:(col==='loai')?_pL:_pV;
+  if(set.has(val)){set.delete(val);item.classList.remove('checked')}
+  else{set.add(val);item.classList.add('checked')}
+  _f3Render();
+});
+
+/* ═══ Open / Close ═══ */
+window.f3Toggle=function(){_f3Open?_f3Close():_f3OpenPanel()};
+
+function _f3OpenPanel(){
+  _f3Open=true;
+  _pN=new Set(selectedNhom);_pL=new Set(selectedLoai);_pV=new Set(selectedVTs);
+  document.getElementById('f3QNhom').value='';
+  document.getElementById('f3QLoai').value='';
+  document.getElementById('f3QVt').value='';
+  var panel=document.getElementById('f3Panel');
+  // Position
+  if(window.innerWidth<=768){
+    panel.style.cssText='';
+  }else{
+    var rc=document.getElementById('f3Trigger').getBoundingClientRect();
+    panel.style.cssText='left:'+Math.min(0,window.innerWidth-rc.left-890)+'px';
+  }
+  panel.classList.add('open');
+  document.getElementById('f3Trigger').classList.add('open');
+  _f3Render();
+  setTimeout(function(){document.getElementById('f3QNhom').focus()},50);
+}
+
+function _f3Close(){
+  _f3Open=false;
+  document.getElementById('f3Panel').classList.remove('open');
+  document.getElementById('f3Trigger').classList.remove('open');
+}
+
+function _f3Apply(){
+  selectedNhom=new Set(_pN);selectedLoai=new Set(_pL);selectedVTs=new Set(_pV);
+  _f3UpdateBadge();
+  _f3Close();
+  if(typeof onFilterApplied==='function')onFilterApplied();
+}
+window._f3Apply=_f3Apply;
+
+function _f3Reset(){
+  _pN.clear();_pL.clear();_pV.clear();
+  _f3Render();
+}
+window._f3Reset=_f3Reset;
+
+window._f3ClearCol=function(col){
+  if(col==='nhom')_pN.clear();
+  else if(col==='loai')_pL.clear();
+  else _pV.clear();
+  _f3Render();
+};
+
+function _f3UpdateBadge(){
+  var total=selectedNhom.size+selectedLoai.size+selectedVTs.size;
+  var badge=document.getElementById('f3Badge');
+  var label=document.getElementById('f3Label');
+  var clear=document.getElementById('f3Clear');
+  if(total){
+    badge.textContent=total;badge.classList.add('show');
+    clear.classList.add('show');
+    var parts=[];
+    if(selectedNhom.size)parts.push(selectedNhom.size+' nhóm');
+    if(selectedLoai.size)parts.push(selectedLoai.size+' loại');
+    if(selectedVTs.size)parts.push(selectedVTs.size+' VT');
+    label.textContent=parts.join(', ');
+  }else{
+    badge.classList.remove('show');clear.classList.remove('show');
+    label.textContent='Lọc vật tư...';
+  }
+}
+
+// Close on outside → auto apply
+document.addEventListener('mousedown',function(e){
+  if(_f3Open&&!e.target.closest('#f3Wrap')&&!e.target.closest('#f3Panel'))_f3Apply();
+});
+
+/* ═══ Keyboard navigation ═══ */
+var _f3ColListIds=['f3ListNhom','f3ListLoai','f3ListVt'];
+var _f3ColQIds=['f3QNhom','f3QLoai','f3QVt'];
+var _f3HlCol=0;
+var _f3HlIdx=-1; // -1 = đang ở search input, >=0 = đang highlight item
+
+function _f3ClearHl(){
+  document.querySelectorAll('.f3i.f3-hl').forEach(function(el){el.classList.remove('f3-hl')});
+  _f3HlIdx=-1;
+}
+
+function _f3SetHl(col,idx){
+  _f3ClearHl();
+  _f3HlCol=col;
+  var items=document.getElementById(_f3ColListIds[col]).querySelectorAll('.f3i');
+  if(idx<0||!items.length){_f3HlIdx=-1;return}
+  if(idx>=items.length)idx=items.length-1;
+  _f3HlIdx=idx;
+  items[idx].classList.add('f3-hl');
+  items[idx].scrollIntoView({block:'nearest'});
+}
+
+function _f3ActiveCol(){
+  var el=document.activeElement;
+  for(var i=0;i<_f3ColQIds.length;i++){if(el&&el.id===_f3ColQIds[i])return i}
+  return _f3HlCol;
+}
+
+document.addEventListener('keydown',function(e){
+  if(!_f3Open)return;
+  // Escape / Ctrl+F handled elsewhere
+  if(e.key==='Escape'||((e.ctrlKey||e.metaKey)&&e.key==='f'))return;
+
+  var col=_f3ActiveCol();
+  var items=document.getElementById(_f3ColListIds[col]).querySelectorAll('.f3i');
+
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    var next=(_f3HlIdx<0)?0:_f3HlIdx+1;
+    if(next>=items.length)next=items.length-1;
+    _f3SetHl(col,next);
+  }else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(_f3HlIdx<=0){
+      // Về search input
+      _f3ClearHl();
+      document.getElementById(_f3ColQIds[col]).focus();
+    }else{
+      _f3SetHl(col,_f3HlIdx-1);
+    }
+  }else if(e.key==='ArrowRight'&&_f3HlIdx>=0){
+    // Chỉ chuyển cột khi đang highlight item (không chặn typing)
+    e.preventDefault();
+    var nc=Math.min(col+1,2);
+    if(nc!==col){_f3ClearHl();_f3HlCol=nc;document.getElementById(_f3ColQIds[nc]).focus()}
+  }else if(e.key==='ArrowLeft'&&_f3HlIdx>=0){
+    e.preventDefault();
+    var pc=Math.max(col-1,0);
+    if(pc!==col){_f3ClearHl();_f3HlCol=pc;document.getElementById(_f3ColQIds[pc]).focus()}
+  }else if(e.key==='Enter'&&_f3HlIdx>=0&&items[_f3HlIdx]){
+    e.preventDefault();
+    var keepIdx=_f3HlIdx,keepCol=_f3HlCol;
+    var listEl=document.getElementById(_f3ColListIds[keepCol]);
+    var keepScroll=listEl?listEl.scrollTop:0;
+    items[_f3HlIdx].click();
+    // Render đã chạy sync → restore highlight + scroll
+    setTimeout(function(){
+      if(listEl)listEl.scrollTop=keepScroll;
+      _f3SetHl(keepCol,keepIdx);
+    },10);
+  }
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&_f3Open)_f3Close();
+  if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();_f3OpenPanel()}
+});
+// Panel nằm ngoài f3Wrap do include → di chuyển vào để position:absolute hoạt động
+document.addEventListener('DOMContentLoaded',function(){
+  var wrap=document.getElementById('f3Wrap');
+  var panel=document.getElementById('f3Panel');
+  if(wrap&&panel&&!wrap.contains(panel))wrap.appendChild(panel);
+});
+})();
+</script>

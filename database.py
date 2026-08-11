@@ -137,6 +137,16 @@ def init_db():
         try:
             conn = _get_sqlserver_conn()
             cur = conn.cursor()
+            cur.execute('''
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'user_report_state')
+                CREATE TABLE [dbo].[user_report_state] (
+                    [user_id]      INT            NOT NULL,
+                    [report_slug]  NVARCHAR(100)  NOT NULL,
+                    [state_json]   NVARCHAR(MAX)  NOT NULL DEFAULT '{}',
+                    [updated_at]   DATETIME       NOT NULL DEFAULT GETDATE(),
+                    CONSTRAINT PK_user_report_state PRIMARY KEY (user_id, report_slug)
+                )
+            ''')
             cur.execute('SELECT COUNT(*) FROM users')
             if cur.fetchone()[0] == 0:
                 cur.execute(
@@ -190,6 +200,12 @@ def init_db():
             ngay_kt_lan_ki TEXT NOT NULL,
             ngay_du_no_dau_ki TEXT NOT NULL,
             ngay_du_no_cuoi_ki TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS user_report_state (
+            user_id INTEGER NOT NULL,
+            report_slug TEXT NOT NULL,
+            state_json TEXT NOT NULL DEFAULT '{}',
+            updated_at TEXT DEFAULT (datetime('now','localtime')),
+            PRIMARY KEY (user_id, report_slug));
     ''')
     for col in ['password_plain', 'khoi', 'bo_phan', 'chuc_vu', 'ma_nvkd_list', 'email', 'ma_bp']:
         try: db.execute(f'ALTER TABLE users ADD COLUMN {col} TEXT DEFAULT ""')

@@ -1,85 +1,253 @@
-<!-- _kh_search.html — Shared KH Search component
+<!-- _kh_search.html — Shared KH Picker component (multi-select panel)
+     
+     Pattern giống _nv_picker.html: trigger button + popover panel + checkbox list
      
      TRƯỚC KHI INCLUDE, trang cần define:
-       - khMap, userBpList, selectedBP   (data/state)
-       - esc, isMobile                   (từ _report_utils.js)
+       - khMap, khNames, userBpList, selectedBP   (data/state)
+       - esc, isMobile, isLandscapePhone          (từ _report_utils.js)
      
      TRANG CẦN DEFINE callbacks:
-       function onKHSelected(ma_kh, ten_kh)  → gọi khi user chọn KH
+       function onKHSelected(ma_kh, ten_kh)  → gọi khi user áp dụng chọn KH
        function onKHCleared()                → gọi khi user xóa KH
      
      SAU KHI INCLUDE, trang có:
-       selectedKH    — {ma_kh, ten_kh} hoặc null
-       onKHInput(v), selectKH(mk, name), clearKH()
+       selectedKH    — {ma_kh, ten_kh} hoặc null (1 KH) — giữ compat với code cũ
      
      HTML cần có sẵn trong topbar (trang tự viết):
-       #kh-wrap, #kh-q, #kh-clear, #kh-suggest, #kh-chip-area
+       #kh-wrap (chứa trigger button)
+       #kh-chip-area (hiện chip KH đã chọn)
 -->
 
-<!-- KH SEARCH CSS -->
+<!-- KH PICKER CSS -->
 <style>
-.kh-search-wrap{position:relative;display:flex;align-items:center;background:var(--g0);border:1px solid var(--g2);border-radius:6px;height:32px;padding:0 8px 0 28px}
-.kh-search-wrap:focus-within{border-color:var(--emr-md);background:var(--white)}
-.kh-search-wrap svg{position:absolute;left:9px;width:13px;height:13px;stroke:var(--g4);fill:none;pointer-events:none}
-#kh-q{width:140px;border:none;background:transparent;font-family:var(--sans);font-size:13px;outline:none}
-.kh-clear{border:none;background:none;color:var(--g3);cursor:pointer;font-size:12px;padding:0 0 0 4px}.kh-clear:hover{color:var(--red)}
-.kh-suggest{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--white);border:1px solid var(--g2);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);z-index:80;max-height:200px;overflow-y:auto;display:none}
-.kh-suggest.show{display:block}
-.kh-suggest-item{padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--g1);display:flex;justify-content:space-between;align-items:center}
-.kh-suggest-item:last-child{border:none}.kh-suggest-item:hover{background:var(--g0)}
-.kh-suggest-item .kh-name{font-weight:600;color:var(--g6)}
-.kh-suggest-item .kh-code{font-family:var(--mono);font-size:10px;color:var(--g4)}
-.kh-selected-chip,.kh-chip{display:flex;align-items:center;gap:6px;height:26px;padding:0 8px 0 10px;background:var(--emr-lt);border:1px solid var(--emr-md);border-radius:13px;font-size:11px;font-weight:600;color:var(--emr);white-space:nowrap}
-.kh-selected-chip .kh-chip-x,.kh-chip .kh-x{cursor:pointer;font-size:14px;opacity:.6}
-.kh-selected-chip .kh-chip-x:hover,.kh-chip .kh-x:hover{opacity:1}
-.kh-suggest-fixed{position:fixed!important;top:auto!important;bottom:60px;left:8px;right:8px;max-height:40vh;border-radius:12px;box-shadow:0 -4px 24px rgba(0,0,0,.15)}
+.kh-search-wrap{position:relative;display:flex;align-items:center}
+.kh-picker-trigger{height:32px;padding:0 10px 0 30px;min-width:100px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:13px;color:var(--g7);outline:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;position:relative}
+.kh-picker-trigger:hover,.kh-picker-trigger.open{border-color:var(--emr-md,#0a7c50);background:var(--white)}
+.kh-picker-trigger svg.ico-kh{position:absolute;left:9px;width:13px;height:13px;stroke:var(--g4);fill:none;pointer-events:none}
+.kh-picker-badge{display:inline-flex;align-items:center;justify-content:center;height:18px;min-width:18px;padding:0 5px;background:var(--emr,#0a7c50);color:#fff;border-radius:9px;font-size:10px;font-weight:700;margin-left:auto}
+.kh-picker-badge.all{background:var(--g3)}
+.kh-picker-panel{position:fixed;z-index:9990;background:var(--white);border:1px solid var(--g2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.14);width:360px;display:none;flex-direction:column;overflow:hidden}
+.kh-picker-panel.open{display:flex}
+.kh-picker-head{padding:10px 12px 8px;border-bottom:1px solid var(--g1);display:flex;flex-direction:column;gap:7px}
+.kh-picker-search-row{position:relative;display:flex;align-items:center}
+.kh-picker-search-row svg{position:absolute;left:8px;width:12px;height:12px;stroke:var(--g4);fill:none;pointer-events:none}
+.kh-picker-search-row input{width:100%;height:30px;padding:0 8px 0 27px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-family:var(--sans);font-size:12px;outline:none}
+.kh-picker-search-row input:focus{border-color:var(--emr-md,#0a7c50)}
+.kh-picker-actions{display:flex;gap:6px}
+.kh-picker-act-btn{flex:1;height:26px;border-radius:5px;border:1px solid var(--g2);background:var(--g0);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--g5);cursor:pointer}
+.kh-picker-act-btn:hover{background:var(--emr-lt,#eafaf4);color:var(--emr,#0a7c50)}
+.kh-picker-list{overflow-y:auto;max-height:400px;padding:4px 0}
+.khi{display:flex;align-items:center;height:34px;padding:0 12px;cursor:pointer;transition:background .08s;user-select:none}
+.khi:hover{background:var(--g0)}
+.khi-cb{width:15px;height:15px;flex-shrink:0;margin-right:8px;border:1.5px solid var(--g3);border-radius:3px;background:var(--white);position:relative;display:flex;align-items:center;justify-content:center}
+.khi.checked .khi-cb{background:var(--emr,#0a7c50);border-color:var(--emr,#0a7c50)}
+.khi.checked .khi-cb::after{content:'';position:absolute;width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.khi-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12px;white-space:nowrap;font-weight:500;color:var(--g6)}
+.khi-name em{background:#fef9c3;font-style:normal;border-radius:2px}
+.khi-code{margin-left:6px;font-family:var(--mono);font-size:10px;color:var(--g3);flex-shrink:0}
+.kh-picker-foot{border-top:1px solid var(--g1);padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
+.kh-picker-foot-info{font-size:11px;color:var(--g4)}
+.kh-picker-foot-btns{display:flex;gap:6px}
+.kh-picker-apply{height:28px;padding:0 14px;background:var(--emr,#0a7c50);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+.kh-picker-apply:hover{opacity:.9}
+.kh-picker-close-btn{height:28px;padding:0 12px;background:var(--g0);border:1px solid var(--g2);border-radius:6px;font-size:12px;font-weight:600;color:var(--g5);cursor:pointer}
+@media(max-width:768px){
+  .kh-picker-panel{width:100%!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;border-radius:16px 16px 0 0;max-height:80vh}
+  .kh-picker-list{max-height:55vh}.khi{height:40px}
+}
+@media(orientation:landscape) and (max-height:500px) and (hover:none){
+  .kh-picker-panel{width:360px!important;left:0!important;right:auto!important;top:0!important;bottom:0!important;border-radius:0 10px 10px 0;max-height:100vh!important}
+  .kh-picker-list{max-height:calc(100vh - 120px)}
+}
 </style>
 
-<!-- KH SEARCH JS -->
-<script>
-var selectedKH=null;
+<!-- KH PICKER PANEL (body-level) -->
+<div class="kh-picker-panel" id="kh-picker-panel">
+  <div class="kh-picker-head">
+    <div class="kh-picker-search-row">
+      <svg viewBox="0 0 16 16" stroke-width="1.8"><circle cx="6.5" cy="6.5" r="4"/><line x1="10" y1="10" x2="14" y2="14"/></svg>
+      <input type="text" id="kh-picker-q" placeholder="Tìm khách hàng..." oninput="renderKHPickerList()"/>
+    </div>
+    <div class="kh-picker-actions">
+      <button class="kh-picker-act-btn" onclick="khPickerSelectAll()">Chọn tất cả</button>
+      <button class="kh-picker-act-btn" onclick="khPickerClearAll()">Bỏ chọn</button>
+    </div>
+  </div>
+  <div class="kh-picker-list" id="kh-picker-list"></div>
+  <div class="kh-picker-foot">
+    <span class="kh-picker-foot-info" id="kh-picker-info">0 KH</span>
+    <div class="kh-picker-foot-btns">
+      <button class="kh-picker-close-btn" onclick="closeKHPicker()">Đóng</button>
+      <button class="kh-picker-apply" onclick="applyKHPicker()">Áp dụng</button>
+    </div>
+  </div>
+</div>
 
-function onKHInput(v){
-    v=v.trim();
-    if(v.length<2){document.getElementById('kh-suggest').classList.remove('show');return}
-    var q=v.toLowerCase();
-    var matches=Object.entries(khMap).filter(function(e){
-        var mk=e[0],info=e[1];
-        if(selectedBP&&info.ma_bp!==selectedBP)return false;
-        if(userBpList.length&&!userBpList.includes(info.ma_bp))return false;
-        return(info.ten_kh||'').toLowerCase().includes(q)||mk.toLowerCase().includes(q);
-    }).slice(0,8);
-    var sg=document.getElementById('kh-suggest');
-    if(!matches.length){sg.classList.remove('show');return}
-    sg.innerHTML=matches.map(function(e){
-        var mk=e[0],info=e[1];
-        return'<div class="kh-suggest-item" onclick="selectKH(\''+esc(mk)+'\',\''+esc(info.ten_kh||mk)+'\')">'
-            +'<span class="kh-name">'+esc(info.ten_kh||mk)+'</span>'
-            +'<span class="kh-code">'+esc(mk)+'</span></div>';
-    }).join('');
-    if(typeof isMobile==='function'&&isMobile()){sg.classList.add('kh-suggest-fixed')}else{sg.classList.remove('kh-suggest-fixed')}
-    sg.classList.add('show');
+<!-- KH PICKER JS -->
+<script>
+var selectedKH=null; // compat: null=tất cả, {ma_kh,ten_kh}=1+ KH (ma_kh comma-separated nếu multi)
+var _khPickerOpen=false;
+var _khPending=new Set(); // set of ma_kh đang chọn trong picker
+
+function _getFilteredKH(){
+    // Trả về array [{ma_kh, ten_kh, ma_bp}] — respect BP filter
+    var list=[];
+    Object.keys(khMap).forEach(function(mk){
+        var info=khMap[mk];
+        if(typeof selectedBP==='string'&&selectedBP&&info.ma_bp!==selectedBP)return;
+        if(typeof userBpList!=='undefined'&&userBpList.length&&!userBpList.includes(info.ma_bp))return;
+        list.push({ma_kh:mk,ten_kh:info.ten_kh||mk,ma_bp:info.ma_bp||''});
+    });
+    return list;
 }
 
-function selectKH(mk,name){
-    selectedKH={ma_kh:mk,ten_kh:name};
-    document.getElementById('kh-q').value='';
-    document.getElementById('kh-suggest').classList.remove('show');
-    var clearBtn=document.getElementById('kh-clear');if(clearBtn)clearBtn.style.display='none';
-    document.getElementById('kh-chip-area').innerHTML=
-        '<span class="kh-selected-chip">'+esc(name)+' <span class="kh-chip-x" onclick="clearKH()">✕</span></span>';
-    if(typeof onKHSelected==='function')onKHSelected(mk,name);
+function updateKHPickerBadge(){
+    var b=document.getElementById('kh-picker-badge');
+    var l=document.getElementById('kh-picker-label');
+    if(!b||!l)return;
+    if(selectedKH===null){
+        b.textContent='Tất cả';b.className='kh-picker-badge all';l.textContent='KH';
+    }else{
+        var count=selectedKH.ma_kh.split(',').length;
+        b.textContent=count;b.className='kh-picker-badge';
+        l.textContent=count===1?selectedKH.ten_kh:count+' KH';
+    }
+}
+
+function renderKHPickerList(){
+    var q=(document.getElementById('kh-picker-q')?document.getElementById('kh-picker-q').value:'').toLowerCase().trim();
+    var list=_getFilteredKH();
+    // Filter by search
+    if(q){
+        list=list.filter(function(k){
+            return k.ten_kh.toLowerCase().indexOf(q)>=0||k.ma_kh.toLowerCase().indexOf(q)>=0;
+        });
+    }
+    // Sort: checked first, then alphabetical
+    list.sort(function(a,b){
+        var ca=_khPending.has(a.ma_kh)?0:1,cb=_khPending.has(b.ma_kh)?0:1;
+        if(ca!==cb)return ca-cb;
+        return a.ten_kh.localeCompare(b.ten_kh);
+    });
+    var html='';
+    function hl(t){
+        if(!q)return esc(t);var i=t.toLowerCase().indexOf(q);if(i<0)return esc(t);
+        return esc(t.substring(0,i))+'<em>'+esc(t.substring(i,i+q.length))+'</em>'+esc(t.substring(i+q.length));
+    }
+    list.forEach(function(k){
+        var checked=_khPending.has(k.ma_kh);
+        var _mk=k.ma_kh.replace(/'/g,"\\'");
+        html+='<div class="khi'+(checked?' checked':'')+'" onclick="khPickerToggle(\''+_mk+'\')">'
+            +'<span class="khi-cb"></span>'
+            +'<span class="khi-name">'+hl(k.ten_kh)+'</span>'
+            +'<span class="khi-code">'+esc(k.ma_kh)+'</span>'
+            +'</div>';
+    });
+    document.getElementById('kh-picker-list').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--g4);font-size:12px">Không tìm thấy</div>';
+    document.getElementById('kh-picker-info').textContent=_khPending.size+' / '+_getFilteredKH().length+' KH';
+}
+
+function khPickerToggle(mk){
+    if(_khPending.has(mk))_khPending.delete(mk);else _khPending.add(mk);
+    renderKHPickerList();
+}
+function khPickerSelectAll(){
+    _getFilteredKH().forEach(function(k){_khPending.add(k.ma_kh)});
+    renderKHPickerList();
+}
+function khPickerClearAll(){
+    _khPending=new Set();
+    renderKHPickerList();
+}
+
+function toggleKHPicker(){_khPickerOpen?closeKHPicker():openKHPicker()}
+
+function openKHPicker(){
+    _khPickerOpen=true;
+    // Init pending from current selection — split comma-separated ma_kh
+    _khPending=new Set();
+    if(selectedKH){
+        selectedKH.ma_kh.split(',').forEach(function(mk){
+            if(mk)_khPending.add(mk);
+        });
+    }
+    var p=document.getElementById('kh-picker-panel');
+    var tr=document.getElementById('kh-picker-trigger');
+    if(typeof isLandscapePhone==='function'&&isLandscapePhone()){
+        p.style.position='fixed';p.style.top='0';p.style.left='0';p.style.right='auto';p.style.bottom='0';
+        p.style.width='360px';p.style.borderRadius='0 10px 10px 0';p.style.maxHeight='100vh';
+    }else if(typeof isMobile==='function'&&isMobile()){
+        p.style.position='fixed';p.style.top='auto';p.style.left='0';p.style.right='0';p.style.bottom='0';
+        p.style.width='100%';p.style.borderRadius='16px 16px 0 0';p.style.maxHeight='80vh';
+    }else{
+        p.style.position='fixed';
+        var r=tr.getBoundingClientRect();
+        p.style.top=(r.bottom+6)+'px';
+        p.style.left=Math.min(r.left,window.innerWidth-370)+'px';
+        p.style.bottom='auto';p.style.right='auto';
+        p.style.width='360px';p.style.borderRadius='10px';p.style.maxHeight='';
+    }
+    p.classList.add('open');tr.classList.add('open');
+    document.getElementById('kh-picker-q').value='';
+    renderKHPickerList();
+}
+
+function closeKHPicker(){
+    _khPickerOpen=false;
+    document.getElementById('kh-picker-panel').classList.remove('open');
+    var tr=document.getElementById('kh-picker-trigger');if(tr)tr.classList.remove('open');
+}
+
+function applyKHPicker(){
+    var allKH=_getFilteredKH();
+    if(_khPending.size===0||_khPending.size===allKH.length){
+        // Tất cả hoặc không chọn → clear filter
+        if(selectedKH!==null){
+            selectedKH=null;
+            updateKHPickerBadge();
+            closeKHPicker();
+            if(typeof onKHCleared==='function')onKHCleared();
+        }else{
+            closeKHPicker();
+        }
+    }else if(_khPending.size===1){
+        // Chọn đúng 1 KH
+        var mk=[..._khPending][0];
+        var info=khMap[mk];
+        selectedKH={ma_kh:mk,ten_kh:info?info.ten_kh:mk};
+        updateKHPickerBadge();
+        closeKHPicker();
+        if(typeof onKHSelected==='function')onKHSelected(mk,selectedKH.ten_kh);
+    }else{
+        // Nhiều KH → join bằng comma
+        var mks=[..._khPending];
+        selectedKH={ma_kh:mks.join(','),ten_kh:mks.length+' KH'};
+        updateKHPickerBadge();
+        closeKHPicker();
+        if(typeof onKHSelected==='function')onKHSelected(selectedKH.ma_kh,selectedKH.ten_kh);
+    }
 }
 
 function clearKH(){
     selectedKH=null;
-    document.getElementById('kh-chip-area').innerHTML='';
-    document.getElementById('kh-q').value='';
+    _khPending=new Set();
+    updateKHPickerBadge();
     if(typeof onKHCleared==='function')onKHCleared();
 }
 
-document.addEventListener('click',function(e){
-    var wrap=document.getElementById('kh-wrap');
-    if(wrap&&!wrap.contains(e.target))document.getElementById('kh-suggest').classList.remove('show');
+// Compat: giữ onKHInput cho các trang chưa migrate
+function onKHInput(){}
+function selectKH(mk,name){
+    selectedKH={ma_kh:mk,ten_kh:name};
+    updateKHPickerBadge();
+    if(typeof onKHSelected==='function')onKHSelected(mk,name);
+}
+
+document.addEventListener('mousedown',function(e){
+    if(_khPickerOpen){
+        var wrap=document.getElementById('kh-wrap');
+        var panel=document.getElementById('kh-picker-panel');
+        if(wrap&&!wrap.contains(e.target)&&panel&&!panel.contains(e.target))closeKHPicker();
+    }
 });
 </script>
